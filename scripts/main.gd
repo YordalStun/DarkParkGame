@@ -170,6 +170,42 @@ func _apply_args() -> void:
 		world.camera.rotation_degrees = Vector3(float(c[4]), float(c[3]), 0)
 	if _args.has("nofog"):
 		world.environment.volumetric_fog_enabled = false
+	if _args.has("audiotest"):
+		_strip_visuals()  # audio-only run: make software rendering fast
+		_audio_stress_test()
 	if _args.has("zoom"):
 		await get_tree().create_timer(0.1).timeout
 		world.camera.zoom_to(world.props.crt_interact)
+
+
+## --audiotest: worst case for loudness checks. Full storm, heavy rain, and every
+## loud one-shot firing repeatedly (overhead lightning, light flickers, lamp sputter, clicks).
+func _audio_stress_test() -> void:
+	Weather.set_profile("storm", 0.0)
+	Weather.force(1.0, 1.0, 0.6, 0.0)
+	Weather.wetness = 1.0
+	var t := 0
+	while is_inside_tree():
+		await get_tree().create_timer(1.0).timeout
+		t += 1
+		if t % 7 == 2:
+			Weather.strike_lightning(1.0, 0.0)  # directly overhead: loudest thunder
+		if t % 9 == 4:
+			world.booth.force_flicker(1.0)
+		if t % 11 == 6:
+			world.lot.lamp._sputter = 2.0
+			world.lot.lamp.sputtered.emit()
+		if t % 3 == 0:
+			world.ambience.play_ui("mouse_click", -8.0)
+
+
+func _strip_visuals() -> void:
+	var env: Environment = world.environment
+	env.volumetric_fog_enabled = false
+	env.ssr_enabled = false
+	env.ssao_enabled = false
+	env.glow_enabled = false
+	for l in world.find_children("*", "Light3D", true, false):
+		(l as Light3D).shadow_enabled = false
+	for p in world.find_children("*", "GPUParticles3D", true, false):
+		(p as GPUParticles3D).visible = false
