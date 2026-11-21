@@ -23,7 +23,7 @@ The location and its ambience are done; missions and story come next.
   cork board, filing cabinet, a door.
 * **Desk:** green-phosphor CRT terminal (live time, weather, event log), keyboard,
   mouse, push-button phone, logbook, coffee with steam, flashlight.
-* **Radio:** a transistor radio playing a late-night station (seven CC0 tracks through a
+* **Radio:** a transistor radio playing a late-night station (five CC0 jazz and blues tracks through a
   small-speaker filter with FM hiss). The sound comes from the radio itself, so it pans
   as you look around. Click it to switch it off and on. The dial glows when it is on.
 * **Car park:** wet asphalt with puddles that reflect the lamp and ripple in the rain,

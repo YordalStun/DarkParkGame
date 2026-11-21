@@ -8,7 +8,7 @@ extends Node3D
 
 signal switched(on: bool)
 
-const TRACKS := ["radio_1", "radio_2", "radio_3", "radio_4", "radio_5", "radio_6", "radio_7"]
+const TRACKS := ["radio_1", "radio_2", "radio_3", "radio_4", "radio_5"]
 const MUSIC_DB := -2.0
 const HISS_DB := -14.0
 

@@ -26,13 +26,11 @@ Played through a "transistor radio" filter in `tools/build_audio.py`.
 
 | File | Track | Author |
 |---|---|---|
-| `radio_1.ogg` | [Midnight Drive](https://opengameart.org/content/midnight-drive) | congusbongus |
-| `radio_2.ogg` | [Jazz (Saxophone)](https://opengameart.org/content/jazz-saxaphone) | pro-sensory |
-| `radio_3.ogg` | [Dimly Lit](https://opengameart.org/content/dimly-lit) | iamoneabe |
-| `radio_4.ogg` | [Slow Stride](https://opengameart.org/content/slow-stride) | isaiah658 |
-| `radio_5.ogg` | [Jazz Slower](https://opengameart.org/content/jazz-slower) | pro-sensory |
-| `radio_6.ogg` | [Cool City](https://opengameart.org/content/cool-city) | mintodog |
-| `radio_7.ogg` | [Elevator Music](https://opengameart.org/content/elevator-music) | pro-sensory |
+| `radio_1.ogg` | [Bluesy Baritone](https://opengameart.org/content/bluesy-baritone) | pro-sensory |
+| `radio_2.ogg` | [Jazz Improvisation (Looped)](https://opengameart.org/content/jazz-improvisation-looped) | pro-sensory |
+| `radio_3.ogg` | [Jazz Slower](https://opengameart.org/content/jazz-slower) | pro-sensory |
+| `radio_4.ogg` | [Blue Intermission](https://opengameart.org/content/blue-intermission) | congusbongus |
+| `radio_5.ogg` | [Jazzy Blues](https://opengameart.org/content/jazzy-blues) | lushogames |
 
 ## Synthesised sounds (made for this game, see `tools/build_audio.py`)
 

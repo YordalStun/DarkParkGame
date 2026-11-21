@@ -192,13 +192,11 @@ def build_synth():
 # ---------------------------------------------------------------- radio
 # CC0 tracks from OpenGameArt (see CREDITS.md), output name -> source file.
 RADIO_TRACKS = [
-    ("radio_1.ogg", "midnight_drive.ogg"),
-    ("radio_2.ogg", "Jazz Saxaphone.mp3"),
-    ("radio_3.ogg", "dimlylit.mp3"),
-    ("radio_4.ogg", "Slow Stride Loop.ogg"),
-    ("radio_5.ogg", "Jazz Take 2.mp3"),
-    ("radio_6.ogg", "cool_city_bpm124.ogg"),
-    ("radio_7.ogg", "Elevator.mp3"),
+    ("radio_1.ogg", "bluesy_baritone.mp3"),
+    ("radio_2.ogg", "jazz_improv_looped_1.mp3"),
+    ("radio_3.ogg", "Jazz Take 2.mp3"),
+    ("radio_4.ogg", "blue_intermission.ogg"),
+    ("radio_5.ogg", "blues.mp3"),
 ]
 
 
