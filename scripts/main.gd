@@ -304,7 +304,7 @@ func _apply_args() -> void:
 		_strip_visuals()  # audio-only run: make software rendering fast
 	if _args.has("audiotest"):
 		_audio_stress_test()
-	if _args.has("zoom") or _args.has("desktop"):
+	if _args.has("zoom") or (_args.has("desktop") and not _args.has("seated")):
 		await get_tree().create_timer(0.1).timeout
 		world.camera.zoom_to(world.props.crt_interact)
 	if _args.has("desktop"):
