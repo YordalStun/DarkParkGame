@@ -154,7 +154,7 @@ func _process(delta: float) -> void:
 	_vol("rain_window", clampf(r * 1.2, 0.0, 1.0), -6.0)
 	_vol("rain_gutter", Weather.wetness * clampf(0.25 + r, 0.0, 1.0), -8.0)
 	_vol("wind", clampf(0.2 + ws * 0.9, 0.0, 1.3), -8.0)
-	(_loops["wind"] as AudioStreamPlayer).pitch_scale = 0.92 + ws * 0.15
+	(_loops["wind"] as AudioStreamPlayer).pitch_scale = clampf(0.92 + ws * 0.15, 0.5, 1.5)
 
 	var booth_k: float = world.booth.light.light_energy / world.booth.light_base_energy
 	_vol("fluorescent_hum", booth_k, -10.0)

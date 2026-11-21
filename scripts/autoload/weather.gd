@@ -114,6 +114,7 @@ func _process(delta: float) -> void:
 			elif randf() < d.heavy_chance:
 				set_heavy(true, randf_range(8.0, 18.0))
 			else:
+				_transition = 20.0
 				_apply_spell()  # small drift within the light range
 				_spell_timer = randf_range(45.0, 120.0)
 
@@ -124,11 +125,13 @@ func _process(delta: float) -> void:
 				strike_lightning(randf_range(0.5, 1.0))
 				_lightning_timer = randf_range(18.0, 55.0) / (0.5 + rain)
 
-	var k := 1.0 if _transition <= 0.0 else clampf(delta / _transition, 0.0, 1.0)
-	# Ease towards targets (exponential-ish over the transition time).
-	rain = lerpf(rain, _rain_target, k * 3.0)
-	fog = lerpf(fog, _fog_target, k * 3.0)
-	wind = lerpf(wind, _wind_target, k * 3.0)
+	# Exponential ease toward the targets, reaching ~95% in one transition time.
+	# (The weight is always between 0 and 1: a weight above 1 overshoots and
+	# grows every frame, which once sent rain/fog/wind to infinity a minute in.)
+	var k := 1.0 if _transition <= 0.0 else 1.0 - exp(-3.0 * delta / _transition)
+	rain = clampf(lerpf(rain, _rain_target, k), 0.0, 1.0)
+	fog = clampf(lerpf(fog, _fog_target, k), 0.0, 1.0)
+	wind = clampf(lerpf(wind, _wind_target, k), 0.0, 1.5)
 	wetness = clampf(maxf(wetness - delta * 0.002, rain * 2.0), 0.0, 1.0)
 
 	# Gusts: slow noise on top of the base wind.
