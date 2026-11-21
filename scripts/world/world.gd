@@ -9,6 +9,7 @@ const ParkingLot := preload("res://scripts/world/parking_lot.gd")
 const WeatherFX := preload("res://scripts/world/weather_fx.gd")
 const Ambience := preload("res://scripts/world/ambience.gd")
 const DeskCamera := preload("res://scripts/player/desk_camera.gd")
+const CCTV := preload("res://scripts/world/cctv.gd")
 
 var environment: Environment
 var camera: Camera3D
@@ -17,6 +18,7 @@ var props: Node3D
 var lot: Node3D
 var weather_fx: Node3D
 var ambience: Node
+var cctv: Node3D  ## the four CCTV cameras (cctv.gd)
 
 
 signal progress(fraction: float, text: String)
@@ -46,6 +48,12 @@ func build() -> void:
 	lot = ParkingLot.new()
 	lot.name = "ParkingLot"
 	add_child(lot)
+
+	await _step(0.46, "Wiring the cameras")
+	cctv = CCTV.new()
+	cctv.name = "CCTV"
+	cctv.world = self
+	add_child(cctv)
 
 	await _step(0.5, "Making it rain")
 	weather_fx = WeatherFX.new()

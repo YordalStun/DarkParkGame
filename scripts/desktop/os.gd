@@ -19,6 +19,7 @@ const TASKBAR_H := 28
 
 signal state_changed(running: bool)
 signal sound(name: String, db: float)
+signal away_changed(away: bool)  ## the player sat back from (true) or leaned in to (false) the screen
 
 const APPS := {
 	"notepad": {"title": "Untitled - Notepad", "icon": "notepad", "size": Vector2(380, 290)},
@@ -37,6 +38,7 @@ const APPS := {
 
 var state := "off"            ## off | boot | running | shutdown
 var world: Node               ## the game world (may be null in tests)
+var away := true             ## the player is not leaned in to the screen
 var vfs := VFS.new()
 var net_connected := false
 var windows: Array = []
@@ -854,6 +856,14 @@ func escape() -> bool:
 
 
 # ============================================================== world links
+## Called by the game when the player leans in to (false) or sits back from (true) the CRT.
+func set_away(a: bool) -> void:
+	if a == away:
+		return
+	away = a
+	away_changed.emit(a)
+
+
 func play(name: String, db := -10.0) -> void:
 	sound.emit(name, db)
 

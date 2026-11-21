@@ -6,3 +6,6 @@ export/
 build/
 *.tmp
 __pycache__/
+
+# Chromium browser engine (gdCEF): too big for git, fetched by tools/fetch_cef.sh
+cef_artifacts/

@@ -357,10 +357,41 @@ def window_lit():
     save(rgb, "office_windows.png")
 
 
+def store_interior():
+    # What you see through a 24h store's windows: bright aisles of shelves.
+    w, h = 128, 64
+    img = Image.new("RGB", (w, h), (235, 238, 225))
+    d = ImageDraw.Draw(img)
+    d.rectangle([0, 52, w, h], fill=(170, 168, 150))            # floor
+    d.rectangle([0, 0, w, 5], fill=(250, 252, 245))             # ceiling lights
+    for sx in range(4, w, 30):                                  # shelf units
+        d.rectangle([sx, 14, sx + 22, 52], fill=(120, 110, 95))
+        for sy in range(16, 50, 7):
+            for px in range(sx + 1, sx + 21, 3):
+                col = tuple(int(c) for c in rng.integers(60, 255, 3))
+                d.rectangle([px, sy, px + 2, sy + 4], fill=col)
+            d.line([sx, sy + 5, sx + 22, sy + 5], fill=(80, 75, 65))
+    d.rectangle([w - 26, 30, w - 2, 52], fill=(90, 90, 100))    # counter
+    d.rectangle([w - 22, 22, w - 14, 30], fill=(40, 40, 45))     # register
+    save(np.array(img, float), "store_interior.png")
+
+
+def store_sign():
+    w, h = 128, 32
+    img = Image.new("RGB", (w, h), (245, 240, 225))
+    d = ImageDraw.Draw(img)
+    d.rectangle([0, 0, w - 1, h - 1], outline=(30, 60, 140), width=2)
+    d.text((5, 6), "NITE STOP", fill=(200, 25, 25), font=font(15))
+    d.line([98, 4, 98, 27], fill=(30, 60, 140), width=1)
+    d.text((103, 3), "24", fill=(30, 60, 140), font=font(14))
+    d.text((104, 18), "HR", fill=(30, 60, 140), font=font(9))
+    save(np.array(img, float), "store_sign.png")
+
+
 if __name__ == "__main__":
     os.makedirs(OUT, exist_ok=True)
     for f in [asphalt, concrete, wood_desk, wall_panel, floor_lino, ceiling_tile,
               painted_metal, beige_plastic, bark, leaves, pine, grass, brick,
               chainlink, paint_worn, keyboard, paper_log, clock_face, calendar,
-              lot_sign, corkboard, window_lit]:
+              lot_sign, corkboard, window_lit, store_interior, store_sign]:
         f()

@@ -45,6 +45,7 @@ var _pre := false
 var _list_depth := 0
 var _list_stack: Array = []
 var _tables: Array = []
+var _flat := 0              ## depth of nested tables being flattened into plain lines
 var _in_title := false
 var _skip_tag := ""
 var _skip_depth := 0
@@ -167,6 +168,7 @@ func render(p_rtl: RichTextLabel, html: String, p_base: String, cancelled := Cal
 	_list_depth = 0
 	_list_stack.clear()
 	_tables.clear()
+	_flat = 0
 	_skip_tag = ""
 	truncated_note = ""
 	if html.length() > MAX_CHARS:
@@ -408,6 +410,8 @@ func _close_top() -> void:
 				_nl = 1
 		"table":
 			_tables.pop_back()
+		"table_flat":
+			_flat -= 1
 		"title":
 			_in_title = false
 		"pre":
@@ -438,6 +442,12 @@ func _top_is(tag: String) -> bool:
 
 
 func _on_close(name: String) -> void:
+	if _flat > 0:
+		if name == "table":
+			_close_to("table_flat")
+			return
+		if name in ["tr", "td", "th"]:
+			return
 	match name:
 		"p", "li", "dt", "dd":
 			_close_to(name, ["table", "td", "th", "ul", "ol", "dl"] if name != "li" else ["table", "td", "th"])
@@ -453,12 +463,24 @@ func _on_close(name: String) -> void:
 			_close_to(name, ["table"] if name != "table" else [])
 
 
+## Close anything still open (an unclosed tag inside a cell) back to the current
+## table or row, so the next cell is added to the table itself.
+func _unwind_to_table() -> void:
+	var has_table := false
+	for e in _stack:
+		if e.tag == "table":
+			has_table = true
+	while has_table and _stack.size() > 0 and not (_top_is("tr") or _top_is("table")):
+		_close_top()
+
+
 func _end_row() -> void:
 	if _tables.size() == 0:
 		return
 	var tb: Dictionary = _tables[_tables.size() - 1]
 	_close_to("td", ["table"])
 	_close_to("th", ["table"])
+	_unwind_to_table()
 	if tb.col > 0:
 		while tb.col < tb.cols:
 			rtl.push_cell()
@@ -513,6 +535,21 @@ func _align_of(attrs: Dictionary) -> int:
 
 # ----------------------------------------------------------------- open tags
 func _on_open(name: String, attrs: Dictionary, html: String, pos: int) -> void:
+	# A table inside a table cell is flattened into lines (as text browsers did):
+	# RichTextLabel cannot size nested tables, which squeezes them to one letter wide.
+	if name == "table" and (_tables.size() > 0 or _flat > 0):
+		_flat += 1
+		_lines(1)
+		_push("table_flat", 0, 1)
+		return
+	if _flat > 0 and name in ["tr", "td", "th"]:
+		if name == "tr":
+			_lines(1)
+		elif not _space:
+			rtl.add_text("  ")
+			_space = true
+		return
+
 	# implied closings
 	match name:
 		"p", "div", "ul", "ol", "dl", "table", "pre", "blockquote", "form", "hr", "center":
@@ -528,6 +565,12 @@ func _on_open(name: String, attrs: Dictionary, html: String, pos: int) -> void:
 		"tr":
 			_end_row()
 			_close_to("tr", ["table"])
+
+	# Between table cells (directly inside <table>/<tr>) only table structure is allowed.
+	# Real pages often put <font>, <form> or stray text there; browsers ignore it, and
+	# pushing it into the RichTextLabel would break the table.
+	if _tables.size() > 0 and (_top_is("table") or _top_is("tr")) and not name in ["tr", "td", "th", "table"]:
+		return
 
 	var align := _align_of(attrs)
 	match name:
@@ -716,6 +759,11 @@ func _on_open(name: String, attrs: Dictionary, html: String, pos: int) -> void:
 			var tb: Dictionary = _tables[_tables.size() - 1]
 			if tb.col >= tb.cols:
 				tb.col = 0
+			_unwind_to_table()
+			var w := str(attrs.get("width", ""))
+			var fixed_w := w.is_valid_int() and int(w) > 0
+			if fixed_w:
+				rtl.set_table_column_expand(tb.col, false)   # must be set at table level, before the cell
 			rtl.push_cell()
 			if tb.border > 0:
 				rtl.set_cell_border_color(W95.SHADOW)
@@ -728,10 +776,8 @@ func _on_open(name: String, attrs: Dictionary, html: String, pos: int) -> void:
 					rtl.set_cell_row_background_color(bc, bc)
 			var p: float = float(tb.pad) + 2.0
 			rtl.set_cell_padding(Rect2(p, p, p, p))
-			var w := str(attrs.get("width", ""))
-			if w.is_valid_int() and int(w) > 0:
+			if fixed_w:
 				rtl.set_cell_size_override(Vector2(int(w), 0), Vector2(int(w), 100000))
-				rtl.set_table_column_expand(tb.col, false)
 			var pops := 1
 			if name == "th":
 				rtl.push_bold()

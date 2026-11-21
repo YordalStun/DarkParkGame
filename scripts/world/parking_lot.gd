@@ -7,6 +7,7 @@ extends Node3D
 
 const StreetLamp := preload("res://scripts/world/street_lamp.gd")
 const BarrierGate := preload("res://scripts/world/barrier_gate.gd")
+const Store := preload("res://scripts/world/store.gd")
 
 const G := -0.15  # ground height
 
@@ -15,6 +16,7 @@ var gate: Node3D
 var trees: Array[Node3D] = []
 var cars: Array[Node3D] = []
 var payphone: Node3D
+var store: Node3D
 var _rng := RandomNumberGenerator.new()
 
 
@@ -25,6 +27,7 @@ func _ready() -> void:
 	_build_lamp()
 	_build_cars()
 	_build_gate_and_signs()
+	_build_store()
 	_build_fence()
 	_build_trees()
 	_build_distance()
@@ -168,6 +171,14 @@ func _build_gate_and_signs() -> void:
 	MK.cyl(self, 0.25, 0.22, 0.85, Vector3(2.75, G + 0.425, -1.9), MK.mat(Color(0.18, 0.22, 0.16), "metal", 0.6, 1.0, 0.3), 10)
 
 
+## The 24h store on the east edge, its front facing back across the lot.
+func _build_store() -> void:
+	store = Store.new()
+	store.name = "Store"
+	store.position = Vector3(19.5, G, -10.0)
+	add_child(store)
+
+
 func _build_fence() -> void:
 	var post := MK.mat(Color(0.45, 0.46, 0.46), "metal", 0.5, 1.0, 0.5)
 	var link := StandardMaterial3D.new()
@@ -216,8 +227,8 @@ func _build_trees() -> void:
 	_add_tree("oak", Vector3(-12.0, 0, 6.0), 7.0, 3)
 	_add_tree("pine", Vector3(-19.5, 0, 2.5), 11.0, 1)
 	# Right verge.
-	_add_tree("oak", Vector3(14.5, 0, -4.0), 8.0, 0)
-	_add_tree("pine", Vector3(19.0, 0, -9.0), 9.5, 2)
+	_add_tree("oak", Vector3(31.5, 0, -2.0), 8.0, 0)
+	_add_tree("pine", Vector3(32.5, 0, -20.0), 9.5, 2)
 	_add_tree("bush", Vector3(12.0, 0, -1.0), 1.4, 1)
 	# Tree line beyond the fence.
 	var x := -40.0

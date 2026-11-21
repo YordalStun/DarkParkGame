@@ -85,6 +85,7 @@ func _ready() -> void:
 	desk.world = world
 	desk.state_changed.connect(func(on): hud.set_hint("Esc to sit back" if on else "Right click to sit back", on))
 	desk.sound.connect(func(n, db): world.ambience.play_ui(n, db))
+	world.camera.zoom_changed.connect(func(z): desk.set_away(not z))
 
 	_apply_args()
 	await _warm_up()
@@ -326,6 +327,16 @@ func _open_desktop_for_test() -> void:
 		if _args.has("url"):
 			a["url"] = _args.url
 		desk.open_app(id, a)
+	# --dumpcams=dir : save each CCTV camera's raw picture as PNG
+	if _args.has("dumpcams"):
+		await get_tree().create_timer(2.0).timeout
+		for i in world.cctv.cams.size():
+			world.cctv.texture(i).get_image().save_png("%s/cam_%d.png" % [_args.dumpcams, i + 1])
+		print("Saved CCTV frames to ", _args.dumpcams)
+	# --sitback : sit back from the desk again after opening the programs (tests monitor mode)
+	if _args.has("sitback"):
+		await get_tree().create_timer(1.5).timeout
+		world.camera.unzoom()
 	# --simclick=x,y;x,y : inject real left clicks at window pixels (tests the screen mapping)
 	if _args.has("simclick"):
 		await get_tree().create_timer(1.5).timeout
