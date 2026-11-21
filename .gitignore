@@ -1,0 +1,8 @@
+# Godot
+.godot/
+/android/
+*.translation
+export/
+build/
+*.tmp
+__pycache__/

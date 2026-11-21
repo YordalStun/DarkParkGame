@@ -1,0 +1,40 @@
+# Builds DarkPark.exe on every push and attaches it to the workflow run
+# (Actions tab -> latest run -> Artifacts -> DarkPark-windows).
+name: Build game
+
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  windows:
+    runs-on: ubuntu-latest
+    env:
+      GODOT_VERSION: 4.4.1
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Godot and the Windows export template
+        run: |
+          base=https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable
+          wget -q $base/Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip
+          unzip -q Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip
+          wget -q $base/Godot_v${GODOT_VERSION}-stable_export_templates.tpz
+          dest=~/.local/share/godot/export_templates/${GODOT_VERSION}.stable
+          mkdir -p $dest
+          unzip -q -j Godot_v${GODOT_VERSION}-stable_export_templates.tpz \
+            templates/windows_release_x86_64.exe templates/version.txt -d $dest
+          rm Godot_v${GODOT_VERSION}-stable_export_templates.tpz
+
+      - name: Export
+        run: |
+          godot=./Godot_v${GODOT_VERSION}-stable_linux.x86_64
+          $godot --headless --path . --import
+          mkdir -p build/windows
+          $godot --headless --path . --export-release "Windows Desktop" build/windows/DarkPark.exe
+          test -f build/windows/DarkPark.exe
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: DarkPark-windows
+          path: build/windows/DarkPark.exe
