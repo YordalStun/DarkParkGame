@@ -160,7 +160,12 @@ func _update_desktop_mode(win_size: Vector2) -> void:
 	if want and not hud.paused:
 		var px := _screen_px(win_size)
 		over = _on_screen(px) or _desk_drag
-	var mode := Input.MOUSE_MODE_HIDDEN if over else Input.MOUSE_MODE_VISIBLE
+	# Keep the cursor inside the window while using the desktop; released on alt-tab.
+	var focused := DisplayServer.window_is_focused()
+	var confine: bool = want and not hud.paused and focused
+	var mode := Input.MOUSE_MODE_VISIBLE
+	if confine:
+		mode = Input.MOUSE_MODE_CONFINED_HIDDEN if over else Input.MOUSE_MODE_CONFINED
 	if Input.mouse_mode != mode:
 		Input.mouse_mode = mode
 	desk.set_pointer_visible(over)

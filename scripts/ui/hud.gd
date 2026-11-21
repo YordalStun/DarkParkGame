@@ -55,6 +55,7 @@ func _ready() -> void:
 	Input.set_custom_mouse_cursor(_cursor_dot, Input.CURSOR_ARROW, Vector2(8, 8))
 
 
+
 func _label(size: int, color: Color) -> Label:
 	var l := Label.new()
 	var ls := LabelSettings.new()

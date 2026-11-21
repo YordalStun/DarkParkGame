@@ -29,6 +29,13 @@ void vertex() {
 	// Drops right at the lens are invisible anyway (faded out): collapse them so the
 	// GPU doesn't rasterise huge transparent quads across the screen.
 	float keep = step(0.6, length(INV_VIEW_MATRIX[3].xyz - c));
+	// Never draw rain inside the booth walls or under its roof (drop centre or streak tip).
+	vec3 tip = c + normalize(vec3(wind_dir.x * wind_strength * 3.0, -fall_speed, wind_dir.y * wind_strength * 3.0)) * -streak_length * 0.5;
+	vec3 lo = vec3(-2.02, -0.3, -1.27);
+	vec3 hi = vec3(2.02, 2.9, 1.77);
+	bool in_c = all(greaterThan(c, lo)) && all(lessThan(c, hi));
+	bool in_t = all(greaterThan(tip, lo)) && all(lessThan(tip, hi));
+	keep *= (in_c || in_t) ? 0.0 : 1.0;
 	vec3 side = normalize(cross(axis, to_cam)) * streak_width;
 	vec3 fwd = normalize(cross(side, axis));
 	// QuadMesh is 1x1: x in -0.5..0.5, y in -0.5..0.5
