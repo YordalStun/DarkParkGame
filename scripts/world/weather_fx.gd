@@ -30,10 +30,11 @@ func _ready() -> void:
 	lightning_light.name = "LightningLight"
 	lightning_light.light_color = Color(0.78, 0.84, 1.0)
 	lightning_light.light_energy = 0.0
-	lightning_light.shadow_enabled = true
+	# No shadows and never toggled on/off: a strike only changes the light's energy.
+	# (Switching a shadow-casting sun light on mid-game makes the GPU allocate and
+	# render a whole new shadow map in one frame, a likely cause of driver resets.)
+	lightning_light.shadow_enabled = false
 	lightning_light.light_volumetric_fog_energy = 0.4
-	lightning_light.directional_shadow_max_distance = 60.0
-	lightning_light.visible = false
 	add_child(lightning_light)
 
 	Weather.lightning_struck.connect(_on_lightning)
@@ -163,7 +164,7 @@ func _on_lightning(strength: float, distance: float) -> void:
 	# [delay since previous pulse, brightness]
 	_flash_queue = [[0.0, 1.0 * s], [0.06, 0.15 * s], [0.05, 0.85 * s], [0.09, 0.05 * s], [0.12, 0.55 * s * randf()], [0.18, 0.0]]
 	lightning_light.rotation_degrees = Vector3(randf_range(-60, -30), randf_range(140, 220), 0)
-	lightning_light.visible = true
+	print("EVENT lightning strength=%.2f distance=%.2f" % [strength, distance])
 
 
 func _update_lightning(delta: float) -> void:
@@ -175,6 +176,4 @@ func _update_lightning(delta: float) -> void:
 	else:
 		lightning_level = move_toward(lightning_level, 0.0, delta * 4.0)
 	lightning_light.light_energy = lightning_level * 1.6
-	if lightning_level <= 0.001 and _flash_queue.is_empty():
-		lightning_light.visible = false
 	RenderingServer.global_shader_parameter_set("lightning", lightning_level)

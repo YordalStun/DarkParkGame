@@ -80,6 +80,7 @@ func force(rain_v: float, wind_v: float, fog_v: float, transition := 10.0) -> vo
 ## Start or stop a heavy spell right now (only meaningful for rainy profiles).
 func set_heavy(on: bool, transition := 12.0) -> void:
 	heavy = on
+	print("EVENT weather heavy=%s profile=%s" % [on, profile])
 	_transition = transition
 	_apply_spell()
 	_spell_timer = randf_range(30.0, 80.0) if on else randf_range(60.0, 150.0)

@@ -21,6 +21,11 @@ config/icon="res://icon.svg"
 Weather="*res://scripts/autoload/weather.gd"
 NightClock="*res://scripts/autoload/night_clock.gd"
 
+[debug]
+
+file_logging/enable_file_logging=true
+file_logging/enable_file_logging.pc=true
+
 [display]
 
 window/size/viewport_width=1280

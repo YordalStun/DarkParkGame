@@ -160,7 +160,9 @@ func _update_desktop_mode(win_size: Vector2) -> void:
 	if want and not hud.paused:
 		var px := _screen_px(win_size)
 		over = _on_screen(px) or _desk_drag
-	Input.mouse_mode = Input.MOUSE_MODE_HIDDEN if over else Input.MOUSE_MODE_VISIBLE
+	var mode := Input.MOUSE_MODE_HIDDEN if over else Input.MOUSE_MODE_VISIBLE
+	if Input.mouse_mode != mode:
+		Input.mouse_mode = mode
 	desk.set_pointer_visible(over)
 
 
@@ -299,6 +301,9 @@ func _apply_args() -> void:
 		world.camera.state = world.camera.State.MOVING
 		world.camera.position = Vector3(float(c[0]), float(c[1]), float(c[2]))
 		world.camera.rotation_degrees = Vector3(float(c[4]), float(c[3]), 0)
+	# Health line in the log every 15 s (or --perflog=N). The log is user://logs/godot.log;
+	# on Windows: %APPDATA%\Godot\app_userdata\Dark Park\logs\godot.log
+	_perf_log()
 	if _args.has("nofog"):
 		world.environment.volumetric_fog_enabled = false
 	if _args.has("audiotest") or _args.has("novisuals"):
@@ -390,3 +395,24 @@ func _strip_visuals() -> void:
 		(l as Light3D).shadow_enabled = false
 	for p in world.find_children("*", "GPUParticles3D", true, false):
 		(p as GPUParticles3D).visible = false
+
+
+## --perflog[=seconds]: print memory and object counts every few seconds (leak hunting).
+func _perf_log() -> void:
+	var every := float(_args.perflog) if _args.has("perflog") and str(_args.perflog).is_valid_float() else 15.0
+	var t := 0.0
+	while is_inside_tree():
+		await get_tree().create_timer(every).timeout
+		t += every
+		if _args.has("strikes"):
+			Weather.strike_lightning(1.0, 0.1)
+		print("PERF t=%4ds desk=%s zoom=%s rain=%.2f vram=%6.1fMB tex=%6.1fMB buf=%6.1fMB objs=%d nodes=%d res=%d static=%6.1fMB fps=%d" % [
+			int(t), world.props.desktop.is_on(), world.camera.state == world.camera.State.ZOOMED, Weather.rain,
+			Performance.get_monitor(Performance.RENDER_VIDEO_MEM_USED) / 1048576.0,
+			Performance.get_monitor(Performance.RENDER_TEXTURE_MEM_USED) / 1048576.0,
+			Performance.get_monitor(Performance.RENDER_BUFFER_MEM_USED) / 1048576.0,
+			Performance.get_monitor(Performance.OBJECT_COUNT),
+			Performance.get_monitor(Performance.OBJECT_NODE_COUNT),
+			Performance.get_monitor(Performance.OBJECT_RESOURCE_COUNT),
+			Performance.get_monitor(Performance.MEMORY_STATIC) / 1048576.0,
+			Engine.get_frames_per_second()])

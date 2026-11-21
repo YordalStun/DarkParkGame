@@ -26,10 +26,13 @@ void vertex() {
 		vec3 vel = vec3(wind_dir.x * wind_strength * 3.0, -fall_speed, wind_dir.y * wind_strength * 3.0);
 		axis = normalize(vel) * streak_length;
 	}
+	// Drops right at the lens are invisible anyway (faded out): collapse them so the
+	// GPU doesn't rasterise huge transparent quads across the screen.
+	float keep = step(0.6, length(INV_VIEW_MATRIX[3].xyz - c));
 	vec3 side = normalize(cross(axis, to_cam)) * streak_width;
 	vec3 fwd = normalize(cross(side, axis));
 	// QuadMesh is 1x1: x in -0.5..0.5, y in -0.5..0.5
-	MODELVIEW_MATRIX = VIEW_MATRIX * mat4(vec4(side, 0.0), vec4(axis, 0.0), vec4(fwd, 0.0), vec4(c, 1.0));
+	MODELVIEW_MATRIX = VIEW_MATRIX * mat4(vec4(side * keep, 0.0), vec4(axis * keep, 0.0), vec4(fwd, 0.0), vec4(c, 1.0));
 	MODELVIEW_NORMAL_MATRIX = mat3(MODELVIEW_MATRIX);
 	NORMAL = vec3(0.0, 0.0, 1.0);
 	// fade drops very close to the camera (they'd be huge smears)
