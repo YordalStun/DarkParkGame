@@ -304,6 +304,8 @@ func _apply_args() -> void:
 	# Health line in the log every 15 s (or --perflog=N). The log is user://logs/godot.log;
 	# on Windows: %APPDATA%\Godot\app_userdata\Dark Park\logs\godot.log
 	_perf_log()
+	if _args.has("paused"):
+		hud.set_paused(true)
 	if _args.has("nofog"):
 		world.environment.volumetric_fog_enabled = false
 	if _args.has("audiotest") or _args.has("novisuals"):
@@ -325,6 +327,8 @@ func _open_desktop_for_test() -> void:
 	await get_tree().create_timer(0.3).timeout
 	if _args.has("menu"):
 		desk.toggle_start()
+	if _args.has("volpopup"):
+		desk._volume_popup()
 	for id in str(_args.desktop).split(",", false):
 		if id == "1" or id == "true":
 			continue

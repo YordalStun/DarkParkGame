@@ -12,7 +12,6 @@ var _creak_timer := 20.0
 var _thunders: Array[AudioStream] = []
 var _outside_lp: AudioEffectLowPassFilter
 
-const MASTER_DB := -3.0
 
 
 func _ready() -> void:
@@ -58,7 +57,7 @@ static func setup_buses() -> void:
 	AudioServer.add_bus_effect(out, lp)
 	# Ear safety: the whole game sits a little lower, and a limiter on the master
 	# output means no combination of sounds can ever clip or spike past -1.5 dBFS.
-	AudioServer.set_bus_volume_db(0, -80.0)  # silent until fade_in() after loading
+	Settings.set_fade(0.0)  # silent until fade_in() after loading (Settings owns the Master volume)
 	var limiter := AudioEffectHardLimiter.new()
 	limiter.ceiling_db = -1.5
 	limiter.release = 0.15
@@ -75,7 +74,7 @@ static func setup_buses() -> void:
 ## Bring the sound up from silence (called when the loading screen goes away).
 func fade_in(seconds: float) -> void:
 	var tw := create_tween()
-	tw.tween_method(func(v: float): AudioServer.set_bus_volume_db(0, linear_to_db(v) + MASTER_DB), 0.0001, 1.0, seconds)
+	tw.tween_method(func(v: float): Settings.set_fade(v), 0.0, 1.0, seconds)
 
 
 func _stream(n: String) -> AudioStream:

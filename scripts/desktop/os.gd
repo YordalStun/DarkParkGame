@@ -439,6 +439,7 @@ func _build_taskbar() -> void:
 	tray_icons.add_theme_constant_override("separation", 3)
 	tray.add_child(tray_icons)
 	var sp := TextureRect.new()
+	sp.name = "Speaker"
 	sp.texture = W95.icon("speaker", true)
 	sp.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	tray_icons.add_child(sp)
@@ -452,8 +453,49 @@ func _build_taskbar() -> void:
 	hit.mouse_filter = Control.MOUSE_FILTER_PASS
 	tray.add_child(hit)
 	hit.gui_input.connect(func(ev):
-		if ev is InputEventMouseButton and ev.pressed and ev.double_click and net_connected:
+		if not (ev is InputEventMouseButton and ev.pressed and ev.button_index == MOUSE_BUTTON_LEFT):
+			return
+		if sp.get_global_rect().grow(2).has_point(hit.get_global_transform() * ev.position):
+			_volume_popup()
+		elif ev.double_click and net_connected:
 			Dialogs.connection_status(self))
+
+
+## The Windows 95 tray volume control: a vertical slider and a Mute box.
+## Changes the game's master volume (shared with the pause menu, saved to disk).
+func _volume_popup() -> void:
+	close_menus()
+	_ensure_blocker()
+	var settings := get_node("/root/Settings")
+	var pnl := Panel.new()
+	pnl.add_theme_stylebox_override("panel", W95.raised())
+	pnl.size = Vector2(70, 132)
+	pnl.position = Vector2(W - 92, H - TASKBAR_H - pnl.size.y - 2)
+	pnl.mouse_filter = Control.MOUSE_FILTER_STOP
+	var title := Label.new()
+	title.text = "Volume"
+	title.position = Vector2(0, 6)
+	title.size = Vector2(70, 14)
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	pnl.add_child(title)
+	var sl := VSlider.new()
+	sl.min_value = 0.0
+	sl.max_value = 1.0
+	sl.step = 0.01
+	sl.value = settings.volume
+	sl.position = Vector2(25, 26)
+	sl.size = Vector2(20, 72)
+	sl.value_changed.connect(func(v): settings.set_volume(v))
+	sl.drag_ended.connect(func(_c): play("ding", -14.0))
+	pnl.add_child(sl)
+	var mute := CheckBox.new()
+	mute.text = "Mute"
+	mute.button_pressed = settings.muted
+	mute.position = Vector2(6, 104)
+	mute.toggled.connect(func(on): settings.set_muted(on))
+	pnl.add_child(mute)
+	add_menu_node(pnl)
+	play("click2", -16.0)
 
 
 func set_modem_icon(on: bool) -> void:

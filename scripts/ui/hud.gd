@@ -49,6 +49,7 @@ func _ready() -> void:
 	pl.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	pl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	pl.text = "- PAUSED -\n\nClick to resume\nQ to quit"
+	_build_volume_row()
 
 	_make_cursors()
 	Input.set_custom_mouse_cursor(_cursor_dot, Input.CURSOR_ARROW, Vector2(8, 8))
@@ -130,3 +131,45 @@ func _process(_delta: float) -> void:
 		_debug.text = "WEATHER %s%s\nrain %.2f  wind %.2f  fog %.2f  wet %.2f\ntime %s   fps %d" % [
 			Weather.profile, " (HEAVY)" if Weather.heavy else "", Weather.rain, Weather.gusty_wind(),
 			Weather.fog, Weather.wetness, NightClock.time_text(), Engine.get_frames_per_second()]
+
+
+## Volume slider on the pause screen (shared with the PC's tray volume, saved to disk).
+func _build_volume_row() -> void:
+	var row := HBoxContainer.new()
+	row.set_anchors_and_offsets_preset(Control.PRESET_CENTER_BOTTOM)
+	row.offset_top = -120
+	row.offset_bottom = -84
+	row.offset_left = -220
+	row.offset_right = 220
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	row.add_theme_constant_override("separation", 14)
+	_pause.add_child(row)
+	var lbl := _label(30, Color(0.85, 0.85, 0.8))
+	lbl.reparent(row)
+	lbl.text = "VOLUME"
+	var sl := HSlider.new()
+	sl.min_value = 0.0
+	sl.max_value = 1.0
+	sl.step = 0.01
+	sl.value = Settings.volume
+	sl.custom_minimum_size = Vector2(200, 28)
+	sl.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	row.add_child(sl)
+	var pct := _label(30, Color(0.85, 0.85, 0.8))
+	pct.reparent(row)
+	pct.custom_minimum_size = Vector2(60, 0)
+	var mute := CheckBox.new()
+	mute.text = "MUTE"
+	mute.add_theme_font_override("font", _font)
+	mute.add_theme_font_size_override("font_size", 26)
+	mute.button_pressed = Settings.muted
+	row.add_child(mute)
+	var refresh := func(v: float, m: bool):
+		pct.text = "%d%%" % int(round(v * 100.0))
+		if not is_equal_approx(sl.value, v):
+			sl.set_value_no_signal(v)
+		mute.set_pressed_no_signal(m)
+	refresh.call(Settings.volume, Settings.muted)
+	sl.value_changed.connect(func(v): Settings.set_volume(v))
+	mute.toggled.connect(func(on): Settings.set_muted(on))
+	Settings.volume_changed.connect(refresh)
