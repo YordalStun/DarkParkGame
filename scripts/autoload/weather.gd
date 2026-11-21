@@ -14,7 +14,7 @@ signal profile_changed(profile: String)
 ##   rain/wind/fog: [light value, heavy value]; heavy spells only if heavy_chance > 0.
 const PROFILES := {
 	"clear":     {"rain": [0.0, 0.0],   "wind": [0.12, 0.2],  "fog": [0.15, 0.15], "heavy_chance": 0.0,  "lightning": false},
-	"rain_mist": {"rain": [0.3, 0.95],  "wind": [0.25, 0.7],  "fog": [0.55, 0.7],  "heavy_chance": 0.4,  "lightning": true},
+	"rain_mist": {"rain": [0.4, 0.75],  "wind": [0.25, 0.5],  "fog": [0.55, 0.65], "heavy_chance": 0.25,  "lightning": true},
 	"storm":     {"rain": [0.85, 1.0],  "wind": [0.7, 1.0],   "fog": [0.45, 0.6],  "heavy_chance": 0.8,  "lightning": true},
 	"fog":       {"rain": [0.0, 0.0],   "wind": [0.04, 0.08], "fog": [1.0, 1.0],   "heavy_chance": 0.0,  "lightning": false},
 	"drizzle":   {"rain": [0.15, 0.3],  "wind": [0.15, 0.3],  "fog": [0.7, 0.8],   "heavy_chance": 0.2,  "lightning": false},
@@ -56,7 +56,7 @@ func set_profile(p: String, transition := 20.0) -> void:
 	heavy = false
 	_transition = transition
 	_apply_spell()
-	_spell_timer = randf_range(40.0, 90.0)
+	_spell_timer = randf_range(120.0, 240.0)
 	if transition <= 0.0:
 		rain = _rain_target
 		wind = _wind_target
@@ -83,7 +83,7 @@ func set_heavy(on: bool, transition := 12.0) -> void:
 	print("EVENT weather heavy=%s profile=%s" % [on, profile])
 	_transition = transition
 	_apply_spell()
-	_spell_timer = randf_range(30.0, 80.0) if on else randf_range(60.0, 150.0)
+	_spell_timer = randf_range(90.0, 180.0) if on else randf_range(180.0, 360.0)
 
 
 ## Trigger lightning now (for scripted scares). distance 0..1.
@@ -110,13 +110,13 @@ func _process(delta: float) -> void:
 		_spell_timer -= delta
 		if _spell_timer <= 0.0:
 			if heavy:
-				set_heavy(false, randf_range(15.0, 30.0))
+				set_heavy(false, randf_range(40.0, 70.0))
 			elif randf() < d.heavy_chance:
-				set_heavy(true, randf_range(8.0, 18.0))
+				set_heavy(true, randf_range(30.0, 50.0))
 			else:
 				_transition = 20.0
 				_apply_spell()  # small drift within the light range
-				_spell_timer = randf_range(45.0, 120.0)
+				_spell_timer = randf_range(120.0, 240.0)
 
 		# Lightning during heavy rain.
 		if d.lightning and rain > 0.7:

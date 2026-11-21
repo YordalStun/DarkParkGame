@@ -49,9 +49,39 @@ func _ready() -> void:
 	pl.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	pl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	pl.text = "- PAUSED -\n\nClick to resume\nQ to quit"
+	pl.offset_bottom = -110
+
+	var vl := _label(28, Color(0.85, 0.85, 0.8))
+	vl.reparent(_pause)
+	vl.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
+	vl.offset_left = -200
+	vl.offset_right = 200
+	vl.offset_top = 40
+	vl.offset_bottom = 70
+	vl.text = "VOLUME"
+	var sl := HSlider.new()
+	sl.min_value = 0.0
+	sl.max_value = 1.0
+	sl.step = 0.01
+	sl.value = 0.8
+	sl.focus_mode = Control.FOCUS_NONE
+	sl.mouse_filter = Control.MOUSE_FILTER_STOP
+	sl.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
+	sl.offset_left = -200
+	sl.offset_right = 200
+	sl.offset_top = 80
+	sl.offset_bottom = 104
+	sl.value_changed.connect(_on_volume)
+	_pause.add_child(sl)
+	_on_volume(sl.value)
 
 	_make_cursors()
 	Input.set_custom_mouse_cursor(_cursor_dot, Input.CURSOR_ARROW, Vector2(8, 8))
+
+
+func _on_volume(v: float) -> void:
+	AudioServer.set_bus_volume_db(0, linear_to_db(maxf(v, 0.0001)))
+	AudioServer.set_bus_mute(0, v <= 0.001)
 
 
 func _label(size: int, color: Color) -> Label:
