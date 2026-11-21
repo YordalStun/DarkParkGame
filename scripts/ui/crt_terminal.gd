@@ -9,6 +9,7 @@ const DIM := Color(0.16, 0.5, 0.22)
 
 var _body: Label
 var _status: Label
+var _hint: Label
 var _cursor_on := true
 var _blink := 0.0
 var log_lines: Array[String] = [
@@ -63,6 +64,12 @@ func _ready() -> void:
 	_body.position = Vector2(22, 184)
 	add_child(_body)
 
+	_hint = Label.new()
+	_hint.label_settings = settings.duplicate()
+	_hint.label_settings.font_color = DIM
+	_hint.position = Vector2(22, 344)
+	add_child(_hint)
+
 	_refresh()
 
 
@@ -91,3 +98,4 @@ func _refresh() -> void:
 		t += l + "\n"
 	t += "> " + ("_" if _cursor_on else " ")
 	_body.text = t
+	_hint.text = "[ CLICK SCREEN TO START NIGHTWIN 95 ]" if _cursor_on else "  CLICK SCREEN TO START NIGHTWIN 95  "

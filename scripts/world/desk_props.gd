@@ -3,6 +3,12 @@ extends Node3D
 ## logbook, coffee mug (with steam) and flashlight.
 
 const CRTTerminal := preload("res://scripts/ui/crt_terminal.gd")
+const DesktopOS := preload("res://scripts/desktop/os.gd")
+
+## The CRT picture area in the monitor's local space (see _build_crt) - used to map the mouse onto the screen.
+const SCREEN_SIZE := Vector2(0.34, 0.255)
+const SCREEN_CENTER := Vector3(0, 0.262, 0.217)
+const CRT_CURVATURE := 0.08
 const RadioScript := preload("res://scripts/world/radio.gd")
 const DESK_Y := 0.76
 
@@ -10,6 +16,7 @@ var crt: Node3D
 var crt_interact: Interactable
 var crt_light: OmniLight3D
 var terminal: SubViewport
+var desktop: SubViewport     ## the NightWin 95 desktop (shown on the CRT instead of the terminal when running)
 var crt_screen_mat: ShaderMaterial
 var phone_interact: Interactable
 var radio_interact: Interactable
@@ -52,6 +59,10 @@ func _build_crt() -> void:
 	add_child(terminal)
 	crt_screen_mat = ShaderMaterial.new()
 	crt_screen_mat.shader = load("res://shaders/crt_screen.gdshader")
+	desktop = DesktopOS.new()
+	desktop.name = "Desktop"
+	add_child(desktop)
+	desktop.state_changed.connect(_on_desktop_state)
 	crt_screen_mat.set_shader_parameter("screen", terminal.get_texture())
 	var screen := MK.quad(crt, Vector2(0.34, 0.255), Vector3(0, 0.262, 0.217), crt_screen_mat, Vector3.ZERO, "Screen")
 	screen.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
@@ -247,3 +258,47 @@ func _process(delta: float) -> void:
 	_t += delta
 	# Screen glow breathes very slightly with the CRT's flicker.
 	crt_light.light_energy = 0.12 + 0.006 * sin(_t * 59.0) + 0.008 * sin(_t * 7.3)
+
+
+## The desktop (or terminal) took over the CRT: swap what the screen shows.
+func _on_desktop_state(on: bool) -> void:
+	if on:
+		crt_screen_mat.set_shader_parameter("screen", desktop.get_texture())
+		crt_screen_mat.set_shader_parameter("texel", Vector2(1.0 / DesktopOS.W, 1.0 / DesktopOS.H))
+		crt_screen_mat.set_shader_parameter("brightness", 2.4)
+		crt_screen_mat.set_shader_parameter("bloom", 0.3)
+		crt_screen_mat.set_shader_parameter("scan_depth", 0.14)
+		crt_screen_mat.set_shader_parameter("gamma", 1.6)
+		crt_light.light_color = Color(0.75, 0.88, 1.0)
+	else:
+		crt_screen_mat.set_shader_parameter("screen", terminal.get_texture())
+		crt_screen_mat.set_shader_parameter("texel", Vector2(1.0 / CRTTerminal.W, 1.0 / CRTTerminal.H))
+		crt_screen_mat.set_shader_parameter("brightness", 2.2)
+		crt_screen_mat.set_shader_parameter("bloom", 1.0)
+		crt_screen_mat.set_shader_parameter("scan_depth", 0.3)
+		crt_screen_mat.set_shader_parameter("gamma", 1.0)
+		crt_light.light_color = Color(0.35, 1.0, 0.5)
+
+
+## Where the pointer lands on the desktop picture, in desktop pixels (0..640, 0..480),
+## accounting for the tube's curvature. Returns Vector2(-1e6, -1e6) if the ray misses the screen plane.
+func screen_pixel(cam: Camera3D, pointer: Vector2) -> Vector2:
+	var vp := cam.get_viewport()
+	var sp := (pointer * 0.5 + Vector2(0.5, 0.5)) * Vector2(vp.size)
+	var o := cam.project_ray_origin(sp)
+	var d := cam.project_ray_normal(sp)
+	var inv := crt.global_transform.affine_inverse()
+	var lo := inv * o
+	var ld := inv.basis * d
+	if absf(ld.z) < 0.00001:
+		return Vector2(-1e6, -1e6)
+	var t := (SCREEN_CENTER.z - lo.z) / ld.z
+	if t < 0.0:
+		return Vector2(-1e6, -1e6)
+	var h := lo + ld * t
+	var uv := Vector2(h.x / SCREEN_SIZE.x + 0.5, 0.5 - (h.y - SCREEN_CENTER.y) / SCREEN_SIZE.y)
+	# Same barrel distortion the CRT shader applies when it samples the picture.
+	var c := uv * 2.0 - Vector2.ONE
+	c += c * Vector2(c.y * c.y, c.x * c.x) * CRT_CURVATURE
+	uv = c * 0.5 + Vector2(0.5, 0.5)
+	return uv * Vector2(DesktopOS.W, DesktopOS.H)
