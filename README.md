@@ -28,6 +28,7 @@ The location and its ambience are done; missions and story come next.
   as you look around. Click it to switch it off and on. The dial glows when it is on.
 * **Car park:** wet asphalt with puddles that reflect the lamp and ripple in the rain,
   worn bay lines, three parked cars and a van, a barrier gate, the "LOT C" sign,
+  the Nite Stop 24h store on the east edge (lit aisles, sign, door lamp), four CCTV cameras,
   a payphone, a chain-link fence, the tree line, and a distant town with a few lit windows.
 * **Lighting:** an orange sodium lamp with a volumetric cone through the mist, a halo,
   shadows and the occasional sputter. Light from the booth spills out onto the lot.
@@ -61,7 +62,7 @@ cursor. The PC is fully usable with the mouse and keyboard.
 | MS-DOS Prompt | `dir`, `cd`, `type`, `cls`, `ver`, `ping`, `who`, `edit`, `start`... |
 | My Computer / Explorer | Browse drives A:, C:, D:, Control Panel, Network Neighborhood and the Recycle Bin. Double-click to open. |
 | Gate Control | Opens and closes the **real** barrier gate in the car park. |
-| CamLink | Camera viewer. Placeholder: every camera says NO SIGNAL until real 3D cameras exist. |
+| CamLink | Live CCTV from four real cameras in the 3D world, in a 2x2 grid: lot east, lot west, the store door from above, and the entrance gate. Click a picture to enlarge it. If you sit back with CamLink open it fills the screen, so the feeds stay on the CRT. |
 | Run..., Find, Help, Display and Date/Time properties | As you would expect. |
 
 Start > Shut Down > *Restart in MS-DOS mode* takes you back to the green terminal. Look in the
@@ -145,6 +146,8 @@ scripts/
   world/parking_lot.gd     Ground, lines, cars, gate, sign, fence, trees, town
   world/street_lamp.gd     Sodium lamp (light, halo, sputter)
   world/barrier_gate.gd    Barrier arm with open()/close()
+  world/store.gd           Nite Stop 24h store
+  world/cctv.gd            The four CCTV cameras (render only while CamLink is open)
   world/weather_fx.gd      Rain, splashes, roof drips, lightning, mist density
   world/ambience.gd        All ambient audio and mixing
   world/tree_builder.gd    Low-poly tree/bush generator
@@ -187,6 +190,8 @@ world.lot.lamp.level = 0.0            # street lamp off
 world.lot.gate.open()
 world.props.terminal.add_log("MOTION DETECTED - ROW C")
 world.props.radio_player.set_on(false)   # radio off (e.g. for a scare)
+world.cctv.cams[2].camera               # the store-door CCTV camera (a real Camera3D)
+world.lot.store.door_light.visible = false
 world.props.desktop.open_app("notepad", {"path": "C:\\MY DOCUMENTS\\SHIFT NOTES.TXT"})
 world.props.desktop.vfs.write("C:\\MY DOCUMENTS\\NEW.TXT", "...")   # drop a file on the PC
 world.props.desktop.mailbox.append({"from": "?", "subj": "...", "date": "Now", "unread": true, "body": "..."})
