@@ -22,7 +22,10 @@ The location and its ambience are done; missions and story come next.
   tube, wall clock that follows the in-game time, calendar (Friday 13th circled),
   cork board, filing cabinet, a door.
 * **Desk:** green-phosphor CRT terminal (live time, weather, event log), keyboard,
-  mouse, push-button phone, transistor radio, logbook, coffee with steam, flashlight.
+  mouse, push-button phone, logbook, coffee with steam, flashlight.
+* **Radio:** a transistor radio playing a late-night station (seven CC0 tracks through a
+  small-speaker filter with FM hiss). The sound comes from the radio itself, so it pans
+  as you look around. Click it to switch it off and on. The dial glows when it is on.
 * **Car park:** wet asphalt with puddles that reflect the lamp and ripple in the rain,
   worn bay lines, three parked cars and a van, a barrier gate, the "LOT C" sign,
   a payphone, a chain-link fence, the tree line, and a distant town with a few lit windows.
@@ -50,6 +53,7 @@ The game is played entirely with the mouse.
 | Move mouse | Look around (move toward a screen edge to turn your head) |
 | Left click | Use what you are pointing at (its name appears at the bottom) |
 | Click the CRT | Lean in to the terminal |
+| Click the radio | Switch the music on/off |
 | Right click | Sit back |
 | Esc | Sit back, or pause (Q quits while paused) |
 | F11 | Toggle fullscreen |
@@ -128,16 +132,17 @@ Weather.force(0.0, 0.05, 1.0, 30.0)   # exact rain, wind, fog over 30 s
 Weather.strike_lightning()
 NightClock.set_time(2, 13)
 world.booth.set_power(0.0)            # kill the booth light
-world.booth.force_flicker(1.5)
+world.booth.force_flicker()
 world.lot.lamp.level = 0.0            # street lamp off
 world.lot.gate.open()
 world.props.terminal.add_log("MOTION DETECTED - ROW C")
+world.props.radio_player.set_on(false)   # radio off (e.g. for a scare)
 world.props.phone_interact.activated.connect(...)  # phone, radio, logbook, CRT
 ```
 
 ## Credits
 
-* Sounds: CC0 recordings from OpenGameArt.org plus synthesised effects. See
+* Sounds and radio music: CC0 recordings from OpenGameArt.org plus synthesised effects. See
   [assets/audio/CREDITS.md](assets/audio/CREDITS.md).
 * Font: [VT323](https://fonts.google.com/specimen/VT323) by Peter Hull, SIL Open Font License.
 * Everything else (textures, models, shaders) was made for this project.

@@ -16,7 +16,8 @@ const MASTER_DB := -3.0
 
 
 func _ready() -> void:
-	_setup_buses()
+	setup_buses()
+	_outside_lp = AudioServer.get_bus_effect(AudioServer.get_bus_index("Outside"), 0)
 	_thunders = [_stream("thunder_1"), _stream("thunder_2"), _stream("thunder_3")]
 
 	# Outdoor beds (non-positional, through the glass).
@@ -40,7 +41,9 @@ func _ready() -> void:
 	world.lot.lamp.sputtered.connect(func(): _one_shot_3d("light_flicker", lamp.global_position + lamp.head_position, -14.0, 0.6, "Outside", 8.0))
 
 
-func _setup_buses() -> void:
+## Creates the mixer buses. Static so the world can call it before anything
+## that plays sound (e.g. the radio) is built.
+static func setup_buses() -> void:
 	if AudioServer.get_bus_index("Outside") != -1:
 		return
 	for bus_name in ["Outside", "Interior", "UI"]:
@@ -49,13 +52,13 @@ func _setup_buses() -> void:
 		AudioServer.set_bus_name(i, bus_name)
 		AudioServer.set_bus_send(i, "Master")
 	var out := AudioServer.get_bus_index("Outside")
-	_outside_lp = AudioEffectLowPassFilter.new()
-	_outside_lp.cutoff_hz = 2600.0
-	_outside_lp.resonance = 0.6
-	AudioServer.add_bus_effect(out, _outside_lp)
+	var lp := AudioEffectLowPassFilter.new()
+	lp.cutoff_hz = 2600.0
+	lp.resonance = 0.6
+	AudioServer.add_bus_effect(out, lp)
 	# Ear safety: the whole game sits a little lower, and a limiter on the master
 	# output means no combination of sounds can ever clip or spike past -1.5 dBFS.
-	AudioServer.set_bus_volume_db(0, MASTER_DB)
+	AudioServer.set_bus_volume_db(0, -80.0)  # silent until fade_in() after loading
 	var limiter := AudioEffectHardLimiter.new()
 	limiter.ceiling_db = -1.5
 	limiter.release = 0.15
@@ -67,6 +70,12 @@ func _setup_buses() -> void:
 	verb.wet = 0.06
 	verb.dry = 1.0
 	AudioServer.add_bus_effect(inside, verb)
+
+
+## Bring the sound up from silence (called when the loading screen goes away).
+func fade_in(seconds: float) -> void:
+	var tw := create_tween()
+	tw.tween_method(func(v: float): AudioServer.set_bus_volume_db(0, linear_to_db(v) + MASTER_DB), 0.0001, 1.0, seconds)
 
 
 func _stream(n: String) -> AudioStream:

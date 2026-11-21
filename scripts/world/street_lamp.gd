@@ -95,9 +95,8 @@ func _process(delta: float) -> void:
 		if _sputter > 0.0:
 			_sputter -= delta
 			# Sodium lamps dim and surge rather than snap off.
-			k = 0.35 + 0.65 * absf(sin(_t * 9.0 + sin(_t * 23.0)))
-			if randf() < 0.08:
-				k = 0.12
+			# Smooth, slow-ish surges (no single-frame drops, which read as glitches).
+			k = 0.4 + 0.6 * (0.5 + 0.5 * sin(_t * 5.0 + 1.7 * sin(_t * 2.3)))
 	# Tiny constant shimmer.
 	k *= 1.0 + 0.012 * sin(_t * 31.0) * sin(_t * 3.1)
 	k *= level

@@ -19,34 +19,51 @@ var weather_fx: Node3D
 var ambience: Node
 
 
-func _ready() -> void:
-	_build_environment()
+signal progress(fraction: float, text: String)
 
+
+## Builds the location in steps, yielding a frame between them so the loading
+## screen can redraw. Call with `await world.build()`.
+func build() -> void:
+	await _step(0.04, "Switching on the lights")
+	Ambience.setup_buses()
+	_build_environment()
+	camera = DeskCamera.new()
+	camera.name = "DeskCamera"
+	add_child(camera)
+
+	await _step(0.12, "Building the booth")
 	booth = Booth.new()
 	booth.name = "Booth"
 	add_child(booth)
 
+	await _step(0.24, "Setting up the desk")
 	props = DeskProps.new()
 	props.name = "DeskProps"
 	add_child(props)
 
+	await _step(0.36, "Painting the car park")
 	lot = ParkingLot.new()
 	lot.name = "ParkingLot"
 	add_child(lot)
 
+	await _step(0.5, "Making it rain")
 	weather_fx = WeatherFX.new()
 	weather_fx.name = "WeatherFX"
 	weather_fx.environment = environment
 	add_child(weather_fx)
 
-	camera = DeskCamera.new()
-	camera.name = "DeskCamera"
-	add_child(camera)
-
+	await _step(0.58, "Tuning the radio")
 	ambience = Ambience.new()
 	ambience.name = "Ambience"
 	ambience.world = self
 	add_child(ambience)
+	await _step(0.62, "Warming up the CRT")
+
+
+func _step(fraction: float, text: String) -> void:
+	progress.emit(fraction, text)
+	await get_tree().process_frame
 
 
 func _build_environment() -> void:

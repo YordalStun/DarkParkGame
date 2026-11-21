@@ -20,7 +20,7 @@ var fill: OmniLight3D
 var tube_mat: StandardMaterial3D
 var light_base_energy := 1.25
 var _flicker_timer := 0.0
-var _flickering := 0.0
+var _blinks: Array = []   # [seconds left, brightness] steps of a flicker
 var _hour_hand: Node3D
 var _min_hand: Node3D
 var _sec_hand: Node3D
@@ -57,7 +57,7 @@ func _ready() -> void:
 	probe.intensity = 0.45
 	add_child(probe)
 
-	_flicker_timer = randf_range(25.0, 60.0)
+	_flicker_timer = randf_range(90.0, 200.0)
 
 
 # ------------------------------------------------------------------ shell
@@ -127,9 +127,9 @@ func _build_shell() -> void:
 	# Exterior concrete island the booth sits on.
 	var island := MeshInstance3D.new()
 	var pm := BoxMesh.new()
-	pm.size = Vector3(5.0, 0.16, 4.6)
+	pm.size = Vector3(5.0, 0.15, 4.6)
 	island.mesh = pm
-	island.position = Vector3(0, -0.08, 0.25)
+	island.position = Vector3(0, -0.085, 0.25)  # top at -1 cm: never level with the booth floor
 	var im := ShaderMaterial.new()
 	im.shader = load("res://shaders/wet_ground.gdshader")
 	im.set_shader_parameter("albedo_tex", MK.tex("concrete"))
@@ -222,17 +222,16 @@ func _build_light() -> void:
 func _process(delta: float) -> void:
 	_update_clock()
 	_flicker_timer -= delta
-	if _flicker_timer <= 0.0 and _flickering <= 0.0:
-		_flickering = randf_range(0.35, 0.9)
-		_flicker_timer = randf_range(40.0, 140.0)
-		light_flickered.emit()
-	if _flickering > 0.0:
-		_flickering -= delta
-		var on := randf() > 0.45
-		var k := 1.0 if on else randf_range(0.05, 0.35)
-		if _flickering <= 0.0:
-			k = 1.0
-		_set_light(k)
+	if _flicker_timer <= 0.0 and _blinks.is_empty():
+		_flicker_timer = randf_range(120.0, 300.0)
+		force_flicker()
+	# Play the queued blinks: each holds its brightness for a few frames, the way
+	# a tired fluorescent tube cuts out and restrikes (not a per-frame strobe).
+	if not _blinks.is_empty():
+		_blinks[0][0] -= delta
+		if _blinks[0][0] <= 0.0:
+			_blinks.pop_front()
+			_set_light(_blinks[0][1] if not _blinks.is_empty() else 1.0)
 
 
 func _set_light(k: float) -> void:
@@ -246,8 +245,14 @@ func set_power(k: float) -> void:
 	_set_light(k)
 
 
-func force_flicker(duration := 0.8) -> void:
-	_flickering = duration
+## A short tube flicker: 2-3 dips, each held for several frames.
+func force_flicker() -> void:
+	_blinks.clear()
+	var n := randi_range(2, 3)
+	for i in n:
+		_blinks.append([randf_range(0.07, 0.14), randf_range(0.15, 0.4)])  # dip
+		_blinks.append([randf_range(0.12, 0.35), 1.0])                       # back on
+	_set_light(_blinks[0][1])
 	light_flickered.emit()
 
 

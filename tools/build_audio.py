@@ -10,7 +10,7 @@ Two kinds of sounds:
     These are generated here from scratch, so they are ours outright.
 
 Usage:
-    python3 tools/build_audio.py <folder with the downloaded raw sounds>
+    python3 tools/build_audio.py <folder with the downloaded raw sounds> [<music folder>]
 
 Requires: ffmpeg on PATH, numpy.
 """
@@ -189,10 +189,69 @@ def build_synth():
     encode(normalise(fade(x[:, None].astype(np.float32), 0.0, 0.1), -22), "light_flicker.ogg")
 
 
+# ---------------------------------------------------------------- radio
+# CC0 tracks from OpenGameArt (see CREDITS.md), output name -> source file.
+RADIO_TRACKS = [
+    ("radio_1.ogg", "midnight_drive.ogg"),
+    ("radio_2.ogg", "Jazz Saxaphone.mp3"),
+    ("radio_3.ogg", "dimlylit.mp3"),
+    ("radio_4.ogg", "Slow Stride Loop.ogg"),
+    ("radio_5.ogg", "Jazz Take 2.mp3"),
+    ("radio_6.ogg", "cool_city_bpm124.ogg"),
+    ("radio_7.ogg", "Elevator.mp3"),
+]
+
+
+def transistor(x):
+    """A small 80s desk radio: narrow band, a little compression and grit, mono."""
+    y = fft_filter(x, lo=170, hi=4600)
+    y = normalise(y, -18, peak=0.99)
+    drive = 1.8
+    y = np.tanh(y * drive) / np.tanh(drive)
+    return y.astype(np.float32)
+
+
+def build_radio(src):
+    print("Radio (CC0 music, OpenGameArt):")
+    for out, name in RADIO_TRACKS:
+        x = decode(os.path.join(src, name), channels=1)
+        y = transistor(x)
+        encode(normalise(fade(y, 0.3, 2.0), -20), out, quality=3)
+
+
+def build_radio_fx():
+    rng = np.random.default_rng(7)
+    print("Radio effects (synthesised):")
+    # FM hiss loop with the odd crackle.
+    n = SR * 4
+    hiss = fft_filter(rng.normal(0, 1, (n, 1)).astype(np.float32), 300, 5000)[:, 0] * 0.3
+    for c in rng.uniform(0, 4, 14):
+        i = int(c * SR)
+        m = min(n - i, int(0.004 * SR))
+        hiss[i:i + m] += rng.normal(0, 1, m) * 0.6
+    encode(normalise(make_loop(hiss[:, None].astype(np.float32), 0.3), -30), "radio_hiss.ogg")
+    # Knob switch click.
+    n = int(SR * 0.09)
+    t = np.arange(n) / SR
+    x = rng.normal(0, 1, n) * np.exp(-t * 300) * 0.5 + np.sin(2 * np.pi * 900 * t) * np.exp(-t * 90) * 0.5
+    encode(normalise(fade(x[:, None].astype(np.float32), 0.0, 0.01), -24), "radio_click.ogg")
+    # Static burst while the set warms up, with a tuning whistle sliding down.
+    n = int(SR * 0.7)
+    t = np.arange(n) / SR
+    noise = fft_filter(rng.normal(0, 1, (n, 1)).astype(np.float32), 300, 5000)[:, 0]
+    whistle = np.sin(2 * np.pi * np.cumsum(np.linspace(2400, 600, n)) / SR) * 0.15
+    env = np.minimum(1, t / 0.03) * np.exp(-t * 3.5)
+    x = (noise * 0.5 + whistle) * env
+    encode(normalise(fade(x[:, None].astype(np.float32), 0.0, 0.15), -26), "radio_static.ogg")
+
+
 if __name__ == "__main__":
     os.makedirs(OUT, exist_ok=True)
     if len(sys.argv) > 1:
         build_recorded(sys.argv[1])
     else:
         print("No source folder given: skipping recorded sounds.")
+    if len(sys.argv) > 2:
+        build_radio(sys.argv[2])
     build_synth()
+    build_radio_fx()

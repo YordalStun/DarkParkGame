@@ -3,6 +3,7 @@ extends Node3D
 ## logbook, coffee mug (with steam) and flashlight.
 
 const CRTTerminal := preload("res://scripts/ui/crt_terminal.gd")
+const RadioScript := preload("res://scripts/world/radio.gd")
 const DESK_Y := 0.76
 
 var crt: Node3D
@@ -12,6 +13,7 @@ var terminal: SubViewport
 var crt_screen_mat: ShaderMaterial
 var phone_interact: Interactable
 var radio_interact: Interactable
+var radio_player: Node3D  ## radio.gd: music on/off, playlist
 var logbook_interact: Interactable
 var _t := 0.0
 
@@ -138,13 +140,19 @@ func _build_radio() -> void:
 	var black := MK.mat(Color(0.08, 0.08, 0.08), "metal", 0.5, 0.3)
 	MK.box(radio, Vector3(0.24, 0.13, 0.07), Vector3(0, 0.065, 0), black)
 	MK.box(radio, Vector3(0.1, 0.09, 0.004), Vector3(-0.055, 0.065, 0.036), MK.mat(Color(0.25, 0.25, 0.24), "metal", 0.6, 0.05))
-	MK.box(radio, Vector3(0.08, 0.025, 0.004), Vector3(0.06, 0.09, 0.036), MK.mat(Color(0.75, 0.6, 0.3), "", 0.4))  # tuning dial window
+	var dial := MK.mat(Color(0.75, 0.6, 0.3), "", 0.4).duplicate() as StandardMaterial3D
+	MK.box(radio, Vector3(0.08, 0.025, 0.004), Vector3(0.06, 0.09, 0.036), dial)  # tuning dial window
 	MK.cyl(radio, 0.012, 0.012, 0.012, Vector3(0.06, 0.045, 0.04), MK.mat(Color(0.7, 0.7, 0.68), "", 0.3, 1.0, 0.8), 8, Vector3(90, 0, 0))
 	MK.cyl(radio, 0.002, 0.003, 0.45, Vector3(0.1, 0.33, -0.02), MK.mat(Color(0.75, 0.75, 0.72), "", 0.2, 1.0, 1.0), 4, Vector3(0, 0, -14))
 	radio_interact = Interactable.new()
 	radio_interact.prompt = "Radio"
 	radio_interact.add_box(Vector3(0.26, 0.15, 0.09), Vector3(0, 0.07, 0))
 	radio.add_child(radio_interact)
+	radio_player = RadioScript.new()
+	radio_player.name = "RadioPlayer"
+	radio_player.dial_mat = dial
+	radio_player.interact = radio_interact
+	radio.add_child(radio_player)
 
 
 func _build_logbook() -> void:

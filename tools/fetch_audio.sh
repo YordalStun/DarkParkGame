@@ -19,3 +19,14 @@ get buzz.ogg                         buzz.ogg
 get mouseclick.wav                   mouseclick.wav
 unzip -o -q "Rain OGG.zip" -d "Rain OGG"
 unzip -o -q sfx_100_v2.zip -d sfx_100_v2
+
+# Radio music (CC0) goes in a "music" subfolder; pass it as the second argument
+# to build_audio.py.
+mkdir -p music && cd music
+get midnight_drive.ogg               midnight_drive.ogg
+get "Jazz%20Saxaphone.mp3"           "Jazz Saxaphone.mp3"
+get dimlylit.mp3                     dimlylit.mp3
+get "Slow%20Stride%20Loop.ogg"       "Slow Stride Loop.ogg"
+get "Jazz%20Take%202.mp3"            "Jazz Take 2.mp3"
+get cool_city_bpm124.ogg             cool_city_bpm124.ogg
+get Elevator.mp3                     Elevator.mp3

@@ -20,13 +20,28 @@ Credits are listed anyway, as thanks and so we always know where things came fro
 | `lamp_buzz.ogg` | [Electric buzz](https://opengameart.org/content/electric-buzz) | themightyglider |
 | `mouse_click.ogg` | [Mouse click](https://opengameart.org/content/mouse-click) | lfa |
 
+## Radio music (CC0 / public domain, from OpenGameArt.org)
+
+Played through a "transistor radio" filter in `tools/build_audio.py`.
+
+| File | Track | Author |
+|---|---|---|
+| `radio_1.ogg` | [Midnight Drive](https://opengameart.org/content/midnight-drive) | congusbongus |
+| `radio_2.ogg` | [Jazz (Saxophone)](https://opengameart.org/content/jazz-saxaphone) | pro-sensory |
+| `radio_3.ogg` | [Dimly Lit](https://opengameart.org/content/dimly-lit) | iamoneabe |
+| `radio_4.ogg` | [Slow Stride](https://opengameart.org/content/slow-stride) | isaiah658 |
+| `radio_5.ogg` | [Jazz Slower](https://opengameart.org/content/jazz-slower) | pro-sensory |
+| `radio_6.ogg` | [Cool City](https://opengameart.org/content/cool-city) | mintodog |
+| `radio_7.ogg` | [Elevator Music](https://opengameart.org/content/elevator-music) | pro-sensory |
+
 ## Synthesised sounds (made for this game, see `tools/build_audio.py`)
 
-`fluorescent_hum.ogg`, `crt_hum.ogg`, `clock_tick.ogg`, `light_flicker.ogg`
+`fluorescent_hum.ogg`, `crt_hum.ogg`, `clock_tick.ogg`, `light_flicker.ogg`,
+`radio_hiss.ogg`, `radio_click.ogg`, `radio_static.ogg`
 
 ## Rebuilding
 
 ```bash
 tools/fetch_audio.sh /tmp/darkpark_raw
-python3 tools/build_audio.py /tmp/darkpark_raw
+python3 tools/build_audio.py /tmp/darkpark_raw /tmp/darkpark_raw/music
 ```

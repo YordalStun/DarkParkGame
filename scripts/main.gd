@@ -13,6 +13,7 @@ extends Node
 
 const World := preload("res://scripts/world/world.gd")
 const Hud := preload("res://scripts/ui/hud.gd")
+const LoadingScreen := preload("res://scripts/ui/loading_screen.gd")
 const TARGET_HEIGHT := 360.0   ## internal render height in pixels
 
 var container: SubViewportContainer
@@ -25,10 +26,18 @@ var _shot_path := ""
 var _shot_frames := 0
 var _frame := 0
 var _args := {}
+var _loaded := false
+var _loading: CanvasLayer
 
 
 func _ready() -> void:
 	_parse_args()
+
+	# Show the loading screen before anything heavy happens.
+	_loading = LoadingScreen.new()
+	add_child(_loading)
+	await get_tree().process_frame
+	await get_tree().process_frame
 
 	post = ShaderMaterial.new()
 	post.shader = load("res://shaders/post_ps1.gdshader")
@@ -53,9 +62,14 @@ func _ready() -> void:
 	viewport.use_debanding = false
 	container.add_child(viewport)
 
+	get_tree().root.size_changed.connect(_update_scale)
+	_update_scale()
+
 	world = World.new()
 	world.name = "World"
+	world.progress.connect(_loading.set_progress)
 	viewport.add_child(world)
+	await world.build()
 
 	hud = Hud.new()
 	hud.name = "HUD"
@@ -63,14 +77,35 @@ func _ready() -> void:
 	world.camera.hover_changed.connect(hud.set_prompt)
 	world.camera.zoom_changed.connect(func(z): hud.set_zoomed(z))
 
-	get_tree().root.size_changed.connect(_update_scale)
-	_update_scale()
 	_apply_args()
+	await _warm_up()
 
-	# Fade in from black.
+	# Loading screen away, then the scene and its sound fade in from black.
+	var quick := _shot_path != ""
+	await _loading.finish(0.01 if quick else 0.6)
+	_loaded = true
+	world.ambience.fade_in(0.01 if quick else 4.0)
 	var tw := create_tween()
-	tw.tween_interval(0.4)
-	tw.tween_method(func(v): post.set_shader_parameter("fade", v), 0.0, 1.0, 3.5 if _shot_path == "" else 0.01)
+	tw.tween_interval(0.0 if quick else 0.3)
+	tw.tween_method(func(v): post.set_shader_parameter("fade", v), 0.0, 1.0, 0.01 if quick else 3.5)
+
+
+## Render the scene (hidden behind the loading screen) until frame times settle,
+## so shader compilation happens here instead of stuttering after the fade-in.
+func _warm_up() -> void:
+	var max_frames := 6 if _shot_path != "" else 600
+	var calm := 0
+	var start := Time.get_ticks_msec()
+	for i in max_frames:
+		await get_tree().process_frame
+		var dt := get_process_delta_time()
+		calm = calm + 1 if dt < 0.05 else 0
+		var elapsed := (Time.get_ticks_msec() - start) / 1000.0
+		_loading.set_progress(0.62 + 0.36 * minf(elapsed / 4.0, 1.0), "")
+		if i > 20 and calm >= 15:
+			break
+		if elapsed > 15.0:
+			break
 
 
 func _update_scale() -> void:
@@ -79,6 +114,8 @@ func _update_scale() -> void:
 
 
 func _process(_delta: float) -> void:
+	if not _loaded:
+		return
 	var win := get_tree().root
 	var size := Vector2(win.size)
 	if _args.has("pointer"):
@@ -99,6 +136,8 @@ func _process(_delta: float) -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	if not _loaded:
+		return
 	if event is InputEventMouseButton and event.pressed:
 		if hud.paused:
 			hud.set_paused(false)
@@ -130,7 +169,7 @@ func _unhandled_input(event: InputEvent) -> void:
 			KEY_F6:
 				Weather.set_heavy(not Weather.heavy, 6.0)
 			KEY_F7:
-				world.booth.force_flicker(1.0)
+				world.booth.force_flicker()
 			KEY_F8:
 				if world.lot.gate.is_open:
 					world.lot.gate.close()
@@ -192,7 +231,7 @@ func _audio_stress_test() -> void:
 		if t % 7 == 2:
 			Weather.strike_lightning(1.0, 0.0)  # directly overhead: loudest thunder
 		if t % 9 == 4:
-			world.booth.force_flicker(1.0)
+			world.booth.force_flicker()
 		if t % 11 == 6:
 			world.lot.lamp._sputter = 2.0
 			world.lot.lamp.sputtered.emit()

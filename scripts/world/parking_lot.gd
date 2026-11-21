@@ -66,7 +66,7 @@ func _build_ground() -> void:
 	var kerb := MK.mat(Color(0.7, 0.68, 0.64), "concrete", 0.85, 1.0)
 	MK.box_from(self, Vector3(-45, G, -44.2), Vector3(45, G + 0.14, -43.9), kerb)
 	MK.box_from(self, Vector3(-12.6, G, -18.2), Vector3(-9.8, G + 0.14, -13.0), kerb, "LampIsland")
-	var island_top := _plane(Vector2(2.6, 5.0), Vector3(-11.2, G + 0.142, -15.6), _wet("grass", 0.5, 0.0, Color(0.6, 0.65, 0.55)))
+	var island_top := _plane(Vector2(2.6, 5.0), Vector3(-11.2, G + 0.155, -15.6), _wet("grass", 0.5, 0.0, Color(0.6, 0.65, 0.55)))
 	island_top.name = "LampIslandGrass"
 
 
