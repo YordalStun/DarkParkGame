@@ -12,6 +12,8 @@ var _creak_timer := 20.0
 var _thunders: Array[AudioStream] = []
 var _outside_lp: AudioEffectLowPassFilter
 
+const MASTER_DB := -3.0
+
 
 func _ready() -> void:
 	_setup_buses()
@@ -35,7 +37,7 @@ func _ready() -> void:
 
 	Weather.lightning_struck.connect(_on_lightning)
 	world.booth.light_flickered.connect(_on_light_flicker)
-	world.lot.lamp.sputtered.connect(func(): _one_shot_3d("light_flicker", lamp.global_position + lamp.head_position, -10.0, 0.6, "Outside", 8.0))
+	world.lot.lamp.sputtered.connect(func(): _one_shot_3d("light_flicker", lamp.global_position + lamp.head_position, -14.0, 0.6, "Outside", 8.0))
 
 
 func _setup_buses() -> void:
@@ -51,6 +53,13 @@ func _setup_buses() -> void:
 	_outside_lp.cutoff_hz = 2600.0
 	_outside_lp.resonance = 0.6
 	AudioServer.add_bus_effect(out, _outside_lp)
+	# Ear safety: the whole game sits a little lower, and a limiter on the master
+	# output means no combination of sounds can ever clip or spike past -1.5 dBFS.
+	AudioServer.set_bus_volume_db(0, MASTER_DB)
+	var limiter := AudioEffectHardLimiter.new()
+	limiter.ceiling_db = -1.5
+	limiter.release = 0.15
+	AudioServer.add_bus_effect(0, limiter)
 	var inside := AudioServer.get_bus_index("Interior")
 	var verb := AudioEffectReverb.new()
 	verb.room_size = 0.12
@@ -86,6 +95,7 @@ func _loop3d(n: String, pos: Vector3, bus: String, unit := 1.0) -> AudioStreamPl
 	p.stream = s
 	p.bus = bus
 	p.unit_size = unit
+	p.max_db = 0.0  # never louder than its set volume, however close the camera is
 	p.max_distance = 60.0
 	p.attenuation_model = AudioStreamPlayer3D.ATTENUATION_INVERSE_DISTANCE
 	p.position = pos
@@ -102,6 +112,7 @@ func _one_shot_3d(n: String, pos: Vector3, db := 0.0, pitch := 1.0, bus := "Inte
 	p.volume_db = db
 	p.pitch_scale = pitch
 	p.unit_size = unit
+	p.max_db = 0.0
 	p.position = pos
 	world.add_child(p)
 	p.play()
@@ -129,7 +140,7 @@ func _process(delta: float) -> void:
 	var ws := Weather.gusty_wind()
 	var heavy := smoothstep(0.45, 0.95, r)
 	_vol("rain_light", smoothstep(0.02, 0.25, r) * (1.0 - heavy * 0.5), -4.0)
-	_vol("rain_heavy", heavy, -1.0)
+	_vol("rain_heavy", heavy, -3.0)
 	_vol("rain_roof", clampf(r * 1.3, 0.0, 1.0), -7.0)
 	_vol("rain_window", clampf(r * 1.2, 0.0, 1.0), -6.0)
 	_vol("rain_gutter", Weather.wetness * clampf(0.25 + r, 0.0, 1.0), -8.0)
@@ -172,7 +183,7 @@ func _on_lightning(strength: float, distance: float) -> void:
 	var p := AudioStreamPlayer.new()
 	p.stream = stream
 	p.bus = "Outside"
-	p.volume_db = lerpf(2.0, -10.0, distance) + linear_to_db(clampf(strength, 0.2, 1.0))
+	p.volume_db = lerpf(-7.0, -15.0, distance) + linear_to_db(clampf(strength, 0.2, 1.0))
 	p.pitch_scale = randf_range(0.85, 1.05)
 	add_child(p)
 	p.play()
@@ -180,4 +191,4 @@ func _on_lightning(strength: float, distance: float) -> void:
 
 
 func _on_light_flicker() -> void:
-	_one_shot_3d("light_flicker", Vector3(0, 2.4, 0.15), -4.0, randf_range(0.9, 1.1))
+	_one_shot_3d("light_flicker", Vector3(0, 2.4, 0.15), -11.0, randf_range(0.9, 1.1))

@@ -170,8 +170,9 @@ func _apply_args() -> void:
 		world.camera.rotation_degrees = Vector3(float(c[4]), float(c[3]), 0)
 	if _args.has("nofog"):
 		world.environment.volumetric_fog_enabled = false
-	if _args.has("audiotest"):
+	if _args.has("audiotest") or _args.has("novisuals"):
 		_strip_visuals()  # audio-only run: make software rendering fast
+	if _args.has("audiotest"):
 		_audio_stress_test()
 	if _args.has("zoom"):
 		await get_tree().create_timer(0.1).timeout
