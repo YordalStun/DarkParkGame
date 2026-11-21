@@ -94,6 +94,22 @@ func set_prompt(text: String) -> void:
 	Input.set_custom_mouse_cursor(_cursor_ring if text != "" else _cursor_dot, Input.CURSOR_ARROW, Vector2(8, 8))
 
 
+## The sit-back hint normally sits at the bottom; while the desktop is up it moves above the
+## screen so it doesn't cover the taskbar.
+func set_hint(text: String, top := false) -> void:
+	_hint.text = text
+	if top:
+		_hint.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP)
+		_hint.offset_top = 12
+		_hint.offset_bottom = 38
+	else:
+		_hint.set_anchors_and_offsets_preset(Control.PRESET_CENTER_BOTTOM)
+		_hint.offset_top = -46
+		_hint.offset_bottom = -20
+	_hint.offset_left = -300
+	_hint.offset_right = 300
+
+
 func set_zoomed(z: bool) -> void:
 	var tw := create_tween()
 	tw.tween_property(_hint, "modulate:a", 1.0 if z else 0.0, 0.5)

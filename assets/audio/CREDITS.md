@@ -39,6 +39,9 @@ Played through a "transistor radio" filter in `tools/build_audio.py`.
 `fluorescent_hum.ogg`, `crt_hum.ogg`, `clock_tick.ogg`, `light_flicker.ogg`,
 `radio_hiss.ogg`, `radio_click.ogg`, `radio_static.ogg`
 
+Desktop computer sounds (`tools/build_desktop_audio.py`): `bios.ogg`, `hdd.ogg`, `chime.ogg`,
+`click2.ogg`, `ding.ogg`, `dialup.ogg`
+
 ## Rebuilding
 
 ```bash

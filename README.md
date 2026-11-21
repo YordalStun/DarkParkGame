@@ -44,6 +44,45 @@ The location and its ambience are done; missions and story come next.
 * **PS1-era look:** 640×360 internal resolution, nearest-neighbour textures,
   15-bit colour with ordered dithering, film grain and a vignette.
 
+## The computer (NightWin 95)
+
+Click the CRT to lean in. You get the green Nightwatch terminal first; **click the glass** (there is
+a prompt at the bottom) to start the workstation: BIOS text, a splash screen, then a
+Windows-95-style desktop with a Start menu, taskbar, draggable/resizable windows and a mouse
+cursor. The PC is fully usable with the mouse and keyboard.
+
+| Program | What it does |
+|---|---|
+| **NightNet Explorer** | Web browser. Shows a fictional 1990s web (a news site, a parking authority, a security-company site, a personal homepage, a night-shift message board, a weather page, a search engine...). Type words in the address bar to search it. It can also open **real** pages (see below). |
+| Mail | A small inbox of messages from the night team. Compose a message and you may get a reply. |
+| Notepad | Edit and save text files on the fake disk. Opens the shift notes, patrol sheet, etc. |
+| Paint | Pencil, brush, eraser, fill, spray, line, rectangle, ellipse, colour picker. |
+| Calculator, Minesweeper | They work. |
+| MS-DOS Prompt | `dir`, `cd`, `type`, `cls`, `ver`, `ping`, `who`, `edit`, `start`... |
+| My Computer / Explorer | Browse drives A:, C:, D:, Control Panel, Network Neighborhood and the Recycle Bin. Double-click to open. |
+| Gate Control | Opens and closes the **real** barrier gate in the car park. |
+| CamLink | Camera viewer. Placeholder: every camera says NO SIGNAL until real 3D cameras exist. |
+| Run..., Find, Help, Display and Date/Time properties | As you would expect. |
+
+Start > Shut Down > *Restart in MS-DOS mode* takes you back to the green terminal. Look in the
+folders on the C: drive, the floppy in A:, the Recycle Bin and the Inbox for the story.
+
+| | |
+|---|---|
+| ![Browser](docs/screenshots/desktop_browser.png) | ![Apps](docs/screenshots/desktop_apps.png) |
+
+### Real web pages
+
+The browser first "dials" the modem (a dialog with modem sounds), then can open real `http://` and
+`https://` pages: type an address, or follow the links on the NightNet Start Page (info.cern.ch,
+example.com, FrogFind, NPR text-only news...). Pages are shown by a small built-in HTML renderer:
+text, headings, links, lists, tables, `<pre>`, `<font>` colours and sizes. There is no JavaScript or
+CSS, so modern sites look like old ones; text-heavy and "lite" sites work best. Images on real
+pages show their alt text. A proxy in `HTTP_PROXY`/`HTTPS_PROXY` is honoured.
+Real requests go out from the player's own machine, like any browser; nothing is sent until the
+player chooses to connect. To turn it off, make `os.gd`'s `Dialogs.dialup` refuse (or remove the
+`Pages.has_host` fallback in `apps/browser.gd`).
+
 ## Controls
 
 The game is played entirely with the mouse.
@@ -54,8 +93,9 @@ The game is played entirely with the mouse.
 | Left click | Use what you are pointing at (its name appears at the bottom) |
 | Click the CRT | Lean in to the terminal |
 | Click the radio | Switch the music on/off |
-| Right click | Sit back |
-| Esc | Sit back, or pause (Q quits while paused) |
+| Right click | Sit back (at the desktop, right click is the PC's right button; right click the monitor frame to sit back) |
+| Esc | Close a menu or dialog on the PC, else sit back, else pause (Q quits while paused) |
+| Keyboard | Typing works while you are using the PC |
 | F11 | Toggle fullscreen |
 
 Developer keys (for testing the atmosphere):
@@ -113,12 +153,22 @@ scripts/
   player/interactable.gd   Clickable objects (phone, radio, logbook, CRT)
   ui/crt_terminal.gd       The terminal screen contents
   ui/hud.gd                Prompt text, pause screen, cursor
+  desktop/os.gd            NightWin 95: boot, desktop, taskbar, Start menu, window manager
+  desktop/w95.gd           Win95 look: bevels, Theme, fonts, cursors
+  desktop/window.gd        Window frame (drag, resize, minimise/maximise/close)
+  desktop/dialogs.gd       Message box, Run, Shut Down, dial-up, file dialog...
+  desktop/html_view.gd     HTML -> RichTextLabel renderer (fake and real pages)
+  desktop/web_pages.gd     The fictional 90s web
+  desktop/vfs.gd           The fake disk and its files
+  desktop/apps/            Browser, Mail, Notepad, Paint, DOS, Minesweeper, Calculator, ...
   util/mesh_kit.gd         Geometry + material helpers
 shaders/                   Rain, window glass, wet ground, foliage, sky, CRT, post FX
 assets/audio/              Sound effects (see assets/audio/CREDITS.md)
 assets/textures/           Generated PS1-style textures (replace with hand-made art any time)
-assets/fonts/              VT323 terminal font (SIL Open Font License)
-tools/                     Scripts that rebuild the textures and the sound set
+assets/fonts/              VT323 terminal font, Liberation fonts for the desktop (SIL Open Font License)
+assets/desktop/            Generated icons and web graphics for the desktop
+tools/                     Scripts that rebuild the textures, sounds and desktop art;
+                           desktop_test.gd / desktop_interact_test.gd run the desktop on its own
 ```
 
 The location is built in code, so tweaking a position or colour means changing one
@@ -137,6 +187,9 @@ world.lot.lamp.level = 0.0            # street lamp off
 world.lot.gate.open()
 world.props.terminal.add_log("MOTION DETECTED - ROW C")
 world.props.radio_player.set_on(false)   # radio off (e.g. for a scare)
+world.props.desktop.open_app("notepad", {"path": "C:\\MY DOCUMENTS\\SHIFT NOTES.TXT"})
+world.props.desktop.vfs.write("C:\\MY DOCUMENTS\\NEW.TXT", "...")   # drop a file on the PC
+world.props.desktop.mailbox.append({"from": "?", "subj": "...", "date": "Now", "unread": true, "body": "..."})
 world.props.phone_interact.activated.connect(...)  # phone, radio, logbook, CRT
 ```
 
@@ -144,5 +197,6 @@ world.props.phone_interact.activated.connect(...)  # phone, radio, logbook, CRT
 
 * Sounds and radio music: CC0 recordings from OpenGameArt.org plus synthesised effects. See
   [assets/audio/CREDITS.md](assets/audio/CREDITS.md).
-* Font: [VT323](https://fonts.google.com/specimen/VT323) by Peter Hull, SIL Open Font License.
+* Fonts: [VT323](https://fonts.google.com/specimen/VT323) by Peter Hull and the
+  [Liberation fonts](https://github.com/liberationfonts), both SIL Open Font License.
 * Everything else (textures, models, shaders) was made for this project.

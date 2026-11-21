@@ -10,6 +10,8 @@ extends Node
 ## Screenshot mode (for automated checks), after `--` on the command line:
 ##   --screenshot=out.png --frames=120 --pointer=0.0,0.0 --weather=storm --rain=0.9
 ##   --lightning   --zoom
+##   --desktop[=browser,paint]   lean in, boot the desktop and open those programs
+##   --url=http://...            address for the browser (with --desktop=browser)
 
 const World := preload("res://scripts/world/world.gd")
 const Hud := preload("res://scripts/ui/hud.gd")
@@ -28,6 +30,9 @@ var _frame := 0
 var _args := {}
 var _loaded := false
 var _loading: CanvasLayer
+var _hires := false          ## render at higher resolution while using the desktop so its text is legible
+var _desk_drag := false
+var _desk_last := Vector2.ZERO
 
 
 func _ready() -> void:
@@ -76,6 +81,10 @@ func _ready() -> void:
 	add_child(hud)
 	world.camera.hover_changed.connect(hud.set_prompt)
 	world.camera.zoom_changed.connect(func(z): hud.set_zoomed(z))
+	var desk = world.props.desktop
+	desk.world = world
+	desk.state_changed.connect(func(on): hud.set_hint("Esc to sit back" if on else "Right click to sit back", on))
+	desk.sound.connect(func(n, db): world.ambience.play_ui(n, db))
 
 	_apply_args()
 	await _warm_up()
@@ -110,7 +119,8 @@ func _warm_up() -> void:
 
 func _update_scale() -> void:
 	var h := float(get_tree().root.size.y)
-	container.stretch_shrink = maxi(1, int(round(h / TARGET_HEIGHT)))
+	# At the desktop the picture needs more pixels than the PS1 look allows, or its text is mush.
+	container.stretch_shrink = maxi(1, int(round(h / (640.0 if _hires else TARGET_HEIGHT))))
 
 
 func _process(_delta: float) -> void:
@@ -124,6 +134,8 @@ func _process(_delta: float) -> void:
 		var m := win.get_mouse_position()
 		world.camera.set_pointer(Vector2(m.x / size.x * 2.0 - 1.0, m.y / size.y * 2.0 - 1.0).clamp(Vector2(-1, -1), Vector2(1, 1)))
 
+	_update_desktop_mode(size)
+
 	if _shot_path != "":
 		_frame += 1
 		if _args.has("lightning") and _frame == _shot_frames - 4:
@@ -135,8 +147,87 @@ func _process(_delta: float) -> void:
 			get_tree().quit()
 
 
+## Higher render resolution and a hidden system cursor while the player is using the desktop.
+func _update_desktop_mode(win_size: Vector2) -> void:
+	var desk = world.props.desktop
+	var zoomed: bool = world.camera.state == world.camera.State.ZOOMED
+	var want: bool = zoomed and desk.is_on()
+	if want != _hires:
+		_hires = want
+		_update_scale()
+	var over := false
+	if want and not hud.paused:
+		var px := _screen_px(win_size)
+		over = _on_screen(px) or _desk_drag
+	Input.mouse_mode = Input.MOUSE_MODE_HIDDEN if over else Input.MOUSE_MODE_VISIBLE
+	desk.set_pointer_visible(over)
+
+
+func _pointer_ndc(pos: Vector2, win_size: Vector2) -> Vector2:
+	return Vector2(pos.x / win_size.x * 2.0 - 1.0, pos.y / win_size.y * 2.0 - 1.0)
+
+
+func _screen_px(win_size: Vector2, pos := Vector2(-1, -1)) -> Vector2:
+	var m := pos if pos.x >= 0.0 else get_tree().root.get_mouse_position()
+	return world.props.screen_pixel(world.camera, _pointer_ndc(m, win_size))
+
+
+func _on_screen(px: Vector2) -> bool:
+	return px.x >= 0.0 and px.y >= 0.0 and px.x < 640.0 and px.y < 480.0
+
+
+## Sends mouse and keyboard to the desktop while the player is leaned in to the screen.
+## Returns true if the event was used.
+func _desktop_input(event: InputEvent) -> bool:
+	var desk = world.props.desktop
+	if world.camera.state != world.camera.State.ZOOMED:
+		_desk_drag = false
+		return false
+	var win_size := Vector2(get_tree().root.size)
+	if event is InputEventMouse:
+		var px := _screen_px(win_size, event.position)
+		var on := _on_screen(px)
+		if not desk.is_on():
+			# The green terminal: click the glass to start the computer.
+			if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT and on:
+				desk.power_on()
+				return true
+			return false
+		var left_down: bool = event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT
+		if event is InputEventMouseButton:
+			if event.pressed and not on:
+				return event.button_index != MOUSE_BUTTON_RIGHT   # right click off the glass = sit back
+			if not event.pressed and not on and not _desk_drag:
+				return false
+			if left_down:
+				_desk_drag = true
+			elif not event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+				_desk_drag = false
+		elif not on and not _desk_drag:
+			return false
+		px = px.clamp(Vector2.ZERO, Vector2(639, 479))
+		var e: InputEventMouse = event.duplicate()
+		e.position = px
+		e.global_position = px
+		if e is InputEventMouseMotion:
+			e.relative = px - _desk_last
+		_desk_last = px
+		desk.push_input(e, true)
+		return true
+	if event is InputEventKey and desk.is_on():
+		if event.pressed and event.keycode == KEY_ESCAPE:
+			return desk.escape()   # closes a menu/dialog, otherwise falls through to "sit back"
+		if event.keycode >= KEY_F1 and event.keycode <= KEY_F12:
+			return false
+		desk.push_input(event, true)
+		return true
+	return false
+
+
 func _unhandled_input(event: InputEvent) -> void:
 	if not _loaded:
+		return
+	if not hud.paused and _desktop_input(event):
 		return
 	if event is InputEventMouseButton and event.pressed:
 		if hud.paused:
@@ -213,9 +304,48 @@ func _apply_args() -> void:
 		_strip_visuals()  # audio-only run: make software rendering fast
 	if _args.has("audiotest"):
 		_audio_stress_test()
-	if _args.has("zoom"):
+	if _args.has("zoom") or _args.has("desktop"):
 		await get_tree().create_timer(0.1).timeout
 		world.camera.zoom_to(world.props.crt_interact)
+	if _args.has("desktop"):
+		_open_desktop_for_test()
+
+
+## --desktop: boot the desktop straight away and open the listed programs (for screenshots).
+func _open_desktop_for_test() -> void:
+	var desk = world.props.desktop
+	desk.net_connected = _args.has("online")
+	desk.power_on(true)
+	await get_tree().create_timer(0.3).timeout
+	if _args.has("menu"):
+		desk.toggle_start()
+	for id in str(_args.desktop).split(",", false):
+		if id == "1" or id == "true":
+			continue
+		var a := {}
+		if _args.has("url"):
+			a["url"] = _args.url
+		desk.open_app(id, a)
+	# --simclick=x,y;x,y : inject real left clicks at window pixels (tests the screen mapping)
+	if _args.has("simclick"):
+		await get_tree().create_timer(1.5).timeout
+		for pt in str(_args.simclick).split(";", false):
+			var xy := pt.split(",")
+			var pos := Vector2(float(xy[0]), float(xy[1]))
+			var mv := InputEventMouseMotion.new()
+			mv.position = pos
+			mv.global_position = pos
+			Input.parse_input_event(mv)
+			await get_tree().create_timer(0.3).timeout
+			for pressed in [true, false]:
+				var b := InputEventMouseButton.new()
+				b.button_index = MOUSE_BUTTON_LEFT
+				b.pressed = pressed
+				b.position = pos
+				b.global_position = pos
+				Input.parse_input_event(b)
+				await get_tree().create_timer(0.15).timeout
+			await get_tree().create_timer(0.4).timeout
 
 
 ## --audiotest: worst case for loudness checks. Full storm, heavy rain, and every
