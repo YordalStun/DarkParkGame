@@ -5,7 +5,8 @@ car park security booth. You sit at your desk with a beige CRT terminal in front
 of you. Through the big rain-streaked window there is a dark car park, lit only
 by one sodium street lamp and the light spilling from your booth.
 
-Built with **Godot 4.4** (free, open source) and exports to a standalone Windows `.exe`.
+Built with **Godot 4.5** (free, open source). The Windows build is a folder: `DarkPark.exe` plus the
+Chromium files that power the in-game web browser.
 
 ![Desk view](docs/screenshots/desk_view.png)
 
@@ -72,17 +73,17 @@ folders on the C: drive, the floppy in A:, the Recycle Bin and the Inbox for the
 |---|---|
 | ![Browser](docs/screenshots/desktop_browser.png) | ![Apps](docs/screenshots/desktop_apps.png) |
 
-### Real web pages
+### Real web pages and YouTube
 
-The browser first "dials" the modem (a dialog with modem sounds), then can open real `http://` and
-`https://` pages: type an address, or follow the links on the NightNet Start Page (info.cern.ch,
-example.com, FrogFind, NPR text-only news...). Pages are shown by a small built-in HTML renderer:
-text, headings, links, lists, tables, `<pre>`, `<font>` colours and sizes. There is no JavaScript or
-CSS, so modern sites look like old ones; text-heavy and "lite" sites work best. Images on real
-pages show their alt text. A proxy in `HTTP_PROXY`/`HTTPS_PROXY` is honoured.
-Real requests go out from the player's own machine, like any browser; nothing is sent until the
-player chooses to connect. To turn it off, make `os.gd`'s `Dialogs.dialup` refuse (or remove the
-`Pages.has_host` fallback in `apps/browser.gd`).
+The browser first "dials" the modem, then opens real `http://` and `https://` sites in an
+embedded **Chromium** engine ([gdCEF](https://github.com/Lecrapouille/gdcef)): full pages,
+JavaScript and video, so YouTube works. Pages are shown in 256 colours with a dither, like a
+1995 display (View > 256 Colours turns that off). The page's sound comes out of the monitor.
+Click the page to give it the keyboard. The fictional 90s sites still use the small built-in
+renderer. Nothing is kept between sessions (incognito).
+
+Chromium is about 2 GB unpacked, so it is not in git. After cloning, run `tools/fetch_cef.sh` once.
+Without it the game still runs; real sites then fall back to the simple built-in renderer.
 
 ## Controls
 
@@ -112,24 +113,21 @@ Developer keys (for testing the atmosphere):
 
 ## Running it
 
-1. Install [Godot 4.4](https://godotengine.org/download) (standard build, not .NET).
+1. Install [Godot 4.5](https://godotengine.org/download) (standard build, not .NET).
+   Run `tools/fetch_cef.sh` once to download the browser engine.
 2. Open Godot, click **Import**, and pick this folder's `project.godot`.
 3. Press **F5** (Run).
 
-## Building the .exe
-
-**In the editor:** Project → Export → *Windows Desktop* → Export Project.
-The first time, Godot will offer to download the export templates.
-The game is a single `DarkPark.exe` (about 100 MB) with everything embedded.
-
-**From the command line:**
+## Building the game
 
 ```bash
-godot --headless --path . --export-release "Windows Desktop" build/windows/DarkPark.exe
+tools/fetch_cef.sh
+tools/package_windows.sh /path/to/godot build/windows
 ```
 
-**Automatically:** every push runs `.github/workflows/build.yml`, which exports the
-`.exe` and attaches it to the run (GitHub → Actions → latest run → Artifacts → `DarkPark-windows`).
+That exports `DarkPark.exe`, copies the Chromium files next to it, and zips the folder as
+`build/windows/DarkPark-windows.zip`. Every push also runs `.github/workflows/build.yml`, which
+does the same (GitHub > Actions > latest run > Artifacts > `DarkPark-windows`).
 
 ## Project layout
 
@@ -160,7 +158,8 @@ scripts/
   desktop/w95.gd           Win95 look: bevels, Theme, fonts, cursors
   desktop/window.gd        Window frame (drag, resize, minimise/maximise/close)
   desktop/dialogs.gd       Message box, Run, Shut Down, dial-up, file dialog...
-  desktop/html_view.gd     HTML -> RichTextLabel renderer (fake and real pages)
+  desktop/html_view.gd     HTML -> RichTextLabel renderer (the fictional 90s web)
+  desktop/web_engine.gd    Embedded Chromium for real sites and YouTube
   desktop/web_pages.gd     The fictional 90s web
   desktop/vfs.gd           The fake disk and its files
   desktop/apps/            Browser, Mail, Notepad, Paint, DOS, Minesweeper, Calculator, ...

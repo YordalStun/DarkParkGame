@@ -36,6 +36,14 @@ var _t := 0.0
 var _fake_progress := false
 var _renderer: RefCounted
 
+# Real sites go through Chromium (see web_engine.gd) when it is installed.
+const WEB_FILTER := preload("res://shaders/web_256.gdshader")
+var web: TextureRect          ## shows the Chromium page
+var view: Object              ## the Chromium page view (GdBrowserView), or null
+var _web_audio: Node          ## AudioStreamPlayer(3D) the page's sound plays through
+var _web_mat: ShaderMaterial
+var _web_url := ""
+
 
 func setup(p_os: Node, p_win: Control, args: Dictionary) -> void:
 	os = p_os
@@ -116,6 +124,27 @@ func setup(p_os: Node, p_win: Control, args: Dictionary) -> void:
 	frame.add_child(rtl)
 	_set_bg(Color.WHITE)
 
+	web = TextureRect.new()
+	web.set_anchors_preset(Control.PRESET_FULL_RECT)
+	web.offset_left = 2
+	web.offset_top = 2
+	web.offset_right = -2
+	web.offset_bottom = -2
+	web.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	web.stretch_mode = TextureRect.STRETCH_SCALE
+	web.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	web.focus_mode = Control.FOCUS_CLICK
+	web.mouse_filter = Control.MOUSE_FILTER_STOP
+	web.visible = false
+	_web_mat = ShaderMaterial.new()
+	_web_mat.shader = WEB_FILTER
+	web.material = _web_mat
+	web.gui_input.connect(_web_input)
+	web.resized.connect(func():
+		if view and web.size.x > 4 and web.size.y > 4:
+			view.resize(web.size))
+	frame.add_child(web)
+
 	var sb := HBoxContainer.new()
 	box.add_child(sb)
 	status = Label.new()
@@ -189,6 +218,9 @@ func _view_items() -> Array:
 		{"text": "Refresh", "act": func(): navigate(addr.text, false)},
 		{"sep": true},
 		{"text": "Source", "act": _view_source},
+		{"sep": true},
+		{"text": ("[x] " if _web_mat.get_shader_parameter("enabled") != false else "[ ] ") + "256 Colours", "act": func():
+			_web_mat.set_shader_parameter("enabled", _web_mat.get_shader_parameter("enabled") == false)},
 	]
 
 
@@ -250,6 +282,9 @@ func navigate(text: String, push := true) -> void:
 
 
 func go_back() -> void:
+	if _web_showing() and view.has_previous_page():
+		view.previous_page()
+		return
 	if hist_i > 0:
 		hist_i -= 1
 		_update_nav()
@@ -257,6 +292,9 @@ func go_back() -> void:
 
 
 func go_forward() -> void:
+	if _web_showing() and view.has_next_page():
+		view.next_page()
+		return
 	if hist_i < history.size() - 1:
 		hist_i += 1
 		_update_nav()
@@ -265,8 +303,8 @@ func go_forward() -> void:
 
 func _update_nav() -> void:
 	if back_btn:
-		back_btn.disabled = hist_i <= 0
-		fwd_btn.disabled = hist_i >= history.size() - 1
+		back_btn.disabled = hist_i <= 0 and not (_web_showing() and view.has_previous_page())
+		fwd_btn.disabled = hist_i >= history.size() - 1 and not (_web_showing() and view.has_next_page())
 
 
 func stop() -> void:
@@ -337,7 +375,10 @@ func _about(url: String) -> String:
 
 func _fetch(url: String, host: String, g: int) -> void:
 	if Pages.has_host(host):
+		_show_web(false)
 		_fake_fetch(url, g)
+		return
+	if _web_load(url, host):
 		return
 	status.text = "Connecting to site %s..." % host
 	os.busy = true
@@ -483,6 +524,7 @@ func _show_image(body: PackedByteArray, ctype: String, url: String, g: int) -> v
 func _show_html(html: String, url: String, g: int, is_error := false) -> void:
 	if g != _gen:
 		return
+	_show_web(false)
 	status.text = "Reading page..."
 	_last_html = html
 	var r: RefCounted = HtmlView.new()
@@ -510,7 +552,118 @@ func _draw_throbber() -> void:
 
 
 func on_closed() -> void:
+	if view:
+		view.close()
+		view = null
+	if _web_audio:
+		_web_audio.queue_free()
+		_web_audio = null
 	_gen += 1
 	if _http:
 		_http.cancel_request()
 	os.busy = false
+
+
+# ================================================================ Chromium
+func _web_showing() -> bool:
+	return view != null and web.visible
+
+
+func _show_web(on: bool) -> void:
+	web.visible = on
+	rtl.visible = not on
+	if not on and view:
+		view.set_muted(true)       # a video left playing must not carry on behind a fake page
+	elif on and view:
+		view.set_muted(false)
+
+
+## Opens a real site in Chromium. Returns false if the engine isn't available.
+func _web_load(url: String, host: String) -> bool:
+	if os.web == null or not os.web.ensure():
+		return false
+	status.text = "Connecting to site %s..." % host
+	_web_url = url
+	if view == null:
+		view = os.web.create_view(url, web)
+		if view == null:
+			return false
+		view.on_page_loaded.connect(func(_a = null, _b = null): _web_loaded())
+		view.on_page_failed_loading.connect(func(code = 0, msg = "", _b = null):
+			if code != -3:   # -3 = aborted (a new page was opened): not an error
+				_finish("Error loading page"))
+		view.resize(web.size if web.size.x > 4 else Vector2(560, 300))
+		_web_sound()
+	else:
+		view.load_url(url)
+	_show_web(true)
+	return true
+
+
+func _web_loaded() -> void:
+	var u: String = view.get_url()
+	var t: String = view.get_title()
+	addr.text = u
+	_title = t if t != "" else u
+	win.set_title("%s - NightNet Explorer" % _title)
+	visited[u] = true
+	_update_nav()
+	_finish("Done")
+
+
+## The page's sound plays from the monitor itself (3D) when the game world is there.
+func _web_sound() -> void:
+	var gen := AudioStreamGenerator.new()
+	gen.buffer_length = 1.0
+	var crt: Node3D = os.world.props.crt if os.world != null and os.world.get("props") != null else null
+	if crt:
+		var p := AudioStreamPlayer3D.new()
+		p.stream = gen
+		p.bus = "Interior"
+		p.unit_size = 1.2
+		p.max_db = 0.0
+		p.volume_db = -6.0
+		crt.add_child(p)
+		p.position = Vector3(0, 0.25, 0.1)
+		p.play()
+		view.audio_stream = p.get_stream_playback()
+		_web_audio = p
+	else:
+		var p2 := AudioStreamPlayer.new()
+		p2.stream = gen
+		p2.volume_db = -6.0
+		add_child(p2)
+		p2.play()
+		view.audio_stream = p2.get_stream_playback()
+		_web_audio = p2
+
+
+## Mouse, wheel and keys on the page go to Chromium.
+func _web_input(ev: InputEvent) -> void:
+	if view == null:
+		return
+	if ev is InputEventMouseMotion:
+		view.set_mouse_moved(int(ev.position.x), int(ev.position.y))
+	elif ev is InputEventMouseButton:
+		view.set_mouse_moved(int(ev.position.x), int(ev.position.y))
+		match ev.button_index:
+			MOUSE_BUTTON_LEFT:
+				if ev.pressed:
+					web.grab_focus()
+					view.set_mouse_left_down()
+				else:
+					view.set_mouse_left_up()
+			MOUSE_BUTTON_RIGHT:
+				if ev.pressed:
+					view.set_mouse_right_down()
+				else:
+					view.set_mouse_right_up()
+			MOUSE_BUTTON_WHEEL_UP:
+				if ev.pressed:
+					view.set_mouse_wheel_vertical(2, ev.shift_pressed, ev.ctrl_pressed, ev.alt_pressed)
+			MOUSE_BUTTON_WHEEL_DOWN:
+				if ev.pressed:
+					view.set_mouse_wheel_vertical(-2, ev.shift_pressed, ev.ctrl_pressed, ev.alt_pressed)
+	elif ev is InputEventKey:
+		view.set_key_pressed(ev.unicode if ev.unicode != 0 else ev.keycode, ev.pressed, ev.shift_pressed, ev.alt_pressed, ev.ctrl_pressed)
+		accept_event()

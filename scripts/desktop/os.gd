@@ -39,6 +39,7 @@ const APPS := {
 var state := "off"            ## off | boot | running | shutdown
 var world: Node               ## the game world (may be null in tests)
 var away := true             ## the player is not leaned in to the screen
+var web: Node                ## Chromium web engine (web_engine.gd), shared by browser windows
 var vfs := VFS.new()
 var net_connected := false
 var windows: Array = []
@@ -83,6 +84,9 @@ var modem_blink := 0.0
 
 
 func _ready() -> void:
+	web = load("res://scripts/desktop/web_engine.gd").new()
+	web.name = "WebEngine"
+	add_child(web)
 	size = Vector2i(W, H)
 	transparent_bg = false
 	disable_3d = true

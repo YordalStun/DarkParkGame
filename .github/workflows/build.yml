@@ -1,4 +1,4 @@
-# Builds DarkPark.exe on every push and attaches it to the workflow run
+# Builds the Windows game folder (DarkPark.exe + browser engine) on every push and attaches it to the run
 # (Actions tab -> latest run -> Artifacts -> DarkPark-windows).
 name: Build game
 
@@ -10,7 +10,7 @@ jobs:
   windows:
     runs-on: ubuntu-latest
     env:
-      GODOT_VERSION: 4.4.1
+      GODOT_VERSION: 4.5.1
     steps:
       - uses: actions/checkout@v4
 
@@ -26,15 +26,17 @@ jobs:
             templates/windows_release_x86_64.exe templates/version.txt -d $dest
           rm Godot_v${GODOT_VERSION}-stable_export_templates.tpz
 
-      - name: Export
+      - name: Fetch the Chromium web engine
+        run: tools/fetch_cef.sh
+
+      - name: Export and package
         run: |
           godot=./Godot_v${GODOT_VERSION}-stable_linux.x86_64
           $godot --headless --path . --import
-          mkdir -p build/windows
-          $godot --headless --path . --export-release "Windows Desktop" build/windows/DarkPark.exe
-          test -f build/windows/DarkPark.exe
+          tools/package_windows.sh $godot build/windows
+          test -f build/windows/DarkPark/DarkPark.exe
 
       - uses: actions/upload-artifact@v4
         with:
           name: DarkPark-windows
-          path: build/windows/DarkPark.exe
+          path: build/windows/DarkPark/

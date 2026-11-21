@@ -9,7 +9,7 @@ func _initialize() -> void:
 func _run() -> void:
 	var args := OS.get_cmdline_user_args()
 	var out := args[0]
-	var cef = ClassDB.instantiate("GDCEF")
+	var cef = ClassDB.instantiate("GdCEF")
 	if cef == null:
 		print("SMOKE: GDCEF class not found (extension failed to load)")
 		quit(1)
@@ -25,8 +25,8 @@ func _run() -> void:
 		var b = cef.create_browser(url, tr, {"frame_rate": 30, "user_gesture_required": false})
 		b.resize(Vector2(800, 600))
 		var loaded := [false]
-		b.on_page_loaded.connect(func(_b): loaded[0] = true)
-		b.on_page_failed_loading.connect(func(c, m, _b): print("SMOKE: failed ", url, " ", c, " ", m))
+		b.on_page_loaded.connect(func(_a = null, _b = null): loaded[0] = true)
+		b.on_page_failed_loading.connect(func(c = 0, m = "", _b = null): print("SMOKE: failed ", url, " ", c, " ", m))
 		for f in 600:
 			await process_frame
 			if loaded[0] and f > 240:
@@ -34,6 +34,12 @@ func _run() -> void:
 		var tex = b.get_texture()
 		if tex:
 			tex.get_image().save_png("%s/cef_%d.png" % [out, i])
+		# A second picture a few seconds later shows whether video is moving.
+		for f in 240:
+			await process_frame
+		tex = b.get_texture()
+		if tex:
+			tex.get_image().save_png("%s/cef_%d_b.png" % [out, i])
 		print("SMOKE: ", url, " loaded=", loaded[0], " title=", b.get_title())
 		b.close()
 		i += 1
