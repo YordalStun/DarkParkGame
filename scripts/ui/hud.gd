@@ -707,6 +707,71 @@ func big_button(text: String) -> void:
 
 
 var _cross: ColorRect
+var _tip_box: PanelContainer
+var _tip_label: Label
+var _tips: Array = []
+var _tip_busy := false
+
+
+## A guide tip in the bottom-left corner ("TIP: you can write things down..."). Each one is
+## shown once per save slot (id), then never again.
+func tip(id: String, text: String, seconds := 11.0) -> void:
+	if SaveGame.tip_seen(id):
+		return
+	SaveGame.mark_tip(id)
+	_tips.append([text, seconds])
+	if not _tip_busy:
+		_next_tip()
+
+
+func _next_tip() -> void:
+	if _tips.is_empty():
+		_tip_busy = false
+		return
+	_tip_busy = true
+	if _tip_box == null:
+		_tip_box = PanelContainer.new()
+		var sb := StyleBoxFlat.new()
+		sb.bg_color = Color(0.06, 0.07, 0.06, 0.88)
+		sb.border_color = Color(0.91, 0.75, 0.44)
+		sb.border_width_left = 4
+		sb.content_margin_left = 16
+		sb.content_margin_right = 16
+		sb.content_margin_top = 10
+		sb.content_margin_bottom = 12
+		_tip_box.add_theme_stylebox_override("panel", sb)
+		_tip_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		add_child(_tip_box)
+		move_child(_tip_box, 0)
+		var v := VBoxContainer.new()
+		v.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_tip_box.add_child(v)
+		var head := _label(22, Color(0.91, 0.75, 0.44))
+		head.reparent(v)
+		head.text = "TIP"
+		head.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+		_tip_label = _label(24, Color(0.9, 0.9, 0.85))
+		_tip_label.reparent(v)
+		_tip_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+		_tip_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		_tip_label.custom_minimum_size = Vector2(420, 0)
+	var t: Array = _tips.pop_front()
+	_tip_label.text = t[0]
+	_tip_box.visible = true
+	_tip_box.modulate.a = 0.0
+	await get_tree().process_frame
+	var h := _tip_box.get_combined_minimum_size().y
+	_tip_box.size = Vector2(452, h)
+	_tip_box.position = Vector2(18, get_viewport().get_visible_rect().size.y - 70 - h)
+	_tip_box.modulate.a = 0.0
+	_tip_box.visible = true
+	var tw := create_tween()
+	tw.tween_property(_tip_box, "modulate:a", 1.0, 0.4)
+	tw.tween_interval(t[1])
+	tw.tween_property(_tip_box, "modulate:a", 0.0, 0.8)
+	await tw.finished
+	_tip_box.visible = false
+	_next_tip()
 
 
 func _build_story_ui() -> void:

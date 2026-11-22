@@ -8,6 +8,13 @@ signal closed(choice: String)
 signal opened
 
 var is_open := false
+var mode := ""            ## "id" | "plate" | "log" | "notes"
+var _next_mode := ""
+var _id_car := ""         ## night two: the plate of the car the driver is in, shown above the card
+var _notes_box: Label     ## your notepad, stuck beside the ID card
+var _notes: Control       ## the notepad screen
+var _notes_edit: TextEdit
+var _notes_cb: Callable
 var _root: Control
 var _card: Control
 var _list: Control
@@ -48,7 +55,7 @@ func _ready() -> void:
 	add_child(_root)
 	_root.gui_input.connect(func(e):
 		if e is InputEventMouseButton and e.pressed and e.button_index == MOUSE_BUTTON_RIGHT:
-			close("hold" if _reg == "" else "done"))
+			close("hold" if mode == "id" else "done"))
 
 	_card = Control.new()
 	_card.draw.connect(_draw_card)
@@ -108,15 +115,21 @@ func _button(text: String, color: Color, choice: String) -> void:
 
 
 ## Show a staff ID card next to tonight's list.
-func show_id(person: Dictionary, staff_list: Array, date_text: String) -> void:
+func show_id(person: Dictionary, staff_list: Array, date_text: String, car_reg := "", notes := "") -> void:
 	_person = person
 	_staff_list = staff_list
 	_date_text = date_text
 	_reg = ""
-	_open("Check the card against tonight's list. Name on the list, card in date.")
+	_id_car = car_reg
+	_next_mode = "id"
+	_open("Check the card against tonight's list. Name on the list, card in date." +
+		("\nThe car's plate (top) must match the reg on the list." if car_reg != "" else ""))
+	mode = "id"
 	_card.visible = true
 	_list.visible = true
-	_plate.visible = false
+	_plate.visible = car_reg != ""
+	_show_notes_box(notes)
+	_layout()
 	_button("HAND IT BACK - OK", Color(0.3, 0.8, 0.35), "ok")
 	_button("HOLD ON TO IT", Color(0.75, 0.75, 0.7), "hold")
 	_button("REFUSE ENTRY", Color(0.9, 0.25, 0.2), "refuse")
@@ -125,7 +138,10 @@ func show_id(person: Dictionary, staff_list: Array, date_text: String) -> void:
 ## Show the car's number plate (you lean to the glass and read it).
 func show_plate(reg: String) -> void:
 	_reg = reg
+	_id_car = ""
+	_next_mode = "plate"
 	_open("You lean to the glass and read the plate.")
+	mode = "plate"
 	_card.visible = false
 	_list.visible = false
 	_plate.visible = true
@@ -145,7 +161,10 @@ func show_log(reg: String, staff_list: Array, date_text: String, on_log: Callabl
 	_date_text = date_text
 	_log_cb = on_log
 	_log_entries = get_entries
+	_id_car = ""
+	_next_mode = "log"
 	_open("Type the plate, click the driver's name, then LOG ENTRY.")
+	mode = "log"
 	_card.visible = false
 	_list.visible = false
 	_plate.visible = reg != ""
@@ -302,14 +321,100 @@ func _do_log() -> void:
 	_fill_log()
 
 
+## Your notepad: a lined pad you type on. on_change(text) is called as you type.
+func show_notes(text: String, on_change: Callable) -> void:
+	_id_car = ""
+	_reg = "-"
+	_next_mode = "notes"
+	_open("Your notepad. Type anything. Esc, N or DONE to put it down.")
+	mode = "notes"
+	_card.visible = false
+	_list.visible = false
+	_plate.visible = false
+	if _notes == null:
+		_build_notes()
+	_notes_cb = on_change
+	_notes_edit.text = text
+	_notes.visible = true
+	_button("DONE", Color(0.75, 0.75, 0.7), "done")
+	_layout()
+	_notes_edit.grab_focus.call_deferred()
+	_notes_edit.set_caret_line.call_deferred(_notes_edit.get_line_count() - 1)
+
+
+func _build_notes() -> void:
+	_notes = Panel.new()
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = Color(0.98, 0.93, 0.55)
+	sb.border_color = Color(0.75, 0.2, 0.15)
+	sb.border_width_top = 26
+	sb.shadow_size = 18
+	sb.shadow_color = Color(0, 0, 0, 0.6)
+	_notes.add_theme_stylebox_override("panel", sb)
+	_notes.size = Vector2(560, 480)
+	_root.add_child(_notes)
+	_notes_edit = TextEdit.new()
+	_notes_edit.position = Vector2(30, 46)
+	_notes_edit.size = Vector2(500, 410)
+	_notes_edit.wrap_mode = TextEdit.LINE_WRAPPING_BOUNDARY
+	_notes_edit.placeholder_text = "e.g.  Janet Lowe OFF tonight.  Kevin Platt ON - van B908 RWD"
+	_notes_edit.add_theme_font_override("font", load("res://assets/fonts/LiberationSerif-Italic.ttf"))
+	_notes_edit.add_theme_font_size_override("font_size", 26)
+	_notes_edit.add_theme_color_override("font_color", Color(0.1, 0.12, 0.35))
+	_notes_edit.add_theme_color_override("font_placeholder_color", Color(0.45, 0.42, 0.3, 0.7))
+	_notes_edit.add_theme_color_override("caret_color", Color(0.1, 0.12, 0.35))
+	_notes_edit.add_theme_constant_override("line_spacing", 10)
+	var clear := StyleBoxEmpty.new()
+	_notes_edit.add_theme_stylebox_override("normal", clear)
+	_notes_edit.add_theme_stylebox_override("focus", clear)
+	_notes_edit.text_changed.connect(func():
+		if _notes_cb.is_valid():
+			_notes_cb.call(_notes_edit.text))
+	_notes.add_child(_notes_edit)
+	# Ruled lines.
+	_notes.draw.connect(func():
+		for i in 10:
+			var y := 46.0 + 8.0 + (i + 1) * 40.5
+			if y > _notes.size.y - 12:
+				break
+			_notes.draw_line(Vector2(20, y), Vector2(540, y), Color(0.55, 0.6, 0.8, 0.5), 1.0)
+		_notes.draw_line(Vector2(24, 26), Vector2(24, 470), Color(0.85, 0.3, 0.25, 0.6), 1.0))
+
+
+## Your notes as a sticky note under the ID card (only if you've written anything).
+func _show_notes_box(text: String) -> void:
+	if _notes_box == null:
+		_notes_box = Label.new()
+		_notes_box.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		_notes_box.add_theme_font_override("font", load("res://assets/fonts/LiberationSerif-Italic.ttf"))
+		_notes_box.add_theme_color_override("font_color", Color(0.1, 0.12, 0.35))
+		var sb := StyleBoxFlat.new()
+		sb.bg_color = Color(0.98, 0.93, 0.55)
+		sb.content_margin_left = 12
+		sb.content_margin_right = 12
+		sb.content_margin_top = 8
+		sb.content_margin_bottom = 8
+		sb.shadow_size = 8
+		sb.shadow_color = Color(0, 0, 0, 0.5)
+		_notes_box.add_theme_stylebox_override("normal", sb)
+		_notes_box.max_lines_visible = 3
+		_root.add_child(_notes_box)
+	_notes_box.text = "MY NOTES:\n" + text.strip_edges()
+	_notes_box.visible = text.strip_edges() != ""
+
+
 func _open(caption: String) -> void:
+	if _notes:
+		_notes.visible = false
+	if _notes_box:
+		_notes_box.visible = false
 	if _log:
 		_log.visible = false
 	if _log_status:
 		_log_status.text = ""
 	for c in _buttons.get_children():
 		c.queue_free()
-	_caption.text = caption + ("\nEsc / right click: keep hold of it and decide later." if _reg == "" else "")
+	_caption.text = caption + ("\nEsc / right click: keep hold of it and decide later." if _next_mode == "id" else "")
 	_root.visible = true
 	is_open = true
 	opened.emit()
@@ -320,6 +425,7 @@ func close(choice := "back") -> void:
 	if not is_open:
 		return
 	is_open = false
+	mode = ""
 	_root.visible = false
 	closed.emit(choice)
 
@@ -329,10 +435,10 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	if event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:
 		get_viewport().set_input_as_handled()
-		close("hold" if _reg == "" else "done")
+		close("hold" if mode == "id" else "done")
 	elif event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_RIGHT:
 		get_viewport().set_input_as_handled()
-		close("hold" if _reg == "" else "done")
+		close("hold" if mode == "id" else "done")
 
 
 func _layout() -> void:
@@ -342,13 +448,27 @@ func _layout() -> void:
 	var list_size := Vector2(380, 470) * s
 	var total := card_size.x + 40 * s + list_size.x
 	var x0 := (vs.x - total) * 0.5
-	_card.position = Vector2(x0, vs.y * 0.5 - card_size.y * 0.5 - 20 * s)
+	var drop := 46.0 * s if _id_car != "" else 0.0   # room for the car's plate above
+	_card.position = Vector2(x0, vs.y * 0.5 - card_size.y * 0.5 - 30 * s + drop)
 	_card.size = card_size
 	_card.scale = Vector2.ONE
-	_list.position = Vector2(x0 + card_size.x + 40 * s, vs.y * 0.5 - list_size.y * 0.5 - 10 * s)
+	_list.position = Vector2(x0 + card_size.x + 40 * s, vs.y * 0.5 - list_size.y * 0.5 - 10 * s + drop * 0.5)
 	_list.size = list_size
 	_plate.size = Vector2(720, 160) * s
 	_plate.position = (vs - _plate.size) * 0.5
+	if _id_car != "":
+		_plate.size = Vector2(300, 66) * s
+		_plate.position = Vector2(x0 + (card_size.x - _plate.size.x) * 0.5, _card.position.y - _plate.size.y - 16 * s)
+	if _notes_box and _notes_box.visible:
+		_notes_box.add_theme_font_size_override("font_size", int(17 * s))
+		_notes_box.position = Vector2(x0, _card.position.y + card_size.y + 14 * s)
+		_notes_box.custom_minimum_size = Vector2(card_size.x, 0)
+		_notes_box.size = Vector2(card_size.x, 0)
+		_notes_box.reset_size.call_deferred()
+	if _notes and _notes.visible:
+		var ns := s * 0.95
+		_notes.scale = Vector2(ns, ns)
+		_notes.position = (vs - _notes.size * ns) * 0.5 + Vector2(0, 10 * s)
 	if _log and _log.visible:
 		# Clipboard under a smaller plate close-up.
 		var ls := s * 0.95
@@ -459,6 +579,8 @@ func _draw_list() -> void:
 	for e in _staff_list:
 		ci.draw_string(_mono, Vector2(18 * s, y), "%-18s %s" % [e.name, e.staff_no], HORIZONTAL_ALIGNMENT_LEFT, -1, int(15 * s), Color(0.12, 0.12, 0.2))
 		ci.draw_string(_sans, Vector2(18 * s, y + 18 * s), e.dept, HORIZONTAL_ALIGNMENT_LEFT, -1, int(12 * s), Color(0.35, 0.35, 0.4))
+		if e.has("reg"):
+			ci.draw_string(_bold, Vector2(sz.x - 112 * s, y + 18 * s), "CAR: " + e.reg, HORIZONTAL_ALIGNMENT_LEFT, -1, int(13 * s), Color(0.15, 0.15, 0.35))
 		ci.draw_line(Vector2(14 * s, y + 27 * s), Vector2(sz.x - 14 * s, y + 27 * s), Color(0.6, 0.7, 0.85, 0.6), 1.0)
 		y += 50 * s
 	ci.draw_string(_sans, Vector2(18 * s, sz.y - 20 * s), "Cards must be in date. No list, no entry. - D.W.", HORIZONTAL_ALIGNMENT_LEFT, sz.x - 30 * s, int(12 * s), Color(0.6, 0.1, 0.1))
@@ -471,10 +593,11 @@ func _draw_plate() -> void:
 	ci.draw_rect(Rect2(Vector2(-10, -10) * s, sz + Vector2(20, 20) * s), Color(0.05, 0.05, 0.05))
 	ci.draw_rect(Rect2(Vector2.ZERO, sz), Color(0.96, 0.8, 0.12))
 	var fs := int(sz.y * 0.69)
-	var w := _bold.get_string_size(_reg, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
-	ci.draw_string(_bold, Vector2((sz.x - w) * 0.5, sz.y * 0.5 + fs * 0.36), _reg, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, Color(0.05, 0.05, 0.05))
+	var txt := _id_car if mode == "id" else _reg
+	var w := _bold.get_string_size(txt, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
+	ci.draw_string(_bold, Vector2((sz.x - w) * 0.5, sz.y * 0.5 + fs * 0.36), txt, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, Color(0.05, 0.05, 0.05))
 	# Dirt and rain.
 	var rng := RandomNumberGenerator.new()
-	rng.seed = hash(_reg)
+	rng.seed = hash(txt)
 	for i in 40:
 		ci.draw_circle(Vector2(rng.randf() * sz.x, rng.randf() * sz.y), rng.randf_range(1, 4) * s, Color(0.3, 0.25, 0.1, 0.25))

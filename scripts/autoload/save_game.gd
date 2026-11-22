@@ -89,6 +89,19 @@ func coins() -> int:
 	return int(data.get("coins", START_COINS))
 
 
+## Guide tips already shown in this save (so each appears once).
+func tip_seen(id: String) -> bool:
+	return bool((data.get("tips", {}) as Dictionary).get(id, false))
+
+
+func mark_tip(id: String) -> void:
+	var t: Dictionary = data.get("tips", {})
+	t[id] = true
+	data["tips"] = t
+	if slot != 0:
+		_write()
+
+
 ## Upgrades bought on the end-of-shift screen (e.g. "vehicle_log").
 func has_upgrade(id: String) -> bool:
 	return bool((data.get("upgrades", {}) as Dictionary).get(id, false))

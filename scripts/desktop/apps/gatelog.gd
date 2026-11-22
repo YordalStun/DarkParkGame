@@ -80,7 +80,7 @@ func _fill() -> void:
 		for e in story.entries:
 			logged[e.name] = true
 	for e in _names():
-		_list.add_item("%s %-18s %s  %s" % ["*" if logged.has(e.name) else " ", e.name, e.staff_no, e.dept])
+		_list.add_item("%s %-18s %s  %s%s" % ["*" if logged.has(e.name) else " ", e.name, e.staff_no, e.dept, ("   car " + e.reg) if e.has("reg") else ""])
 	if sel.size() > 0 and sel[0] < _list.item_count:
 		_list.select(sel[0])
 	_log.clear()

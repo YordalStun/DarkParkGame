@@ -108,6 +108,15 @@ var _order: Array = []       ## tonight's arrivals, shuffled (the 3am car always
 var _bays: Array = []
 var _leavers: Array = []
 var _kessler_res: Dictionary = {}
+const NightTwo := preload("res://scripts/story/night_two.gd")
+## Tonight's data (night one's constants, or night two's from night_two.gd).
+var arrivals: Array = []     ## who turns up
+var list_now: Array = []     ## the printed list you check IDs against
+var log_list: Array = []     ## names you can log in GateLog / the clipboard (the ward can add one)
+var date_text := DATE_TEXT
+var date_short := "FRI 13 OCT 1989"
+var notes := ""              ## the player's notepad (N)
+var _call_done := false
 
 
 func setup(p_world, p_hud, p_inspect) -> void:
@@ -116,7 +125,18 @@ func setup(p_world, p_hud, p_inspect) -> void:
 	camera = p_world.camera
 	inspect = p_inspect
 	_load_progress()
+	if night >= 2:
+		arrivals = NightTwo.arrivals(ARRIVALS)
+		list_now = NightTwo.LIST.duplicate(true)
+		date_text = NightTwo.DATE_TEXT
+		date_short = NightTwo.DATE_SHORT
+	else:
+		arrivals = ARRIVALS.duplicate(true)
+		list_now = LIST.duplicate(true)
+	log_list = list_now.duplicate(true)
 	world.props.phone_interact.activated.connect(_on_phone)
+	if world.props.notepad_interact:
+		world.props.notepad_interact.activated.connect(open_notes)
 	world.props.logbook_interact.activated.connect(_on_logbook)
 	hud.set_money(money, false)
 	world.booth.raise_button.activated.connect(_on_raise)
@@ -135,12 +155,24 @@ func setup(p_world, p_hud, p_inspect) -> void:
 	_ring.volume_db = -6.0
 	world.props.add_child(_ring)
 	_ring.global_position = world.props.phone_interact.global_position
-	# Tonight's order: everyone but the 3am car, shuffled.
-	for p in ARRIVALS:
-		if not p.get("ghost", false):
-			_order.append(p)
-	_order.shuffle()
-	for p in ARRIVALS:
+	# Tonight's order: everyone but the 3am car, shuffled. On night two the ward's call comes
+	# after the first two cars, and the people it's about only turn up after it.
+	var before := []
+	var after := []
+	for p in arrivals:
+		if p.get("ghost", false):
+			continue
+		(after if p.get("after_call", false) else before).append(p)
+	before.shuffle()
+	if night >= 2:
+		var first := before.slice(0, 2)
+		var rest: Array = before.slice(2) + after
+		rest.shuffle()
+		_order = first + [{"ward_call": true}] + rest
+	else:
+		_order = before + after
+		_order.shuffle()
+	for p in arrivals:
 		if p.get("ghost", false):
 			_order.append(p)
 	_bays = BAYS.duplicate()
@@ -193,7 +225,7 @@ func _run_leavers() -> void:
 
 ## Expected names for GateLog.
 func staff_list() -> Array:
-	return LIST
+	return log_list
 
 
 func log_entry(reg: String, staff: String) -> void:
@@ -215,21 +247,33 @@ func start() -> void:
 	if started:
 		return
 	started = true
-	hud.set_objectives([["phone", "Answer the phone"]])
+	hud.set_objectives([["phone", "Answer the phone (click it)"] if night >= 2 else ["phone", "Answer the phone"]])
 	await _wait(5.0)
-	await _phone_call(_dale_call())
+	await _phone_call(NightTwo.dale_call() if night >= 2 else _dale_call())
 	hud.complete_objective("phone")
-	hud.add_objective("ids", "Check each visitor's ID against tonight's list")
-	hud.add_objective("log", "Log the plate of every car you let in")
-	hud.add_objective("shift", "Stay at your post until 07:00")
+	if night >= 2:
+		hud.add_objective("ids", "Check each ID against tonight's list")
+		hud.add_objective("plate", "Their plate must match the car on the list (click the car to read it)")
+		hud.add_objective("log", "Log the plate of every car you let in")
+		hud.add_objective("shift", "Stay at your post until 07:00")
+		hud.tip("n2_plates", "NEW TONIGHT: the list shows each person's car. At the side window, click their car to read the plate. A different car means no entry.")
+		hud.tip("notepad", "You can write things down. Press N (or click the notepad on the desk) and type. Your notes show next to every ID card you check.")
+	else:
+		hud.add_objective("ids", "Check each visitor's ID against tonight's list")
+		hud.add_objective("log", "Log the plate of every car you let in")
+		hud.add_objective("shift", "Stay at your post until 07:00")
 	await _wait(2.0)
 	hud.notify("Cars arrive at the side window. Click  <  on the left, or the window itself.", 6.0)
 	_run_leavers()
 	for i in _order.size():
 		var p: Dictionary = _order[i]
+		if p.get("ward_call", false):
+			await _wait(randf_range(12.0, 20.0))
+			await _ward_call()
+			continue
 		if p.get("ghost", false):
 			await _all_leavers_gone()
-		await _wait(p.delay if p.get("ghost", false) else (14.0 if i == 0 else randf_range(22.0, 40.0)))
+		await _wait(p.delay if p.get("ghost", false) else (14.0 if i == 0 else randf_range(18.0, 36.0)))
 		await _visitor(p)
 	await _wait(10.0)
 	await _phone_call(_kessler_call())
@@ -248,6 +292,33 @@ func debug_shift_end() -> void:
 
 
 var _skip := false
+
+
+## Night two: the ward rings mid-shift with changes to the list. The printed list doesn't change,
+## so the player has to remember them, or (better) write them down.
+func _ward_call() -> void:
+	hud.add_objective("ward", "Answer the phone: the ward is ringing")
+	await _phone_call(NightTwo.ward_call())
+	hud.complete_objective("ward")
+	_call_done = true
+	log_list.append(NightTwo.ADDED.duplicate())   # GateLog can log the new porter
+	list_changed.emit()
+	var before := notes
+	hud.add_objective("notes", "Write down the changes: press N for your notepad")
+	hud.tip("notepad_call", "Changes to the list come by phone. Press N, type what you were told, then close it (Esc or N). It stays beside every ID card you check.")
+	while notes == before:
+		await _wait(0.5)
+	hud.complete_objective("notes")
+
+
+## The notepad (N, or the pad on the desk): type anything; shown beside the ID card.
+func open_notes() -> void:
+	if inspect.is_open:
+		if inspect.mode == "notes":
+			inspect.close("done")
+		return
+	world.ambience.play_ui("click2", -16.0)
+	inspect.show_notes(notes, func(t): notes = t)
 
 
 ## Testing menu: cut the current wait short (the next car comes now).
@@ -296,8 +367,8 @@ func debug_leave() -> void:
 func debug_report() -> void:
 	started = true
 	var plan := ["admitted", "admitted", "admitted", "refused", "admitted", "refused", "refused"]
-	for i in ARRIVALS.size():
-		var p: Dictionary = ARRIVALS[i]
+	for i in arrivals.size():
+		var p: Dictionary = arrivals[i]
 		results.append({"name": p.name, "reg": p.reg, "admit": p.admit, "decided": plan[i], "checked": i != 1, "why": p.get("why", "")})
 	log_entry("e412ktv", "PIKE, Sandra")
 	log_entry("C771PMF", "ADEYEMI, Michael")
@@ -308,7 +379,7 @@ func debug_report() -> void:
 ## Testing: run just one arrival (index into ARRIVALS), starting at the window.
 func debug_visitor(i: int, offer := true) -> void:
 	started = true
-	var p: Dictionary = ARRIVALS[i]
+	var p: Dictionary = arrivals[i]
 	_debug_skip = true
 	_visitor(p)
 	if offer:
@@ -544,7 +615,7 @@ func _on_card(car, p: Dictionary, res: Dictionary) -> void:
 	car.take_card()
 	world.ambience.play_ui("click2", -16.0)
 	res.checked = true
-	inspect.show_id(p, LIST, DATE_TEXT)
+	inspect.show_id(p, list_now, date_text, p.reg if night >= 2 else "", notes)
 	var choice: String = await inspect.closed
 	if car.state != "waiting":
 		return   # the barrier went up meanwhile (that hands the card back)
@@ -585,7 +656,7 @@ func _open_log() -> void:
 	if current != null and is_instance_valid(current) and current.state == "waiting":
 		reg = current.person.reg
 	world.ambience.play_ui("click2", -16.0)
-	inspect.show_log(reg, LIST, DATE_TEXT, log_entry, func(): return entries)
+	inspect.show_log(reg, log_list, date_text, log_entry, func(): return entries)
 	await inspect.closed
 
 
@@ -723,7 +794,11 @@ func _summary() -> void:
 	es.start_again.connect(func():
 		SaveGame.set_progress(START_MONEY, 1)
 		_restart())
-	es.show_night(ev, "END OF NIGHT %s" % word, "FRI 13 OCT 1989", _dale_note(ev))
+	es.show_night(ev, "END OF NIGHT %s" % word, date_short, _dale_note(ev))
+	if night == 2 and not SaveGame.data.get("coop_unlocked", false):
+		SaveGame.data["coop_unlocked"] = true
+		await _wait(6.0)
+		es.show_unlock("CO-OP UNLOCKED", "From night three you'll be leaving the hut: boot checks, patrols and more.\nA second guard can join you for those nights.")
 
 
 ## One line from Dale about the night (the first thing that went wrong, or a nod).

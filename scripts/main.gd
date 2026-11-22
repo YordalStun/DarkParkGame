@@ -240,7 +240,7 @@ func _on_test(id: String) -> void:
 		"next_car": story.skip_wait()
 		"car_now":
 			if story.current == null:
-				story.debug_visitor(randi() % (story.ARRIVALS.size() - 1))
+				story.debug_visitor(randi() % (story.arrivals.size() - 1))
 			else:
 				hud.notify("There's already a car at the window.", 3.0)
 		"leaver": story.debug_send_leaver()
@@ -450,6 +450,8 @@ func _unhandled_input(event: InputEvent) -> void:
 				hud.set_paused(not hud.paused)
 			KEY_F11:
 				Settings.set_graphics("fullscreen", not Settings.graphics.fullscreen)
+			KEY_N:
+				story.open_notes()
 			KEY_E:
 				# Standing: E uses what you're looking at (the door needs it to leave).
 				if world.camera.state == world.camera.State.WALK and world.camera.hovered and not world.camera.blocked:
@@ -512,14 +514,20 @@ func _apply_args() -> void:
 		add_child(t)
 	if _args.has("leave"):   # testing: send one evening car home now
 		get_tree().create_timer(0.5).timeout.connect(func(): story._leavers[int(_args.leave)].go())
+	if _args.has("notes"):   # testing: --notes="..." [--opennotes]
+		story.notes = str(_args.notes).replace("|", "\n")
+		if _args.has("opennotes"):
+			get_tree().create_timer(1.0).timeout.connect(story.open_notes)
+	if _args.has("tiptest"):
+		hud.tip("test", "You can write things down. Press N (or click the notepad on the desk) and type.")
 	if _args.has("car"):
 		story.debug_visitor(int(_args.car))
 		if _args.has("idcard"):
-			get_tree().create_timer(1.5).timeout.connect(func(): story._on_card(story.current, story.ARRIVALS[int(_args.car)], story.results[-1]))
+			get_tree().create_timer(1.5).timeout.connect(func(): story._on_card(story.current, story.arrivals[int(_args.car)], story.results[-1]))
 		if _args.has("vlog"):
 			get_tree().create_timer(1.5).timeout.connect(func(): story._open_log())
 		if _args.has("plate"):
-			get_tree().create_timer(1.5).timeout.connect(func(): inspect.show_plate(story.ARRIVALS[int(_args.car)].reg))
+			get_tree().create_timer(1.5).timeout.connect(func(): inspect.show_plate(story.arrivals[int(_args.car)].reg))
 		if _args.has("drivein"):
 			get_tree().create_timer(1.0).timeout.connect(func(): story._on_raise())
 	if _args.has("side") or _args.has("sideopen"):

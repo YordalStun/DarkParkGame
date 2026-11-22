@@ -394,6 +394,65 @@ func _recalc() -> void:
 		_next_btn.disabled = false
 
 
+## A pop-up over the screen (e.g. "CO-OP UNLOCKED"). Click OK to carry on.
+func show_unlock(title: String, text: String) -> void:
+	var dim := ColorRect.new()
+	dim.color = Color(0, 0, 0, 0.7)
+	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	dim.mouse_filter = Control.MOUSE_FILTER_STOP
+	add_child(dim)
+	var box := PanelContainer.new()
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = Color(0.07, 0.08, 0.07)
+	sb.border_color = GOLD
+	sb.set_border_width_all(3)
+	sb.content_margin_left = 40
+	sb.content_margin_right = 40
+	sb.content_margin_top = 28
+	sb.content_margin_bottom = 28
+	box.add_theme_stylebox_override("panel", sb)
+	box.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
+	box.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	box.grow_vertical = Control.GROW_DIRECTION_BOTH
+	dim.add_child(box)
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", 16)
+	box.add_child(v)
+	var t := _label(title, 64, GOLD, v)
+	t.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	var b := _label(text, 28, INK, v)
+	b.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	var ok := Button.new()
+	ok.text = "OK"
+	ok.focus_mode = Control.FOCUS_NONE
+	ok.add_theme_font_override("font", _font)
+	ok.add_theme_font_size_override("font_size", 30)
+	ok.custom_minimum_size = Vector2(160, 48)
+	ok.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	var bs := StyleBoxFlat.new()
+	bs.bg_color = GOLD
+	ok.add_theme_stylebox_override("normal", bs)
+	ok.add_theme_stylebox_override("hover", bs)
+	ok.add_theme_stylebox_override("pressed", bs)
+	ok.add_theme_color_override("font_color", BG)
+	ok.add_theme_color_override("font_hover_color", BG)
+	v.add_child(ok)
+	box.scale = Vector2(0.8, 0.8)
+	box.pivot_offset = box.get_combined_minimum_size() * 0.5
+	dim.modulate.a = 0.0
+	var tw := create_tween().set_parallel(true)
+	tw.tween_property(dim, "modulate:a", 1.0, 0.4)
+	tw.tween_property(box, "scale", Vector2.ONE, 0.5).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	var p := AudioStreamPlayer.new()
+	p.stream = load("res://assets/audio/chime.ogg")
+	p.bus = "UI"
+	add_child(p)
+	p.play()
+	await ok.pressed
+	_click()
+	dim.queue_free()
+
+
 func _on_next() -> void:
 	_click()
 	if _broke:
