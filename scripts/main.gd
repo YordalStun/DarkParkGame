@@ -160,6 +160,8 @@ func _ready() -> void:
 		story.start()
 	if _args.has("pause"):
 		hud.set_paused(true)
+	if _args.has("cctv"):
+		_cctv_grid()
 	var tw := create_tween()
 	tw.tween_interval(0.0 if quick else 0.3)
 	tw.tween_method(func(v): post.set_shader_parameter("fade", v), 0.0, 1.0, 0.01 if quick else 3.5)
@@ -475,6 +477,31 @@ func _parse_args() -> void:
 	if _args.has("pointer"):
 		var p: PackedStringArray = str(_args.pointer).split(",")
 		_args.pointer = Vector2(float(p[0]), float(p[1]))
+
+
+## Testing (--cctv): shows the four camera feeds, with the CCTV look, in a 2x2 grid over everything.
+func _cctv_grid() -> void:
+	world.cctv.acquire()
+	var layer := CanvasLayer.new()
+	layer.layer = 50
+	add_child(layer)
+	var bg := ColorRect.new()
+	bg.color = Color(0.08, 0.08, 0.08)
+	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
+	layer.add_child(bg)
+	var shader := load("res://shaders/cctv.gdshader")
+	for i in 4:
+		world.cctv.cams[i].viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+		var tr := TextureRect.new()
+		tr.texture = world.cctv.texture(i)
+		tr.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		tr.size = Vector2(478, 358)
+		tr.position = Vector2(160 + (i % 2) * 480, 1 + (i / 2) * 360)
+		var m := ShaderMaterial.new()
+		m.shader = shader
+		m.set_shader_parameter("seed", float(i))
+		tr.material = m
+		layer.add_child(tr)
 
 
 func _apply_args() -> void:

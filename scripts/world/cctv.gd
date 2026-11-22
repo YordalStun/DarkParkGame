@@ -25,7 +25,13 @@ func _ready() -> void:
 	_env.ssr_enabled = false
 	_env.ssao_enabled = false
 	_env.glow_enabled = false
-	_env.tonemap_exposure = 2.4        # CCTV gain
+	# A low-light camera: lots of gain, and a lifted floor so the dark lot is still readable.
+	# (This environment is only used by the camera viewports, so the booth view is unaffected.)
+	_env.tonemap_exposure = 3.0
+	_env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
+	_env.ambient_light_color = Color(0.13, 0.14, 0.16)
+	_env.ambient_light_energy = 1.0
+	_env.fog_light_color = Color(0.05, 0.055, 0.065)
 	_env.fog_density = 0.02
 
 	var G := -0.15
