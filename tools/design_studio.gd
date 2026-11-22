@@ -3,6 +3,7 @@ extends SceneTree
 ##   godot --path . -s tools/design_studio.gd -- --out=dir [--what=umbrellas|people|hospital]
 const Umbrella := preload("res://scripts/world/umbrella.gd")
 const Person := preload("res://scripts/world/person_model.gd")
+const Player := preload("res://scripts/world/player_model.gd")
 const Hospital := preload("res://tools/hospital_concepts.gd")
 
 
@@ -16,6 +17,10 @@ func _initialize() -> void:
 	get_root().size = Vector2i(1280, 720)
 	if what in ["all", "umbrellas"]:
 		await _sheet(out + "/umbrellas.png", _umbrellas(), Vector3(0, 1.45, 5.6), Vector3(0, 1.2, 0), 50.0, false)
+	if what in ["all", "players"]:
+		await _sheet(out + "/players_front.png", _players(0.0), Vector3(0.0, 1.35, 6.0), Vector3(0.0, 0.95, 0), 48.0, false)
+		await _sheet(out + "/players_back.png", _players(180.0), Vector3(0.0, 1.35, 6.0), Vector3(0.0, 0.95, 0), 48.0, false)
+		await _sheet(out + "/players_night.png", _players(20.0, true), Vector3(0.0, 1.6, 7.0), Vector3(0.0, 1.0, 0), 48.0, true)
 	if what == "open":
 		await _open_sequence(out)
 	if what in ["all", "people"]:
@@ -137,3 +142,23 @@ func _open_sequence(out: String) -> void:
 		get_root().get_texture().get_image().save_png("%s/open_%d.png" % [out, i])
 		i += 1
 	quit()
+
+
+## The four player guards in a row, turned by `yaw` degrees (0 = facing us), optionally with torches on.
+func _players(yaw: float, torches := false) -> Node3D:
+	var root := Node3D.new()
+	for i in 4:
+		var g := Player.build(i)
+		g.position = Vector3(-2.4 + i * 1.6, 0, 0)
+		g.rotation_degrees.y = yaw
+		Player.set_torch(g, torches)
+		root.add_child(g)
+		var d: Dictionary = Player.DESIGNS[i]
+		var lbl := Label3D.new()
+		lbl.text = "%d. %s  (%s)" % [i + 1, d.name, d.colour]
+		lbl.font_size = 40
+		lbl.pixel_size = 0.0035
+		lbl.modulate = d.accent.lightened(0.25)
+		lbl.position = Vector3(-2.4 + i * 1.6, -0.12, 0.5)
+		root.add_child(lbl)
+	return root

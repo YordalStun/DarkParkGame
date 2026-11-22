@@ -119,6 +119,9 @@ static func build(spec: Dictionary, umbrella := "") -> Node3D:
 		for sx in [-0.042, 0.042]:
 			MK.box(p, Vector3(0.062, 0.045, 0.01), Vector3(sx, 1.69, 0.108), gl)
 		MK.box(p, Vector3(0.03, 0.01, 0.01), Vector3(0, 1.695, 0.108), gl)
+	if spec.get("beard", false):
+		MK.box(p, Vector3(0.11, 0.06, 0.05), Vector3(0, 1.585, 0.085), hair)
+		MK.box(p, Vector3(0.12, 0.05, 0.02), Vector3(0, 1.625, 0.108), hair)
 	if spec.get("moustache", false):
 		MK.box(p, Vector3(0.07, 0.014, 0.02), Vector3(0, 1.625, 0.112), hair)
 
@@ -135,6 +138,11 @@ static func build(spec: Dictionary, umbrella := "") -> Node3D:
 			MK.sphere(p, 0.05, Vector3(0, 1.78, -0.08), hair, 8, 6)
 		"bald":
 			pass
+		"ponytail":
+			var cap4 := MK.sphere(p, 0.114, Vector3(0, 1.7, -0.012), hair, 10, 8)
+			cap4.scale = Vector3(0.92, 0.8, 1.0)
+			MK.box(p, Vector3(0.05, 0.2, 0.05), Vector3(0, 1.6, -0.15), hair, Vector3(12, 0, 0))
+			MK.sphere(p, 0.035, Vector3(0, 1.72, -0.12), hair, 6, 4)
 		"cap":
 			var cap2 := MK.sphere(p, 0.115, Vector3(0, 1.69, -0.01), hair, 10, 8)
 			cap2.scale = Vector3(0.92, 0.7, 1.0)
