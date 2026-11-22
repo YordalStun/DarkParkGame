@@ -10,8 +10,11 @@ const WeatherFX := preload("res://scripts/world/weather_fx.gd")
 const Ambience := preload("res://scripts/world/ambience.gd")
 const DeskCamera := preload("res://scripts/player/desk_camera.gd")
 const CCTV := preload("res://scripts/world/cctv.gd")
+const Dawn := preload("res://scripts/world/dawn.gd")
 
 var environment: Environment
+var sky_material: ShaderMaterial
+var dawn: Node
 var camera: Camera3D
 var booth: Node3D
 var props: Node3D
@@ -62,6 +65,11 @@ func build() -> void:
 	weather_fx.environment = environment
 	add_child(weather_fx)
 
+	dawn = Dawn.new()
+	dawn.name = "Dawn"
+	add_child(dawn)
+	dawn.setup(self)
+
 	await _step(0.58, "Tuning the radio")
 	ambience = Ambience.new()
 	ambience.name = "Ambience"
@@ -82,6 +90,7 @@ func _build_environment() -> void:
 	sky_mat.shader = load("res://shaders/night_sky.gdshader")
 	var sky := Sky.new()
 	sky.sky_material = sky_mat
+	sky_material = sky_mat
 	sky.radiance_size = Sky.RADIANCE_SIZE_256
 	sky.process_mode = Sky.PROCESS_MODE_REALTIME
 	env.background_mode = Environment.BG_SKY

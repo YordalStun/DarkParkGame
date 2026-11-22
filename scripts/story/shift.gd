@@ -10,6 +10,10 @@ extends Node
 ## Everything the player decides is recorded in `results` and summed up at the end.
 
 signal list_changed   ## the log or the expected list changed (GateLog listens)
+signal clocked_out    ## the player signed out in the logbook after the shift ended
+
+const START_MONEY := 8
+const BONUS_PLATES := 3
 
 const VisitorCar := preload("res://scripts/world/visitor_car.gd")
 const DATE_TEXT := "Friday 13th October 1989  -  23:00 to 07:00"
@@ -39,6 +43,7 @@ const ARRIVALS := [
 	{"name": "Kevin Platt", "role": "Porter", "dept": "Portering Services", "staff_no": "40612", "expires": "06 / 1991",
 		"reg": "B908 RWD", "paint": Color(0.82, 0.82, 0.8), "style": "hatch", "skin": Color(0.88, 0.7, 0.58), "hair": Color(0.15, 0.12, 0.1),
 		"shirt": Color(0.6, 0.6, 0.62), "moustache": true, "admit": false, "delay": 34.0,
+		"why": "Not on tonight's list. He said he was covering for Mick Doyle, but nobody had told you.",
 		"greet": ["Evening. Don't think we've met. I'm covering for Mick Doyle, he's off sick.", "Nobody told you? Typical."],
 		"ok": "Lovely. Knew you'd be sensible.", "drive": "Cheers, pal.", "refused": "You're joking. Right. I'll tell them you sent me home, shall I?"},
 	{"name": "Dr Helen Marsh", "role": "Registrar", "dept": "Accident & Emergency", "staff_no": "31105", "expires": "08 / 1990",
@@ -50,6 +55,7 @@ const ARRIVALS := [
 	{"name": "Tom Baxter", "role": "Theatre Technician", "dept": "Main Theatres", "staff_no": "40562", "expires": "30 / 09 / 1989",
 		"reg": "A456 GNB", "paint": Color(0.33, 0.22, 0.12), "skin": Color(0.85, 0.65, 0.52), "hair": Color(0.45, 0.42, 0.4),
 		"shirt": Color(0.15, 0.4, 0.35), "admit": false, "delay": 34.0,
+		"why": "His ID card had expired (30 / 09 / 1989), and tonight is 13th October.",
 		"greet": ["Evening, Dave. Bet you're glad you're inside tonight.", "You didn't look at my card last night, you know. Very trusting."],
 		"ok": "Ta.", "drive": "Night, Dave.", "refused": "Expired? Oh, for... I've been meaning to get a new one. Fine. Fine."},
 	{"name": "Janet Lowe", "role": "Pharmacist", "dept": "Pharmacy", "staff_no": "40115", "expires": "01 / 1991",
@@ -60,7 +66,8 @@ const ARRIVALS := [
 	{"name": "R. Kessler", "role": "Night Security", "dept": "Lot C - Booth 2", "staff_no": "00217", "expires": "29 / 09 / 1989",
 		"org": "ASHFORD PARKING AUTHORITY", "card_color": Color(0.25, 0.27, 0.22), "stained": true,
 		"reg": "TKM 117", "paint": Color(0.16, 0.17, 0.18), "skin": Color(0.78, 0.78, 0.74), "hair": Color(0.3, 0.3, 0.3),
-		"shirt": Color(0.12, 0.14, 0.2), "admit": false, "delay": 40.0, "ghost": true, "bay": Vector3(11.65, -0.15, -27.0),
+		"shirt": Color(0.12, 0.14, 0.2), "admit": false, "delay": 40.0, "ghost": true,
+		"why": "Not on the list, an expired card (29 / 09 / 1989), the wrong organisation, and not a real person.", "bay": Vector3(11.65, -0.15, -27.0),
 		"greet": ["...", "It's raining in here, Dave.", "You know me. I used to sit where you're sitting."],
 		"ok": "Thank you.", "drive": "Row C. Like always.", "refused": "You'll let me in. Everyone does, in the end."},
 ]
@@ -81,6 +88,9 @@ var _phone_ringing := false
 var _phone_answered := false
 var _ring: AudioStreamPlayer3D
 var _debug_skip := false
+var money := START_MONEY   ## the coins shown top right; wages are settled when you clock out
+var _shift_done := false
+var _pc_off := false
 
 
 func setup(p_world, p_hud, p_inspect) -> void:
@@ -89,6 +99,8 @@ func setup(p_world, p_hud, p_inspect) -> void:
 	camera = p_world.camera
 	inspect = p_inspect
 	world.props.phone_interact.activated.connect(_on_phone)
+	world.props.logbook_interact.activated.connect(_on_logbook)
+	hud.set_money(money, false)
 	world.booth.raise_button.activated.connect(_on_raise)
 	world.booth.lower_button.activated.connect(_on_lower)
 	world.booth.side_window_moved.connect(func(_o): world.ambience.play_at("window_slide", world.booth.side_pane.global_position, -6.0))
@@ -110,20 +122,31 @@ func staff_list() -> Array:
 
 
 func log_entry(reg: String, staff: String) -> void:
-	entries.append({"time": NightClock.time_text(), "reg": _norm(reg), "name": staff})
+	var shown := reg.strip_edges().to_upper()
+	entries.append({"time": NightClock.time_text(), "reg": shown, "key": _norm(reg), "name": staff})
 	list_changed.emit()
 
 
+## A plate with the spaces taken out, so "E412 KTV" and "E412KTV" are the same plate.
 func _norm(r: String) -> String:
-	return r.strip_edges().to_upper().replace("  ", " ")
+	var out := ""
+	for ch in r.to_upper():
+		if ch != " " and ch != "\t" and ch != "\u00a0":
+			out += ch
+	return out
 
 
 func start() -> void:
 	if started:
 		return
 	started = true
+	hud.set_objectives([["phone", "Answer the phone"]])
 	await _wait(5.0)
 	await _phone_call(_dale_call())
+	hud.complete_objective("phone")
+	hud.add_objective("ids", "Check each visitor's ID against tonight's list")
+	hud.add_objective("log", "Log the plate of every car you let in")
+	hud.add_objective("shift", "Stay at your post until 07:00")
 	await _wait(2.0)
 	hud.notify("Cars arrive at the side window. Click  <  on the left, or the window itself.", 6.0)
 	for i in ARRIVALS.size():
@@ -135,6 +158,29 @@ func start() -> void:
 		["", "(It isn't raining where the phone is. It's raining in the receiver.)"],
 		["", "(The line goes dead.)"]])
 	await _wait(3.0)
+	await _shift_over()
+	_summary()
+
+
+## Testing (--shiftend, with --time=6.98): the 07:00 hand-over, clocking out by itself after a few seconds.
+func debug_shift_end() -> void:
+	started = true
+	hud.set_objectives([["ids", "Check each visitor's ID"], ["log", "Log the plate of every car you let in"], ["shift", "Stay at your post until 07:00"]])
+	get_tree().create_timer(4.0).timeout.connect(_on_logbook)
+	await _shift_over()
+	debug_report()
+
+
+## Testing (--report): a made-up night, ending on the report screen.
+func debug_report() -> void:
+	started = true
+	var plan := ["admitted", "admitted", "admitted", "refused", "admitted", "refused", "refused"]
+	for i in ARRIVALS.size():
+		var p: Dictionary = ARRIVALS[i]
+		results.append({"name": p.name, "reg": p.reg, "admit": p.admit, "decided": plan[i], "checked": i != 1, "why": p.get("why", "")})
+	log_entry("e412ktv", "PIKE, Sandra")
+	log_entry("C771PMF", "ADEYEMI, Michael")
+	log_entry("F23 HLM", "MARSH, Dr Helen")
 	_summary()
 
 
@@ -156,6 +202,42 @@ func _wait(sec: float) -> void:
 		await get_tree().process_frame
 		if not get_tree().paused:
 			left -= get_process_delta_time()
+
+
+# ------------------------------------------------------------------ end of the shift
+## Waits for 07:00, then tells the player to turn off the PC and clock out (sign the logbook).
+func _shift_over() -> void:
+	while not NightClock.shift_over:
+		await get_tree().process_frame
+	_shift_done = true
+	hud.complete_objective("ids")
+	hud.complete_objective("log")
+	hud.complete_objective("shift")
+	hud.add_objective("pc", "Shut down the PC")
+	hud.add_objective("out", "Clock out: sign the logbook")
+	world.ambience.play_ui("chime", -6.0)
+	world.props.logbook_interact.prompt = "Logbook (clock out)"
+	hud.notify("07:00. Your shift is over. Turn off the PC and clock out.", 9.0)
+	hud.say("", "(07:00. The shift is over. Turn off the PC, then clock out in the logbook.)", 6.0)
+	var desk = world.props.desktop
+	while desk.is_on():
+		await get_tree().process_frame
+	_pc_off = true
+	hud.complete_objective("pc")
+	hud.notify("PC off. Now clock out in the logbook.", 5.0)
+	await clocked_out
+	hud.complete_objective("out")
+	world.ambience.play_ui("click2", -10.0)
+	await _wait(1.2)
+
+
+func _on_logbook() -> void:
+	if not _shift_done:
+		hud.notify("Your shift isn't over yet.", 3.0)
+	elif not _pc_off:
+		hud.notify("Shut down the PC before you clock out.", 4.0)
+	else:
+		clocked_out.emit()
 
 
 # ------------------------------------------------------------------ phone
@@ -221,7 +303,7 @@ func _visitor(p: Dictionary) -> void:
 	if _debug_skip:
 		_debug_skip = false
 		car._dist = car._stop_dist - 0.02
-	var res := {"name": p.name, "reg": p.reg, "admit": p.admit, "decided": "", "checked": false}
+	var res := {"name": p.name, "reg": p.reg, "admit": p.admit, "decided": "", "checked": false, "why": p.get("why", "")}
 	results.append(res)
 	car.card_interact.activated.connect(func(): _on_card(car, p, res))
 	car.plate_interact.activated.connect(func(): _on_plate(car, p))
@@ -359,26 +441,89 @@ func _ghost_parks(car) -> void:
 
 
 # ------------------------------------------------------------------ end of night
-func _summary() -> void:
-	var right := 0
-	var lines: Array = []
+## Scores the night. Coins: +1 for each correct car let in, -2 for each one let in who shouldn't
+## have been, +3 if every car let in had its plate logged right (spaces in the reg don't matter).
+func evaluate() -> Dictionary:
+	var rows: Array = []
+	var wrong: Array = []
+	var earned := 0
+	var right_in := 0
+	var wrong_in := 0
+	var admitted := 0
+	var plates_ok := 0
 	for r in results:
-		var should: bool = r.admit
-		var did: bool = r.decided == "admitted"
-		var ok := should == did
+		var in_: bool = r.decided == "admitted"
+		var key := _norm(r.reg)
 		var logged := false
 		for e in entries:
-			if e.reg == _norm(r.reg):
+			if e.key == key:
 				logged = true
-		var note := ""
-		if did and not r.checked:
-			note = "  (didn't check the card)"
-		if did and should and not logged:
-			note += "  (reg not logged)"
-			ok = false
-		if ok:
-			right += 1
-		lines.append("%s  %-16s %s%s" % ["OK " if ok else "XX ", r.name, "let in" if did else "turned away", note])
-	var text := "END OF NIGHT ONE\n\n%d of %d handled by the book.\n\n%s" % [right, results.size(), "\n".join(lines)]
-	world.props.terminal.add_log("SHIFT REPORT: %d/%d CORRECT" % [right, results.size()])
-	hud.show_report(text)
+		var delta := 0
+		var verdict := ""
+		if in_ and r.admit:
+			delta = 1
+			right_in += 1
+			verdict = "let in - correct"
+		elif in_ and not r.admit:
+			delta = -2
+			wrong_in += 1
+			verdict = "let in - [color=#ff7060]should have been turned away[/color]"
+			wrong.append("[color=#ff7060]You let in %s.[/color] %s" % [r.name, r.why])
+		elif not in_ and not r.admit:
+			verdict = "turned away - correct"
+		else:
+			verdict = "turned away - [color=#ff7060]they were allowed in[/color]"
+			wrong.append("[color=#ffb060]You turned away %s,[/color] who was on the list with a card in date. (No coins lost, but they are stuck outside in the rain.)" % r.name)
+		if in_ and not r.checked:
+			wrong.append("[color=#ffb060]You let in %s without looking at their ID card.[/color]" % r.name)
+		if in_:
+			admitted += 1
+			if logged:
+				plates_ok += 1
+			else:
+				wrong.append("[color=#ffb060]The plate of %s's car (%s) was never logged correctly.[/color]" % [r.name, r.reg])
+		earned += delta
+		rows.append({"name": r.name, "delta": delta, "verdict": verdict})
+	# Plates typed into GateLog that match no car at all.
+	var real := {}
+	for r in results:
+		real[_norm(r.reg)] = true
+	for e in entries:
+		if not real.has(e.key):
+			wrong.append("[color=#ffb060]You logged the plate '%s', which didn't match any car that came.[/color]" % e.reg)
+	var bonus := BONUS_PLATES if admitted > 0 and plates_ok == admitted else 0
+	var total := START_MONEY + earned + bonus
+	return {"rows": rows, "wrong": wrong, "earned": earned, "bonus": bonus, "total": total,
+		"right_in": right_in, "wrong_in": wrong_in, "admitted": admitted, "plates_ok": plates_ok,
+		"success": wrong_in == 0 and total > START_MONEY}
+
+
+func _summary() -> void:
+	var ev := evaluate()
+	var t := "[center][font_size=40]END OF NIGHT ONE[/font_size][/center]\n"
+	if ev.success:
+		t += "[center][font_size=36][color=#7fe08a]SUCCESSFUL NIGHT[/color][/font_size][/center]\n\n"
+	else:
+		t += "[center][font_size=36][color=#ff6a5a]FAILED NIGHT[/color][/font_size][/center]\n\n"
+	t += "[center][font_size=34]TOTAL: %d coins[/font_size]\n[color=#b0b0a8]Start %d   Cars %+d   Plate bonus %+d[/color][/center]\n\n" % [ev.total, START_MONEY, ev.earned, ev.bonus]
+	for r in ev.rows:
+		var sign_ := "%+d" % r.delta if r.delta != 0 else " 0"
+		var col := "#7fe08a" if r.delta > 0 else ("#ff7060" if r.delta < 0 else "#b0b0a8")
+		t += "[color=%s]%s[/color]   %s:  %s\n" % [col, sign_, r.name, r.verdict]
+	t += "\n[color=#e8c070]PLATES LOGGED[/color]\n"
+	if ev.admitted == 0:
+		t += "You let nobody in, so there was nothing to log.\n"
+	else:
+		t += "%d of %d cars let in had the right plate logged.  " % [ev.plates_ok, ev.admitted]
+		t += ("[color=#7fe08a]+%d bonus![/color]\n" % BONUS_PLATES) if ev.bonus > 0 else "No bonus.\n"
+	t += "\n[color=#e8c070]WHERE YOU WENT WRONG[/color]\n"
+	if ev.wrong.is_empty():
+		t += "Nowhere. Every call by the book.\n"
+	else:
+		for w in ev.wrong:
+			t += "- " + w + "\n"
+	money = ev.total
+	world.props.terminal.add_log("SHIFT REPORT: %d COINS - %s" % [money, "SUCCESS" if ev.success else "FAILED"])
+	hud.show_report(t)
+	await _wait(1.8)
+	hud.set_money(money)

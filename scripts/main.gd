@@ -128,8 +128,14 @@ func _ready() -> void:
 	await _loading.finish(0.01 if quick else 0.6)
 	_loaded = true
 	world.ambience.fade_in(0.01 if quick else 4.0)
-	if not quick or _args.has("story"):
+	if _args.has("shiftend"):
+		story.debug_shift_end()
+	elif _args.has("report"):
+		story.debug_report()
+	elif not quick or _args.has("story"):
 		story.start()
+	if _args.has("pause"):
+		hud.set_paused(true)
 	var tw := create_tween()
 	tw.tween_interval(0.0 if quick else 0.3)
 	tw.tween_method(func(v): post.set_shader_parameter("fade", v), 0.0, 1.0, 0.01 if quick else 3.5)
@@ -340,6 +346,9 @@ func _parse_args() -> void:
 
 
 func _apply_args() -> void:
+	if _args.has("time"):   # e.g. --time=6.25 (hours) for checking the sunrise
+		var th := float(_args.time)
+		NightClock.set_time(int(th), int((th - int(th)) * 60.0))
 	if _args.has("weather"):
 		Weather.set_profile(_args.weather, 0.0)
 	if _args.has("rain"):

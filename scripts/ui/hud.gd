@@ -19,6 +19,16 @@ var _note: Label
 var _note_id := 0
 var look_left_btn: Button   ## main.gd connects this to the camera
 var look_back_btn: Button   ## the > arrow in the side-window view
+const VOICE_DB := -9.0
+const Babble := preload("res://scripts/ui/babble.gd")
+var _voice: AudioStreamPlayer   ## the babble that stands in for speech
+var _money_label: Label
+var _obj_box: PanelContainer
+var _obj_text: RichTextLabel
+var _objectives: Array = []     ## [{id, text, done}]
+var money := 0
+var _money_shown := 0.0
+var _money_tween: Tween
 
 
 func _ready() -> void:
@@ -61,6 +71,12 @@ func _ready() -> void:
 	pl.offset_bottom = -230
 	_build_mixer()
 	_build_story_ui()
+	_build_objectives()
+	_voice = AudioStreamPlayer.new()
+	_voice.bus = "UI"
+	_voice.process_mode = Node.PROCESS_MODE_PAUSABLE
+	add_child(_voice)
+	Settings.mix_changed.connect(func(): _voice.volume_db = VOICE_DB + Settings.mix_db("voices"))
 
 	_make_cursors()
 	Input.set_custom_mouse_cursor(_cursor_dot, Input.CURSOR_ARROW, Vector2(8, 8))
@@ -150,7 +166,7 @@ func _process(_delta: float) -> void:
 func _build_mixer() -> void:
 	var box := VBoxContainer.new()
 	box.set_anchors_and_offsets_preset(Control.PRESET_CENTER_BOTTOM)
-	box.offset_top = -250
+	box.offset_top = -292
 	box.offset_bottom = -40
 	box.offset_left = -300
 	box.offset_right = 300
@@ -225,6 +241,7 @@ func say(speaker: String, text: String, seconds := -1.0, click_through := false)
 		_sub.text += "\n[right][color=#8a8a80][font_size=22]click to continue[/font_size][/color][/right]"
 	_sub_box.visible = true
 	_sub_skip = false
+	_speak(speaker, text)
 	var left := seconds
 	while left > 0.0 and not _sub_skip and id == _sub_id:
 		await get_tree().process_frame
@@ -233,12 +250,14 @@ func say(speaker: String, text: String, seconds := -1.0, click_through := false)
 	if id == _sub_id:
 		_sub_box.visible = false
 		waiting_click = false
+		_voice.stop()
 
 
 ## Click while a line is showing: move on to the next one.
 func skip_line() -> bool:
 	if _sub_box.visible:
 		_sub_skip = true
+		_voice.stop()
 		return true
 	return false
 
@@ -246,6 +265,16 @@ func skip_line() -> bool:
 func clear_lines() -> void:
 	_sub_id += 1
 	_sub_box.visible = false
+	_voice.stop()
+
+
+func _speak(speaker: String, text: String) -> void:
+	if speaker == "":
+		_voice.stop()   # a narrated line: nobody is talking
+		return
+	_voice.stream = Babble.make(text, speaker)
+	_voice.volume_db = VOICE_DB + Settings.mix_db("voices")
+	_voice.play()
 
 
 ## A short notice at the top of the screen ("A car has pulled up at the barrier").
@@ -275,23 +304,134 @@ signal overlay_changed(open: bool)
 
 func show_report(text: String) -> void:
 	overlay_changed.emit(true)
+	_obj_box.visible = false
 	var bg := ColorRect.new()
-	bg.color = Color(0, 0, 0, 0.8)
+	bg.color = Color(0, 0, 0, 0.86)
 	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
 	bg.mouse_filter = Control.MOUSE_FILTER_STOP
 	add_child(bg)
 	move_child(bg, 1)
-	var l := _label(28, Color(0.85, 0.95, 0.85))
-	l.reparent(bg)
-	l.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	l.text = text + "\n\n(click to carry on sitting in the booth)"
+	var scroll := ScrollContainer.new()
+	scroll.set_anchors_preset(Control.PRESET_FULL_RECT)
+	scroll.offset_left = 120
+	scroll.offset_right = -120
+	scroll.offset_top = 30
+	scroll.offset_bottom = -30
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	scroll.mouse_filter = Control.MOUSE_FILTER_PASS   # clicks still reach the backdrop and close the report
+	bg.add_child(scroll)
+	var l := RichTextLabel.new()
+	l.bbcode_enabled = true
+	l.fit_content = true
+	l.scroll_active = false
+	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	for n in ["normal_font", "bold_font", "italics_font", "mono_font"]:
+		l.add_theme_font_override(n, _font)
+	for n in ["normal_font_size", "bold_font_size", "italics_font_size", "mono_font_size"]:
+		l.add_theme_font_size_override(n, 26)
+	l.add_theme_color_override("default_color", Color(0.85, 0.92, 0.85))
+	l.text = text + "\n\n[center][color=#8a8a80](click to carry on sitting in the booth)[/color][/center]"
+	scroll.add_child(l)
 	bg.modulate.a = 0.0
 	create_tween().tween_property(bg, "modulate:a", 1.0, 1.5)
 	bg.gui_input.connect(func(e):
-		if e is InputEventMouseButton and e.pressed:
+		if e is InputEventMouseButton and e.pressed and e.button_index == MOUSE_BUTTON_LEFT:
 			overlay_changed.emit(false)
 			bg.queue_free())
+
+
+# ============================================================ objectives and coins
+func _build_objectives() -> void:
+	_money_label = _label(32, Color(0.96, 0.84, 0.4))
+	_money_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	_money_label.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
+	_money_label.offset_left = -300
+	_money_label.offset_right = -16
+	_money_label.offset_top = 10
+	_money_label.offset_bottom = 46
+	_money_label.modulate.a = 0.55
+	_show_money(0.0)
+
+	_obj_box = PanelContainer.new()
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = Color(0, 0, 0, 0.5)
+	sb.content_margin_left = 12
+	sb.content_margin_right = 12
+	sb.content_margin_top = 6
+	sb.content_margin_bottom = 8
+	sb.set_corner_radius_all(3)
+	_obj_box.add_theme_stylebox_override("panel", sb)
+	_obj_box.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
+	_obj_box.offset_left = -316
+	_obj_box.offset_right = -16
+	_obj_box.offset_top = 50
+	_obj_box.offset_bottom = 50
+	_obj_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_obj_box.visible = false
+	add_child(_obj_box)
+	_obj_text = RichTextLabel.new()
+	_obj_text.bbcode_enabled = true
+	_obj_text.fit_content = true
+	_obj_text.scroll_active = false
+	_obj_text.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_obj_text.add_theme_font_override("normal_font", _font)
+	_obj_text.add_theme_font_size_override("normal_font_size", 22)
+	_obj_text.add_theme_color_override("default_color", Color(0.9, 0.9, 0.85))
+	_obj_box.add_child(_obj_text)
+
+
+func _show_money(v: float) -> void:
+	_money_shown = v
+	_money_label.text = "COINS: %d" % int(round(v))
+
+
+## How many coins the player has. It counts there slowly (about a third of a second per coin).
+func set_money(v: int, animate := true) -> void:
+	money = v
+	if _money_tween:
+		_money_tween.kill()
+	if not animate:
+		_show_money(float(v))
+		return
+	_money_tween = create_tween()
+	_money_tween.tween_property(_money_label, "modulate:a", 1.0, 0.3)
+	_money_tween.tween_method(_show_money, _money_shown, float(v), maxf(0.4, absf(v - _money_shown) * 0.35))
+	_money_tween.tween_interval(0.8)
+	_money_tween.tween_property(_money_label, "modulate:a", 0.55, 1.2)
+
+
+func set_objectives(list: Array) -> void:
+	_objectives.clear()
+	for o in list:
+		_objectives.append({"id": o[0], "text": o[1], "done": false})
+	_refresh_objectives()
+
+
+func add_objective(id: String, text: String) -> void:
+	for o in _objectives:
+		if o.id == id:
+			return
+	_objectives.append({"id": id, "text": text, "done": false})
+	_refresh_objectives()
+
+
+func complete_objective(id: String) -> void:
+	for o in _objectives:
+		if o.id == id and not o.done:
+			o.done = true
+			_refresh_objectives()
+
+
+func _refresh_objectives() -> void:
+	var t := "[color=#e8c070]OBJECTIVES[/color]"
+	for o in _objectives:
+		if o.done:
+			t += "\n[color=#7d8a74][lb]x[rb] [s]%s[/s][/color]" % o.text
+		else:
+			t += "\n[lb]  [rb] %s" % o.text
+	_obj_text.text = t
+	_obj_box.visible = not _objectives.is_empty()
 
 
 func _build_story_ui() -> void:

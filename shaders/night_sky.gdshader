@@ -7,6 +7,9 @@ uniform vec3 horizon : source_color = vec3(0.03, 0.026, 0.028);
 uniform vec3 city_glow : source_color = vec3(0.13, 0.065, 0.028);
 uniform vec3 cloud_col : source_color = vec3(0.03, 0.028, 0.032);
 uniform float glow_strength = 1.0;
+uniform float dawn = 0.0;   // 0 = night, 1 = full grey morning (05:00 -> 07:00)
+uniform vec3 sunrise_col : source_color = vec3(0.95, 0.5, 0.24);
+const vec2 SUN_DIR = vec2(-0.6, -0.8);   // where the sun comes up (ahead and to the left of the booth)
 
 global uniform float lightning;
 global uniform float wind_strength;
@@ -27,8 +30,13 @@ float fbm(vec2 p) {
 void sky() {
 	vec3 d = EYEDIR;
 	float up = clamp(d.y, 0.0, 1.0);
-	vec3 col = mix(horizon, zenith, pow(up, 0.5));
-	col += city_glow * glow_strength * exp(-max(d.y, 0.0) * 9.0);
+	vec3 hor = mix(horizon, vec3(0.30, 0.33, 0.37), dawn);
+	vec3 zen = mix(zenith, vec3(0.14, 0.17, 0.22), dawn);
+	float band = smoothstep(0.05, 0.4, dawn) * (1.0 - smoothstep(0.55, 0.95, dawn));
+	float az = pow(max(dot(normalize(d.xz + vec2(0.0001)), normalize(SUN_DIR)), 0.0), 2.0);
+	vec3 col = mix(hor, zen, pow(up, 0.5));
+	col += city_glow * glow_strength * (1.0 - smoothstep(0.0, 0.6, dawn)) * exp(-max(d.y, 0.0) * 9.0);
+	col += sunrise_col * band * (0.25 + 0.75 * az) * 0.9 * exp(-max(d.y, 0.0) * 5.0);
 
 	if (d.y > 0.0) {
 		vec2 uv = d.xz / (d.y + 0.15);
@@ -37,12 +45,13 @@ void sky() {
 		float c2 = fbm(uv * 3.7 + 4.0);
 		float clouds = smoothstep(0.35, 0.8, c * 0.7 + c2 * 0.4);
 		// Clouds are lit from below by the city glow.
-		vec3 cc = cloud_col + city_glow * 0.5 * exp(-d.y * 4.0);
+		vec3 cc = mix(cloud_col, vec3(0.36, 0.38, 0.43), dawn) + city_glow * 0.5 * (1.0 - dawn) * exp(-d.y * 4.0);
+		cc += sunrise_col * band * az * 0.55 * exp(-d.y * 3.0);
 		col = mix(col, cc, clouds * 0.85);
 		// Lightning: clouds flash, brighter where thick.
 		col += vec3(0.55, 0.6, 0.75) * lightning * (0.25 + clouds * 1.4) * (0.5 + 0.5 * c2);
 	} else {
-		col = horizon * 0.6;
+		col = hor * 0.6;
 	}
 	COLOR = col;
 }
