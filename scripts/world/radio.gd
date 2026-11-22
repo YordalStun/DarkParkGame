@@ -52,6 +52,7 @@ func _ready() -> void:
 
 	if interact:
 		interact.activated.connect(toggle)
+	Settings.mix_changed.connect(_apply)
 	_apply()
 
 
@@ -100,8 +101,9 @@ func set_on(on: bool) -> void:
 
 
 func _apply() -> void:
-	_music.volume_db = MUSIC_DB if is_on else -80.0
-	_hiss.volume_db = HISS_DB if is_on else -80.0
+	var mix := Settings.mix_db("music")
+	_music.volume_db = MUSIC_DB + mix if is_on else -80.0
+	_hiss.volume_db = HISS_DB + mix if is_on else -80.0
 	_glow.visible = is_on
 	if dial_mat:
 		dial_mat.emission_enabled = is_on

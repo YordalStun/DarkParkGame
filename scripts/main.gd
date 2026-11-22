@@ -16,12 +16,16 @@ extends Node
 const World := preload("res://scripts/world/world.gd")
 const Hud := preload("res://scripts/ui/hud.gd")
 const LoadingScreen := preload("res://scripts/ui/loading_screen.gd")
+const Inspect := preload("res://scripts/ui/inspect.gd")
+const Shift := preload("res://scripts/story/shift.gd")
 const TARGET_HEIGHT := 360.0   ## internal render height in pixels
 
 var container: SubViewportContainer
 var viewport: SubViewport
 var world: Node3D
 var hud: CanvasLayer
+var inspect: CanvasLayer
+var story: Node
 var post: ShaderMaterial
 
 var _shot_path := ""
@@ -37,6 +41,13 @@ var _desk_last := Vector2.ZERO
 
 func _ready() -> void:
 	_parse_args()
+
+	# Title screen (save slots) first, unless going straight on to the next night or testing.
+	if not SaveGame.skip_title and _shot_path == "" and not _args.has("notitle"):
+		var title = load("res://scripts/ui/title_screen.gd").new()
+		add_child(title)
+		await title.chosen
+	SaveGame.skip_title = false
 
 	# Show the loading screen before anything heavy happens.
 	_loading = LoadingScreen.new()
@@ -70,6 +81,11 @@ func _ready() -> void:
 	get_tree().root.size_changed.connect(_update_scale)
 	_update_scale()
 
+	# Back-of-booth dressing: lived-in on night one, emptier and stranger from night two.
+	SaveGame.ensure_slot()
+	load("res://scripts/world/booth.gd").decor = "a" if SaveGame.night() <= 1 else "b"
+	if _args.has("booth"):   # testing: --booth=a | b
+		load("res://scripts/world/booth.gd").decor = str(_args.booth)
 	world = World.new()
 	world.name = "World"
 	world.progress.connect(_loading.set_progress)
@@ -79,15 +95,49 @@ func _ready() -> void:
 	hud = Hud.new()
 	hud.name = "HUD"
 	add_child(hud)
+	inspect = Inspect.new()
+	inspect.name = "Inspect"
+	add_child(inspect)
+	inspect.opened.connect(func():
+		world.camera.blocked = true
+		hud._hint.visible = false
+		hud.set_look_back(false))
+	inspect.closed.connect(func(_c):
+		world.camera.blocked = false
+		hud._hint.visible = true
+		hud.set_look_back(world.camera.focus == world.booth.side_view))
+	hud.overlay_changed.connect(func(o): world.camera.blocked = o)
+	story = Shift.new()
+	story.name = "Story"
+	add_child(story)
+	world.story = story
+	story.setup(world, hud, inspect)
 	world.camera.hover_changed.connect(hud.set_prompt)
-	world.camera.zoom_changed.connect(func(z): hud.set_zoomed(z))
+	world.camera.focus_changed.connect(func(f): hud.set_zoomed(f != null))
+	world.camera.walk_blockers = world.booth.walk_blockers
+	world.camera.footstep.connect(func(): world.ambience.play_at("footstep", world.camera.global_position - Vector3(0, 1.5, 0), -10.0 + randf_range(-2, 1), "Interior", 1.0))
 	var desk = world.props.desktop
 	desk.world = world
 	desk.state_changed.connect(func(on): hud.set_hint("Esc to sit back" if on else "Right click to sit back", on))
 	desk.sound.connect(func(n, db): world.ambience.play_ui(n, db))
-	world.camera.zoom_changed.connect(func(z): desk.set_away(not z))
+	world.camera.focus_changed.connect(func(f): desk.set_away(f != world.props.crt_interact))
+	world.camera.focus_changed.connect(func(f):
+		hud.set_look_left(f == null)
+		hud.set_look_back(f == world.booth.side_view))
+	world.camera.zoom_changed.connect(func(z): if z: hud.set_look_left(false))
+	hud.look_back_btn.pressed.connect(func():
+		if world.camera.state == world.camera.State.ZOOMED:
+			hud.set_look_back(false)
+			world.camera.unzoom())
+	hud.look_left_btn.pressed.connect(func():
+		if world.camera.state == world.camera.State.SEATED:
+			world.camera.zoom_to(world.booth.side_view))
+	hud.set_look_left(true)
 
 	_apply_args()
+	_apply_graphics()
+	Settings.graphics_changed.connect(_apply_graphics)
+	hud.test_action.connect(_on_test)
 	await _warm_up()
 
 	# Loading screen away, then the scene and its sound fade in from black.
@@ -95,6 +145,27 @@ func _ready() -> void:
 	await _loading.finish(0.01 if quick else 0.6)
 	_loaded = true
 	world.ambience.fade_in(0.01 if quick else 4.0)
+	if _args.has("test"):   # testing: --test=id,id (testing-menu buttons, one a second)
+		for id in str(_args.test).split(","):
+			await get_tree().create_timer(1.0).timeout
+			print("TEST ", id)
+			_on_test(id)
+	if _args.has("leave_booth"):
+		story.debug_leave()
+	elif _args.has("shiftend"):
+		story.debug_shift_end()
+	elif _args.has("report"):
+		story.debug_report()
+	elif not quick or _args.has("story"):
+		story.start()
+	if _args.has("pause"):
+		hud.set_paused(true)
+	if _args.has("walker"):
+		story.debug_walker(int(_args.walker) if str(_args.walker) != "true" else 0)
+	if _args.has("cctv"):
+		_cctv_grid()
+	if _args.has("hospcam"):
+		_hospital_cam()
 	var tw := create_tween()
 	tw.tween_interval(0.0 if quick else 0.3)
 	tw.tween_method(func(v): post.set_shader_parameter("fade", v), 0.0, 1.0, 0.01 if quick else 3.5)
@@ -120,8 +191,96 @@ func _warm_up() -> void:
 
 func _update_scale() -> void:
 	var h := float(get_tree().root.size.y)
+	var target: float = Settings.PIXEL_HEIGHTS[Settings.graphics.pixels]
+	if target <= 0.0:
+		target = h   # full resolution
 	# At the desktop the picture needs more pixels than the PS1 look allows, or its text is mush.
-	container.stretch_shrink = maxi(1, int(round(h / (640.0 if _hires else TARGET_HEIGHT))))
+	container.stretch_shrink = maxi(1, int(round(h / (maxf(640.0, target) if _hires else target))))
+
+
+# ------------------------------------------------------------------ graphics options
+## Applies the GRAPHICS tab (all of it on start-up, or just the option that changed).
+func _apply_graphics(key := "") -> void:
+	var g: Dictionary = Settings.graphics
+	if key in ["", "pixels"]:
+		_update_scale()
+	if key in ["", "fullscreen"] and _shot_path == "":
+		var w := get_window()
+		if g.fullscreen:
+			w.mode = Window.MODE_FULLSCREEN
+		elif w.mode == Window.MODE_FULLSCREEN:
+			w.mode = Window.MODE_MAXIMIZED
+	if key in ["", "vsync"]:
+		DisplayServer.window_set_vsync_mode(DisplayServer.VSYNC_ENABLED if g.vsync else DisplayServer.VSYNC_DISABLED)
+	if key in ["", "fps_cap"]:
+		Engine.max_fps = Settings.FPS_CAPS[g.fps_cap]
+	var env: Environment = world.environment
+	if key in ["", "mist"] and not _args.has("nofog"):
+		env.volumetric_fog_enabled = g.mist
+	if key in ["", "reflections"]:
+		env.ssr_enabled = g.reflections
+	if key in ["", "ao"]:
+		env.ssao_enabled = g.ao
+	if key in ["", "glow"]:
+		env.glow_enabled = g.glow
+	if key in ["", "retro_colour"]:
+		post.set_shader_parameter("color_levels", 32.0 if g.retro_colour else 256.0)
+		post.set_shader_parameter("dither_strength", 1.0 if g.retro_colour else 0.0)
+	if key in ["", "grain"]:
+		post.set_shader_parameter("grain", 0.035 if g.grain else 0.0)
+	if key in ["", "show_fps"]:
+		hud.show_fps(g.show_fps)
+	# Shadows only change at start-up: switching shadow maps mid-game can upset some drivers.
+	if key == "" and not g.shadows:
+		for l in world.find_children("*", "Light3D", true, false):
+			(l as Light3D).shadow_enabled = false
+
+
+# ------------------------------------------------------------------ testing menu
+func _on_test(id: String) -> void:
+	var resume := true
+	match id:
+		"time_1": NightClock.set_time(1, 0)
+		"time_455": NightClock.set_time(4, 55)
+		"time_658": NightClock.set_time(6, 58)
+		"next_car": story.skip_wait()
+		"car_now":
+			if story.current == null:
+				story.debug_visitor(randi() % (story.arrivals.size() - 1))
+			else:
+				hud.notify("There's already a car at the window.", 3.0)
+		"leaver": story.debug_send_leaver()
+		"clockout":
+			NightClock.set_time(6, 59)
+			story.debug_shift_end_now()
+		"leave": story.debug_leave()
+		"report": story.debug_report()
+		"w_clear": Weather.set_profile("clear", 4.0)
+		"w_rain": Weather.set_profile("rain_mist", 4.0)
+		"w_storm": Weather.set_profile("storm", 4.0)
+		"w_fog": Weather.set_profile("fog", 4.0)
+		"w_flash": Weather.strike_lightning(1.0)
+		"booth_a", "booth_b":
+			story._save_progress(story.money, 1 if id == "booth_a" else 2)
+			story._restart()
+		"flicker": world.booth.force_flicker()
+		"gate":
+			if world.lot.gate.is_open:
+				world.lot.gate.close()
+			else:
+				world.lot.gate.open()
+		"coins":
+			story.money += 5
+			hud.set_money(story.money)
+			resume = false
+		"reset":
+			story._save_progress(story.START_MONEY, 1)
+			story._restart()
+		"readout":
+			hud.toggle_debug()
+	if resume and hud.paused:
+		hud.set_paused(false)
+
 
 
 func _process(_delta: float) -> void:
@@ -129,7 +288,9 @@ func _process(_delta: float) -> void:
 		return
 	var win := get_tree().root
 	var size := Vector2(win.size)
-	if _args.has("pointer"):
+	if world.camera.state == world.camera.State.WALK:
+		world.camera.set_pointer(Vector2.ZERO)   # standing: you use what's in the middle of the view
+	elif _args.has("pointer"):
 		world.camera.set_pointer(_args.pointer)
 	elif size.x > 0.0:
 		var m := win.get_mouse_position()
@@ -151,8 +312,7 @@ func _process(_delta: float) -> void:
 ## Higher render resolution and a hidden system cursor while the player is using the desktop.
 func _update_desktop_mode(win_size: Vector2) -> void:
 	var desk = world.props.desktop
-	var zoomed: bool = world.camera.state == world.camera.State.ZOOMED
-	var want: bool = zoomed and desk.is_on()
+	var want: bool = _at_crt() and desk.is_on()
 	if want != _hires:
 		_hires = want
 		_update_scale()
@@ -160,10 +320,23 @@ func _update_desktop_mode(win_size: Vector2) -> void:
 	if want and not hud.paused:
 		var px := _screen_px(win_size)
 		over = _on_screen(px) or _desk_drag
-	var mode := Input.MOUSE_MODE_HIDDEN if over else Input.MOUSE_MODE_VISIBLE
+	# Keep the cursor inside the window while using the desktop; released on alt-tab.
+	var focused := DisplayServer.window_is_focused()
+	var confine: bool = want and not hud.paused and focused
+	var mode := Input.MOUSE_MODE_VISIBLE
+	var walking: bool = world.camera.state == world.camera.State.WALK
+	if walking and not hud.paused and focused and _shot_path == "":
+		mode = Input.MOUSE_MODE_CAPTURED
+	elif confine:
+		mode = Input.MOUSE_MODE_CONFINED_HIDDEN if over else Input.MOUSE_MODE_CONFINED
 	if Input.mouse_mode != mode:
 		Input.mouse_mode = mode
 	desk.set_pointer_visible(over)
+
+
+## Leaned in to the CRT (not some other close-up view like the side window).
+func _at_crt() -> bool:
+	return world.camera.state == world.camera.State.ZOOMED and world.camera.focus == world.props.crt_interact
 
 
 func _pointer_ndc(pos: Vector2, win_size: Vector2) -> Vector2:
@@ -183,7 +356,7 @@ func _on_screen(px: Vector2) -> bool:
 ## Returns true if the event was used.
 func _desktop_input(event: InputEvent) -> bool:
 	var desk = world.props.desktop
-	if world.camera.state != world.camera.State.ZOOMED:
+	if not _at_crt():
 		_desk_drag = false
 		return false
 	var win_size := Vector2(get_tree().root.size)
@@ -232,17 +405,25 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	if not hud.paused and _desktop_input(event):
 		return
+	if event is InputEventMouseMotion and world.camera.state == world.camera.State.WALK and not hud.paused:
+		world.camera.look(event.relative)
+		return
 	if event is InputEventMouseButton and event.pressed:
 		if hud.paused:
 			hud.set_paused(false)
 			return
 		if event.button_index == MOUSE_BUTTON_LEFT:
+			if (hud.waiting_click or not world.camera.hovered) and hud.skip_line():
+				return
 			if world.camera.hovered:
 				world.ambience.play_ui("mouse_click", -8.0)
 			world.camera.click()
 		elif event.button_index == MOUSE_BUTTON_RIGHT:
 			world.camera.back()
 	elif event is InputEventKey and event.pressed and not event.echo:
+		if hud.waiting_click and event.keycode in [KEY_SPACE, KEY_ENTER, KEY_KP_ENTER]:
+			hud.skip_line()
+			return
 		match event.keycode:
 			KEY_ESCAPE:
 				if not world.camera.back():
@@ -271,9 +452,23 @@ func _unhandled_input(event: InputEvent) -> void:
 					world.lot.gate.open()
 			KEY_F9:
 				hud.toggle_debug()
+			KEY_F10, KEY_P:
+				hud.set_paused(not hud.paused)
 			KEY_F11:
-				var w := get_window()
-				w.mode = Window.MODE_WINDOWED if w.mode == Window.MODE_FULLSCREEN else Window.MODE_FULLSCREEN
+				Settings.set_graphics("fullscreen", not Settings.graphics.fullscreen)
+			KEY_N:
+				story.open_notes()
+			KEY_E:
+				# Standing: E uses what you're looking at (the door needs it to leave).
+				if world.camera.state == world.camera.State.WALK and world.camera.hovered and not world.camera.blocked:
+					var it = world.camera.hovered
+					it.key_used.emit()
+					if it == world.booth.light_switch:
+						it.activate()
+			KEY_F12:
+				# Testing menu.
+				hud.set_paused(true)
+				hud.show_tab("TESTING")
 
 
 func _parse_args() -> void:
@@ -288,7 +483,51 @@ func _parse_args() -> void:
 		_args.pointer = Vector2(float(p[0]), float(p[1]))
 
 
+## Testing (--hospcam): a big picture from camera 1 re-aimed at the hospital end of the aisle.
+func _hospital_cam() -> void:
+	var c: Dictionary = world.cctv.cams[0]
+	c.viewport.size = Vector2i(1280, 720)
+	c.camera.look_at_from_position(Vector3(-44.0, 2.0, -2.0), Vector3(-60.0, 1.4, -7.4))
+	c.viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	var layer := CanvasLayer.new()
+	layer.layer = 50
+	add_child(layer)
+	var tr := TextureRect.new()
+	tr.texture = c.viewport.get_texture()
+	tr.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	tr.set_anchors_preset(Control.PRESET_FULL_RECT)
+	layer.add_child(tr)
+
+
+## Testing (--cctv): shows the four camera feeds, with the CCTV look, in a 2x2 grid over everything.
+func _cctv_grid() -> void:
+	world.cctv.acquire()
+	var layer := CanvasLayer.new()
+	layer.layer = 50
+	add_child(layer)
+	var bg := ColorRect.new()
+	bg.color = Color(0.08, 0.08, 0.08)
+	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
+	layer.add_child(bg)
+	var shader := load("res://shaders/cctv.gdshader")
+	for i in 4:
+		world.cctv.cams[i].viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+		var tr := TextureRect.new()
+		tr.texture = world.cctv.texture(i)
+		tr.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		tr.size = Vector2(478, 358)
+		tr.position = Vector2(160 + (i % 2) * 480, 1 + (i / 2) * 360)
+		var m := ShaderMaterial.new()
+		m.shader = shader
+		m.set_shader_parameter("seed", float(i))
+		tr.material = m
+		layer.add_child(tr)
+
+
 func _apply_args() -> void:
+	if _args.has("time"):   # e.g. --time=6.25 (hours) for checking the sunrise
+		var th := float(_args.time)
+		NightClock.set_time(int(th), int((th - int(th)) * 60.0))
 	if _args.has("weather"):
 		Weather.set_profile(_args.weather, 0.0)
 	if _args.has("rain"):
@@ -304,13 +543,46 @@ func _apply_args() -> void:
 	# Health line in the log every 15 s (or --perflog=N). The log is user://logs/godot.log;
 	# on Windows: %APPDATA%\Godot\app_userdata\Dark Park\logs\godot.log
 	_perf_log()
+	if _args.has("paused"):
+		hud.set_paused(true)
+		if _args.has("tab"):
+			hud.show_tab(str(_args.tab))
 	if _args.has("nofog"):
 		world.environment.volumetric_fog_enabled = false
 	if _args.has("audiotest") or _args.has("novisuals"):
 		_strip_visuals()  # audio-only run: make software rendering fast
 	if _args.has("audiotest"):
 		_audio_stress_test()
-	if _args.has("zoom") or _args.has("desktop"):
+	if _args.has("answer"):   # testing: pick up the phone as soon as it rings
+		var t := Timer.new()
+		t.wait_time = 0.5
+		t.autostart = true
+		t.timeout.connect(story._on_phone)
+		add_child(t)
+	if _args.has("leave"):   # testing: send one evening car home now
+		get_tree().create_timer(0.5).timeout.connect(func(): story._leavers[int(_args.leave)].go())
+	if _args.has("notes"):   # testing: --notes="..." [--opennotes]
+		story.notes = str(_args.notes).replace("|", "\n")
+		if _args.has("opennotes"):
+			get_tree().create_timer(1.0).timeout.connect(story.open_notes)
+	if _args.has("tiptest"):
+		hud.tip("test", "You can write things down. Press N (or click the notepad on the desk) and type.")
+	if _args.has("car"):
+		story.debug_visitor(int(_args.car))
+		if _args.has("idcard"):
+			get_tree().create_timer(1.5).timeout.connect(func(): story._on_card(story.current, story.arrivals[int(_args.car)], story.results[-1]))
+		if _args.has("vlog"):
+			get_tree().create_timer(1.5).timeout.connect(func(): story._open_log())
+		if _args.has("plate"):
+			get_tree().create_timer(1.5).timeout.connect(func(): inspect.show_plate(story.arrivals[int(_args.car)].reg))
+		if _args.has("drivein"):
+			get_tree().create_timer(1.0).timeout.connect(func(): story._on_raise())
+	if _args.has("side") or _args.has("sideopen"):
+		await get_tree().create_timer(0.1).timeout
+		world.camera.zoom_to(world.booth.side_view)
+		if _args.has("sideopen"):
+			world.booth.set_side_window(true)
+	if _args.has("zoom") or (_args.has("desktop") and not _args.has("seated")):
 		await get_tree().create_timer(0.1).timeout
 		world.camera.zoom_to(world.props.crt_interact)
 	if _args.has("desktop"):
@@ -325,6 +597,8 @@ func _open_desktop_for_test() -> void:
 	await get_tree().create_timer(0.3).timeout
 	if _args.has("menu"):
 		desk.toggle_start()
+	if _args.has("volpopup"):
+		desk._volume_popup()
 	for id in str(_args.desktop).split(",", false):
 		if id == "1" or id == "true":
 			continue

@@ -22,6 +22,7 @@ var phone_interact: Interactable
 var radio_interact: Interactable
 var radio_player: Node3D  ## radio.gd: music on/off, playlist
 var logbook_interact: Interactable
+var notepad_interact: Interactable   ## the yellow pad by the phone (N)
 var _t := 0.0
 
 
@@ -31,6 +32,7 @@ func _ready() -> void:
 	_build_phone()
 	_build_radio()
 	_build_logbook()
+	_build_notepad()
 	_build_mug()
 	_build_flashlight()
 
@@ -182,6 +184,24 @@ func _build_logbook() -> void:
 	logbook_interact.prompt = "Logbook"
 	logbook_interact.add_box(Vector3(0.25, 0.03, 0.34), Vector3(0, 0.01, 0))
 	lb.add_child(logbook_interact)
+
+
+## A yellow legal pad and pencil between the phone and the logbook: your notes (N).
+func _build_notepad() -> void:
+	var pad := Node3D.new()
+	pad.name = "Notepad"
+	pad.position = Vector3(-1.05, DESK_Y, -0.5)
+	pad.rotation_degrees = Vector3(0, -14, 0)
+	add_child(pad)
+	MK.box(pad, Vector3(0.15, 0.012, 0.22), Vector3(0, 0.006, 0), MK.mat(Color(0.95, 0.88, 0.42), "", 0.85))
+	MK.box(pad, Vector3(0.15, 0.014, 0.025), Vector3(0, 0.007, -0.1), MK.mat(Color(0.7, 0.15, 0.12), "", 0.6))
+	for i in 5:
+		MK.box(pad, Vector3(0.11, 0.0005, 0.004), Vector3(0.005, 0.0125, -0.06 + i * 0.03), MK.mat(Color(0.3, 0.35, 0.6), "", 0.8))
+	MK.cyl(pad, 0.004, 0.004, 0.15, Vector3(0.1, 0.006, 0.02), MK.mat(Color(0.85, 0.7, 0.2), "", 0.5), 6, Vector3(90, 20, 0))
+	notepad_interact = Interactable.new()
+	notepad_interact.prompt = "Notepad  (N)"
+	notepad_interact.add_box(Vector3(0.18, 0.04, 0.25), Vector3(0, 0.015, 0))
+	pad.add_child(notepad_interact)
 
 
 func _build_mug() -> void:

@@ -1,14 +1,24 @@
 # Builds the Windows game folder (DarkPark.exe + browser engine) on every push and attaches it to the run
 # (Actions tab -> latest run -> Artifacts -> DarkPark-windows).
+# A release: run this workflow by hand (Actions -> Build game -> Run workflow) with a release tag,
+# or push a version tag. It publishes a GitHub Release with the zip, creating the tag on the
+# built commit, using docs/releases/<tag>.md as the release notes.
 name: Build game
 
 on:
   push:
   workflow_dispatch:
+    inputs:
+      release_tag:
+        description: "Publish a GitHub Release with this tag (e.g. v0.2.0). Leave empty for a plain build."
+        required: false
+        default: ""
 
 jobs:
   windows:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     env:
       GODOT_VERSION: 4.5.1
     steps:
@@ -29,6 +39,12 @@ jobs:
       - name: Fetch the Chromium web engine
         run: tools/fetch_cef.sh
 
+      - name: Stamp the build number
+        run: |
+          echo 'extends RefCounted' > scripts/build_info.gd
+          echo "const BUILD := \"${{ github.run_number }} (${GITHUB_SHA::7})\"" >> scripts/build_info.gd
+          cat scripts/build_info.gd
+
       - name: Export and package
         run: |
           godot=./Godot_v${GODOT_VERSION}-stable_linux.x86_64
@@ -40,3 +56,13 @@ jobs:
         with:
           name: DarkPark-windows
           path: build/windows/DarkPark/
+
+      - name: Publish release
+        if: startsWith(github.ref, 'refs/tags/v') || inputs.release_tag != ''
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ inputs.release_tag || github.ref_name }}
+          target_commitish: ${{ github.sha }}
+          name: Dark Park ${{ inputs.release_tag || github.ref_name }}
+          body_path: docs/releases/${{ inputs.release_tag || github.ref_name }}.md
+          files: build/windows/DarkPark-windows.zip

@@ -2,7 +2,8 @@ class_name CarBuilder
 ## Boxy late-80s cars and a van. Nose points toward local +Z. Origin on the ground.
 
 
-static func make(paint: Color, kind := "sedan") -> Node3D:
+## see_through: tinted but transparent glass, so the driver can be seen (story cars).
+static func make(paint: Color, kind := "sedan", see_through := false) -> Node3D:
 	var car := Node3D.new()
 	var body_m := StandardMaterial3D.new()
 	body_m.albedo_color = paint
@@ -15,6 +16,12 @@ static func make(paint: Color, kind := "sedan") -> Node3D:
 	glass.albedo_color = Color(0.02, 0.025, 0.03)
 	glass.roughness = 0.05
 	glass.metallic = 0.2
+	if see_through:
+		glass.albedo_color = Color(0.05, 0.07, 0.08, 0.45)
+		glass.metallic = 0.6
+		glass.roughness = 0.02
+		glass.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		glass.cull_mode = BaseMaterial3D.CULL_DISABLED
 	var black := MK.mat(Color(0.03, 0.03, 0.03), "", 0.7)
 	var tyre := MK.mat(Color(0.02, 0.02, 0.02), "", 0.95)
 	var hub := MK.mat(Color(0.5, 0.5, 0.48), "", 0.35, 1.0, 0.8)

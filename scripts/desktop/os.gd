@@ -30,8 +30,11 @@ const APPS := {
 	"browser": {"title": "NightNet Explorer", "icon": "globe", "size": Vector2(604, 410), "min_size": Vector2(320, 220)},
 	"mail": {"title": "Inbox - Mail", "icon": "inbox", "size": Vector2(520, 340), "min_size": Vector2(320, 220)},
 	"mines": {"title": "Minesweeper", "icon": "mine", "size": Vector2(170, 230), "max": false, "resize": false},
+	"solitaire": {"title": "Solitaire", "icon": "cards", "size": Vector2(396, 440), "max": false, "resize": false},
+	"snake": {"title": "NightSnake", "icon": "snake", "size": Vector2(330, 322), "max": false, "resize": false},
 	"camlink": {"title": "CamLink CCTV v1.3", "icon": "cam", "size": Vector2(420, 330), "min_size": Vector2(300, 240)},
 	"gatectl": {"title": "Gate Control", "icon": "gate", "size": Vector2(300, 190), "max": false, "resize": false},
+	"gatelog": {"title": "GateLog - Vehicle Entry", "icon": "doc", "size": Vector2(470, 370), "min_size": Vector2(380, 300)},
 	"help": {"title": "NightWin Help", "icon": "help", "size": Vector2(420, 300)},
 	"find": {"title": "Find: All Files", "icon": "find", "size": Vector2(380, 280)},
 }
@@ -344,6 +347,9 @@ func _build_icons() -> void:
 		["My Documents", "documents", func(): open_app("explorer", {"path": "C:\\MY DOCUMENTS"})],
 		["CamLink", "cam", func(): open_app("camlink")],
 		["Gate Control", "gate", func(): open_app("gatectl")],
+		["GateLog", "doc", func(): open_app("gatelog")],
+		["Solitaire", "cards", func(): open_app("solitaire")],
+		["NightSnake", "snake", func(): open_app("snake")],
 	]
 	var i := 0
 	for d in defs:
@@ -439,6 +445,7 @@ func _build_taskbar() -> void:
 	tray_icons.add_theme_constant_override("separation", 3)
 	tray.add_child(tray_icons)
 	var sp := TextureRect.new()
+	sp.name = "Speaker"
 	sp.texture = W95.icon("speaker", true)
 	sp.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	tray_icons.add_child(sp)
@@ -452,8 +459,49 @@ func _build_taskbar() -> void:
 	hit.mouse_filter = Control.MOUSE_FILTER_PASS
 	tray.add_child(hit)
 	hit.gui_input.connect(func(ev):
-		if ev is InputEventMouseButton and ev.pressed and ev.double_click and net_connected:
+		if not (ev is InputEventMouseButton and ev.pressed and ev.button_index == MOUSE_BUTTON_LEFT):
+			return
+		if sp.get_global_rect().grow(2).has_point(hit.get_global_transform() * ev.position):
+			_volume_popup()
+		elif ev.double_click and net_connected:
 			Dialogs.connection_status(self))
+
+
+## The Windows 95 tray volume control: a vertical slider and a Mute box.
+## Changes the game's master volume (shared with the pause menu, saved to disk).
+func _volume_popup() -> void:
+	close_menus()
+	_ensure_blocker()
+	var settings := get_node("/root/Settings")
+	var pnl := Panel.new()
+	pnl.add_theme_stylebox_override("panel", W95.raised())
+	pnl.size = Vector2(70, 132)
+	pnl.position = Vector2(W - 92, H - TASKBAR_H - pnl.size.y - 2)
+	pnl.mouse_filter = Control.MOUSE_FILTER_STOP
+	var title := Label.new()
+	title.text = "Volume"
+	title.position = Vector2(0, 6)
+	title.size = Vector2(70, 14)
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	pnl.add_child(title)
+	var sl := VSlider.new()
+	sl.min_value = 0.0
+	sl.max_value = 1.0
+	sl.step = 0.01
+	sl.value = settings.volume
+	sl.position = Vector2(25, 26)
+	sl.size = Vector2(20, 72)
+	sl.value_changed.connect(func(v): settings.set_volume(v))
+	sl.drag_ended.connect(func(_c): play("ding", -14.0))
+	pnl.add_child(sl)
+	var mute := CheckBox.new()
+	mute.text = "Mute"
+	mute.button_pressed = settings.muted
+	mute.position = Vector2(6, 104)
+	mute.toggled.connect(func(on): settings.set_muted(on))
+	pnl.add_child(mute)
+	add_menu_node(pnl)
+	play("click2", -16.0)
 
 
 func set_modem_icon(on: bool) -> void:
@@ -734,7 +782,11 @@ func _start_items() -> Array:
 	]
 	var programs := [
 		{"text": "Accessories", "icon": _ico("folder"), "sub": accessories},
-		{"text": "Games", "icon": _ico("folder"), "sub": [{"text": "Minesweeper", "icon": _ico("mine"), "act": app.call("mines")}]},
+		{"text": "Games", "icon": _ico("folder"), "sub": [
+			{"text": "Minesweeper", "icon": _ico("mine"), "act": app.call("mines")},
+			{"text": "NightSnake", "icon": _ico("snake"), "act": app.call("snake")},
+			{"text": "Solitaire", "icon": _ico("cards"), "act": app.call("solitaire")},
+		]},
 		{"text": "Internet", "icon": _ico("folder"), "sub": [
 			{"text": "NightNet Explorer", "icon": _ico("globe"), "act": app.call("browser")},
 			{"text": "Mail", "icon": _ico("inbox"), "act": app.call("mail")},
@@ -742,6 +794,7 @@ func _start_items() -> Array:
 		{"text": "Nightwatch", "icon": _ico("folder"), "sub": [
 			{"text": "CamLink CCTV", "icon": _ico("cam"), "act": app.call("camlink")},
 			{"text": "Gate Control", "icon": _ico("gate"), "act": app.call("gatectl")},
+			{"text": "GateLog", "icon": _ico("doc"), "act": app.call("gatelog")},
 		]},
 		{"sep": true},
 		{"text": "MS-DOS Prompt", "icon": _ico("dos"), "act": app.call("dos")},

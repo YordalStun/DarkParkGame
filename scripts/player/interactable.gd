@@ -6,13 +6,19 @@ extends Area3D
 ## If `zoom_marker` is set, clicking moves the camera to that marker (e.g. the CRT).
 
 signal activated
+signal key_used   ## the player pressed E while pointing at it (standing up)
 
 const LAYER := 2
 
 @export var prompt := ""
 var zoom_marker: Node3D
 var zoom_fov := 40.0
+## How far (degrees, yaw/pitch) the player can look around while zoomed to this marker.
+## Zero (the CRT) holds the view perfectly still.
+var zoom_look := Vector2.ZERO
 var enabled := true
+## Only usable while the camera is zoomed to this one (e.g. things you reach from the side window).
+var requires_focus: Interactable
 
 
 func _init() -> void:

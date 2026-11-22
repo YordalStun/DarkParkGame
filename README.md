@@ -55,7 +55,7 @@ cursor. The PC is fully usable with the mouse and keyboard.
 
 | Program | What it does |
 |---|---|
-| **NightNet Explorer** | Web browser. Shows a fictional 1990s web (a news site, a parking authority, a security-company site, a personal homepage, a night-shift message board, a weather page, a search engine...). Type words in the address bar to search it. It can also open **real** pages (see below). |
+| **NightNet Explorer** | Web browser. Shows a fictional 1990s web (a local paper, a national news wire built from real 1995 headlines, a parking authority, a security-company site, a personal homepage, a night-shift message board, a weather page, a search engine...). Type words in the address bar to search it. It can also open **real** pages (see below). |
 | Mail | A small inbox of messages from the night team. Compose a message and you may get a reply. |
 | Notepad | Edit and save text files on the fake disk. Opens the shift notes, patrol sheet, etc. |
 | Paint | Pencil, brush, eraser, fill, spray, line, rectangle, ellipse, colour picker. |
@@ -99,6 +99,8 @@ The game is played entirely with the mouse.
 | Esc | Close a menu or dialog on the PC, else sit back, else pause (Q quits while paused) |
 | Keyboard | Typing works while you are using the PC |
 | F11 | Toggle fullscreen |
+| F12 | Testing menu (pause screen) |
+| WASD / arrows + mouse | Walk and look (only when you get up at the end of the shift) |
 
 Developer keys (for testing the atmosphere):
 

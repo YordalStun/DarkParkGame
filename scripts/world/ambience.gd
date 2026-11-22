@@ -12,7 +12,6 @@ var _creak_timer := 20.0
 var _thunders: Array[AudioStream] = []
 var _outside_lp: AudioEffectLowPassFilter
 
-const MASTER_DB := -3.0
 
 
 func _ready() -> void:
@@ -58,7 +57,7 @@ static func setup_buses() -> void:
 	AudioServer.add_bus_effect(out, lp)
 	# Ear safety: the whole game sits a little lower, and a limiter on the master
 	# output means no combination of sounds can ever clip or spike past -1.5 dBFS.
-	AudioServer.set_bus_volume_db(0, -80.0)  # silent until fade_in() after loading
+	Settings.set_fade(0.0)  # silent until fade_in() after loading (Settings owns the Master volume)
 	var limiter := AudioEffectHardLimiter.new()
 	limiter.ceiling_db = -1.5
 	limiter.release = 0.15
@@ -75,7 +74,7 @@ static func setup_buses() -> void:
 ## Bring the sound up from silence (called when the loading screen goes away).
 func fade_in(seconds: float) -> void:
 	var tw := create_tween()
-	tw.tween_method(func(v: float): AudioServer.set_bus_volume_db(0, linear_to_db(v) + MASTER_DB), 0.0001, 1.0, seconds)
+	tw.tween_method(func(v: float): Settings.set_fade(v), 0.0, 1.0, seconds)
 
 
 func _stream(n: String) -> AudioStream:
@@ -128,6 +127,11 @@ func _one_shot_3d(n: String, pos: Vector3, db := 0.0, pitch := 1.0, bus := "Inte
 	p.finished.connect(p.queue_free)
 
 
+## A positional one-shot for the story (car doors, knocks, buttons...).
+func play_at(n: String, pos: Vector3, db := 0.0, bus := "Interior", unit := 1.5) -> void:
+	_one_shot_3d(n, pos, db, randf_range(0.96, 1.04), bus, unit)
+
+
 func play_ui(n: String, db := -6.0) -> void:
 	var p := AudioStreamPlayer.new()
 	p.stream = _stream(n)
@@ -139,21 +143,25 @@ func play_ui(n: String, db := -6.0) -> void:
 	p.finished.connect(p.queue_free)
 
 
-func _vol(n: String, linear: float, base_db: float) -> void:
+func _vol(n: String, linear: float, base_db: float, channel := "ambience") -> void:
 	var p = _loops[n]
-	p.volume_db = base_db + linear_to_db(maxf(linear, 0.0001))
+	p.volume_db = base_db + linear_to_db(maxf(linear, 0.0001)) + Settings.mix_db(channel)
 
 
 func _process(delta: float) -> void:
 	var r := Weather.rain
 	var ws := Weather.gusty_wind()
 	var heavy := smoothstep(0.45, 0.95, r)
-	_vol("rain_light", smoothstep(0.02, 0.25, r) * (1.0 - heavy * 0.5), -4.0)
-	_vol("rain_heavy", heavy, -3.0)
-	_vol("rain_roof", clampf(r * 1.3, 0.0, 1.0), -7.0)
-	_vol("rain_window", clampf(r * 1.2, 0.0, 1.0), -6.0)
-	_vol("rain_gutter", Weather.wetness * clampf(0.25 + r, 0.0, 1.0), -8.0)
-	_vol("wind", clampf(0.2 + ws * 0.9, 0.0, 1.3), -8.0)
+	# The side window: open, the outside is louder and much less muffled.
+	var win: float = world.booth.side_open
+	var out_db := win * 4.0
+	_vol("rain_light", smoothstep(0.02, 0.25, r) * (1.0 - heavy * 0.5), -4.0 + out_db, "weather")
+	_vol("rain_heavy", heavy, -3.0 + out_db, "weather")
+	_vol("rain_roof", clampf(r * 1.3, 0.0, 1.0), -7.0, "weather")
+	_vol("rain_window", clampf(r * 1.2, 0.0, 1.0), -6.0, "weather")
+	_vol("rain_gutter", Weather.wetness * clampf(0.25 + r, 0.0, 1.0), -8.0 + out_db, "weather")
+	_vol("wind", clampf(0.2 + ws * 0.9, 0.0, 1.3), -8.0 + out_db, "weather")
+	_vol("traffic_distant", 1.0, -16.0 + out_db)
 	(_loops["wind"] as AudioStreamPlayer).pitch_scale = clampf(0.92 + ws * 0.15, 0.5, 1.5)
 
 	var booth_k: float = world.booth.light.light_energy / world.booth.light_base_energy
@@ -163,14 +171,14 @@ func _process(delta: float) -> void:
 	_vol("lamp_buzz", lamp_k, 2.0)
 
 	# Heavier rain also muffles the outside a bit less (it is louder against the glass).
-	_outside_lp.cutoff_hz = lerpf(2200.0, 3400.0, heavy)
+	_outside_lp.cutoff_hz = lerpf(lerpf(2200.0, 3400.0, heavy), 9000.0, win)
 
 	# Wall clock.
 	_tick_timer -= delta
 	if _tick_timer <= 0.0:
 		_tick_timer += 1.0
 		_tick_alt = not _tick_alt
-		_one_shot_3d("clock_tick", Vector3(0.55, 2.35, -1.03), -10.0, 1.0 if _tick_alt else 0.9, "Interior", 1.0)
+		_one_shot_3d("clock_tick", Vector3(0.55, 2.35, -1.03), -10.0 + Settings.mix_db("ambience"), 1.0 if _tick_alt else 0.9, "Interior", 1.0)
 
 	# Trees creaking in strong wind.
 	_creak_timer -= delta
@@ -178,7 +186,7 @@ func _process(delta: float) -> void:
 		_creak_timer = randf_range(25.0, 70.0)
 		if ws > 0.3 and not world.lot.trees.is_empty():
 			var t: Node3D = world.lot.trees[randi() % mini(9, world.lot.trees.size())]
-			_one_shot_3d("tree_creak", t.global_position + Vector3(0, 4, 0), -2.0, randf_range(0.8, 1.1), "Outside", 10.0)
+			_one_shot_3d("tree_creak", t.global_position + Vector3(0, 4, 0), -2.0 + Settings.mix_db("weather"), randf_range(0.8, 1.1), "Outside", 10.0)
 
 
 func _on_lightning(strength: float, distance: float) -> void:
@@ -192,7 +200,7 @@ func _on_lightning(strength: float, distance: float) -> void:
 	var p := AudioStreamPlayer.new()
 	p.stream = stream
 	p.bus = "Outside"
-	p.volume_db = lerpf(-7.0, -15.0, distance) + linear_to_db(clampf(strength, 0.2, 1.0))
+	p.volume_db = lerpf(-7.0, -15.0, distance) + linear_to_db(clampf(strength, 0.2, 1.0)) + Settings.mix_db("weather")
 	p.pitch_scale = randf_range(0.85, 1.05)
 	add_child(p)
 	p.play()
@@ -200,4 +208,4 @@ func _on_lightning(strength: float, distance: float) -> void:
 
 
 func _on_light_flicker() -> void:
-	_one_shot_3d("light_flicker", Vector3(0, 2.4, 0.15), -11.0, randf_range(0.9, 1.1))
+	_one_shot_3d("light_flicker", Vector3(0, 2.4, 0.15), -11.0 + Settings.mix_db("ambience"), randf_range(0.9, 1.1))
