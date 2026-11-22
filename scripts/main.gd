@@ -74,6 +74,14 @@ func _ready() -> void:
 	get_tree().root.size_changed.connect(_update_scale)
 	_update_scale()
 
+	# Back-of-booth dressing: lived-in on night one, emptier and stranger from night two.
+	var prog := ConfigFile.new()
+	var night_no := 1
+	if prog.load("user://progress.cfg") == OK:
+		night_no = int(prog.get_value("career", "night", 1))
+	load("res://scripts/world/booth.gd").decor = "a" if night_no <= 1 else "b"
+	if _args.has("booth"):   # testing: --booth=a | b
+		load("res://scripts/world/booth.gd").decor = str(_args.booth)
 	world = World.new()
 	world.name = "World"
 	world.progress.connect(_loading.set_progress)

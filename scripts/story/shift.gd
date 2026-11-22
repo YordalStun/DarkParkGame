@@ -641,6 +641,7 @@ func _save_progress(coins: int, next_night: int) -> void:
 func _restart() -> void:
 	NightClock.set_time(23, 4)
 	NightClock.shift_over = false
+	NightClock.running = true
 	Settings.set_fade(0.0)
 	get_tree().paused = false
 	get_tree().reload_current_scene()

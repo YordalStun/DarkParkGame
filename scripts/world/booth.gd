@@ -5,6 +5,7 @@ extends Node3D
 ## floor at Y 0, ceiling at 2.5. The player sits at about (0, 1.2, 0.3) facing -Z.
 
 signal light_flickered
+signal light_switched(on: bool)
 
 const IN_X := 1.8
 const FRONT_Z := -1.05
@@ -14,6 +15,16 @@ const SILL := 0.95
 const HEAD := 2.2
 const WALL := 0.1
 const DESK_Y := 0.76
+const DOOR_X := Vector2(0.45, 1.35)   ## the back door's opening (x range)
+const DOOR_H := 2.08
+
+## Back-of-booth dressing: "a" (lived-in) or "b" (sparse and eerie). Set before the world builds.
+static var decor := "a"
+var door: Node3D
+var door_interact: Interactable
+var light_switch: Interactable
+var light_on := true
+var exit_sign_mat: StandardMaterial3D
 
 var light: OmniLight3D
 var fill: OmniLight3D
@@ -110,30 +121,47 @@ func _build_shell() -> void:
 	MK.box_from(self, Vector3(-x - w - 0.01, SILL, -0.06), Vector3(-x + 0.01, HEAD, 0.06), frame, "LeftMullion")
 	MK.box_from(self, Vector3(-x, SILL - 0.02, fz), Vector3(-x + 0.13, SILL + 0.02, 0.95), MK.mat(Color(0.5, 0.42, 0.34), "wood_desk", 0.5, 0.9), "LeftSill")
 
-	# Right wall: window at the front, door at the back.
+	# Right wall: window at the front, solid behind.
 	MK.box_from(self, Vector3(x, -0.15, fz - w), Vector3(x + w, SILL, 0.3), panel, "RightLower")
 	MK.box_from(self, Vector3(x, HEAD, fz - w), Vector3(x + w, CEIL, bz + w), cream, "RightHeader")
 	MK.box_from(self, Vector3(x, SILL, 0.18), Vector3(x + w, HEAD, 0.3), frame, "RightJamb")
-	MK.box_from(self, Vector3(x, -0.15, 1.3), Vector3(x + w, HEAD, bz + w), panel, "RightSolid")
-	# Door (closed) with a small wired-glass window.
-	var door := Node3D.new()
-	door.name = "Door"
-	door.position = Vector3(x + 0.05, 0, 0.3)
-	add_child(door)
-	var door_m := MK.mat(Color(0.42, 0.36, 0.28), "metal", 0.6, 1.0)
-	MK.box_from(door, Vector3(-0.04, 0.0, 0.0), Vector3(0.04, 1.2, 1.0), door_m)
-	MK.box_from(door, Vector3(-0.04, 1.85, 0.0), Vector3(0.04, 2.2, 1.0), door_m)
-	MK.box_from(door, Vector3(-0.04, 1.2, 0.0), Vector3(0.04, 1.85, 0.2), door_m)
-	MK.box_from(door, Vector3(-0.04, 1.2, 0.8), Vector3(0.04, 1.85, 1.0), door_m)
-	_glass(door, Vector3(0, 1.525, 0.5), Vector2(0.6, 0.65), Vector3(0, 90, 0), 0.25)
-	MK.box(door, Vector3(0.06, 0.03, 0.14), Vector3(-0.08, 1.0, 0.88), MK.mat(Color(0.7, 0.68, 0.6), "", 0.3, 1.0, 0.9), Vector3.ZERO, "Handle")
+	MK.box_from(self, Vector3(x, -0.15, 0.3), Vector3(x + w, HEAD, bz + w), panel, "RightSolid")
+	MK.box_from(self, Vector3(x, -0.15, 0.18), Vector3(x + w, SILL, 0.3), panel)
 
-	# Back wall.
-	MK.box_from(self, Vector3(-x - w, -0.15, bz), Vector3(x + w, CEIL, bz + w), panel, "BackWall")
+	# Back wall, with the way out: a door behind the desk chair.
+	MK.box_from(self, Vector3(-x - w, -0.15, bz), Vector3(DOOR_X.x, CEIL, bz + w), panel, "BackWall")
+	MK.box_from(self, Vector3(DOOR_X.y, -0.15, bz), Vector3(x + w, CEIL, bz + w), panel, "BackWallR")
+	MK.box_from(self, Vector3(DOOR_X.x, DOOR_H, bz), Vector3(DOOR_X.y, CEIL, bz + w), panel, "BackWallTop")
+	# Frame.
+	for fx in [DOOR_X.x - 0.04, DOOR_X.y]:
+		MK.box_from(self, Vector3(fx, 0, bz - 0.02), Vector3(fx + 0.04, DOOR_H + 0.04, bz + w + 0.01), frame)
+	MK.box_from(self, Vector3(DOOR_X.x - 0.04, DOOR_H, bz - 0.02), Vector3(DOOR_X.y + 0.04, DOOR_H + 0.05, bz + w + 0.01), frame)
+	# The door (closed) with a wired-glass window. Hinged on the right; opens outward.
+	door = Node3D.new()
+	door.name = "Door"
+	door.position = Vector3(DOOR_X.y, 0, bz + w * 0.5)
+	add_child(door)
+	var dw := DOOR_X.y - DOOR_X.x
+	var door_m := MK.mat(Color(0.42, 0.36, 0.28), "metal", 0.6, 1.0)
+	MK.box_from(door, Vector3(-dw, 0.0, -0.035), Vector3(0, 1.15, 0.035), door_m)
+	MK.box_from(door, Vector3(-dw, 1.8, -0.035), Vector3(0, DOOR_H, 0.035), door_m)
+	MK.box_from(door, Vector3(-dw, 1.15, -0.035), Vector3(-dw + 0.18, 1.8, 0.035), door_m)
+	MK.box_from(door, Vector3(-0.18, 1.15, -0.035), Vector3(0, 1.8, 0.035), door_m)
+	_glass(door, Vector3(-dw * 0.5, 1.475, 0.0), Vector2(dw - 0.36, 0.65), Vector3(0, 180, 0), 0.3)
+	var chrome := MK.mat(Color(0.7, 0.68, 0.6), "", 0.3, 1.0, 0.9)
+	MK.box(door, Vector3(0.14, 0.03, 0.06), Vector3(-dw + 0.14, 1.0, -0.07), chrome, Vector3.ZERO, "Handle")
+	MK.box(door, Vector3(0.06, 0.09, 0.02), Vector3(-dw + 0.1, 1.0, -0.04), chrome)
+	MK.box(door, Vector3(0.12, 0.2, 0.02), Vector3(-dw + 0.12, 1.75, -0.045), MK.mat(Color(0.8, 0.8, 0.75), "", 0.5))   # push bar plate
+	door_interact = Interactable.new()
+	door_interact.prompt = "Door"
+	door_interact.add_box(Vector3(dw, DOOR_H, 0.2), Vector3(-dw * 0.5, DOOR_H * 0.5, -0.05))
+	door_interact.enabled = false
+	door.add_child(door_interact)
 
 	# Skirting board.
 	var skirt := MK.mat(Color(0.2, 0.16, 0.12), "", 0.6)
-	MK.box_from(self, Vector3(-x, 0, bz - 0.02), Vector3(x, 0.1, bz), skirt)
+	MK.box_from(self, Vector3(-x, 0, bz - 0.02), Vector3(DOOR_X.x - 0.04, 0.1, bz), skirt)
+	MK.box_from(self, Vector3(DOOR_X.y + 0.04, 0, bz - 0.02), Vector3(x, 0.1, bz), skirt)
 	MK.box_from(self, Vector3(-x, 0, fz), Vector3(-x + 0.02, 0.1, bz), skirt)
 
 	# Exterior concrete island the booth sits on.
@@ -340,6 +368,9 @@ func _build_light() -> void:
 func _process(delta: float) -> void:
 	_update_clock()
 	_flicker_timer -= delta
+	if not light_on:
+		_blinks.clear()
+		return
 	if _flicker_timer <= 0.0 and _blinks.is_empty():
 		_flicker_timer = randf_range(120.0, 300.0)
 		force_flicker()
@@ -376,18 +407,119 @@ func force_flicker() -> void:
 
 # ------------------------------------------------------------------ decor
 func _build_decor() -> void:
-	# Calendar on the left wall's solid section, cork board on the back wall.
+	var bz := BACK_Z
+	# Calendar on the left wall, cork board on the back wall.
 	MK.quad(self, Vector2(0.32, 0.44), Vector3(-IN_X + 0.012, 1.55, 1.3), MK.picture("calendar"), Vector3(0, 90, 0), "Calendar")
-	var cork := MK.quad(self, Vector2(0.9, 0.68), Vector3(-0.6, 1.5, BACK_Z - 0.012), MK.picture("corkboard"), Vector3(0, 180, 0), "Corkboard")
+	var cork := MK.quad(self, Vector2(0.9, 0.68), Vector3(-0.75, 1.5, bz - 0.012), MK.picture("corkboard"), Vector3(0, 180, 0), "Corkboard")
 	MK.box(cork, Vector3(0.94, 0.72, 0.02), Vector3(0, 0, -0.012), MK.mat(Color(0.3, 0.2, 0.12), "", 0.7))
-	# Coat hook with a rain coat.
-	var coat := MK.mat(Color(0.35, 0.3, 0.12), "beige_plastic", 0.9, 0.5)
-	MK.taper(self, Vector3(0.45, 0.95, 0.14), 0.18, 0.0, Vector3(0.9, 1.25, BACK_Z - 0.09), coat)
-	# Grey filing cabinet in the back corner.
+	# Grey filing cabinet in the back-left corner.
 	var cab := MK.mat(Color(0.5, 0.52, 0.5), "metal", 0.5, 1.0, 0.3)
-	MK.box_from(self, Vector3(1.25, 0, 1.0), Vector3(1.78, 1.3, 1.58), cab, "FilingCabinet")
+	MK.box_from(self, Vector3(-1.78, 0, 0.95), Vector3(-1.3, 1.3, 1.58), cab, "FilingCabinet")
 	for i in 3:
-		MK.box(self, Vector3(0.12, 0.02, 0.02), Vector3(1.515, 1.1 - i * 0.42, 0.985), MK.mat(Color(0.8, 0.8, 0.78), "", 0.3, 1.0, 0.9))
+		MK.box(self, Vector3(0.02, 0.02, 0.12), Vector3(-1.295, 1.1 - i * 0.42, 1.27), MK.mat(Color(0.8, 0.8, 0.78), "", 0.3, 1.0, 0.9))
+	# Over the door: a lit EXIT sign. Beside it: the light switch.
+	exit_sign_mat = MK.picture("sign_exit", 0.5, 1.2)
+	MK.box(self, Vector3(0.36, 0.14, 0.06), Vector3((DOOR_X.x + DOOR_X.y) * 0.5, DOOR_H + 0.2, bz - 0.03), MK.mat(Color(0.85, 0.85, 0.82), "", 0.5))
+	MK.quad(self, Vector2(0.32, 0.12), Vector3((DOOR_X.x + DOOR_X.y) * 0.5, DOOR_H + 0.2, bz - 0.065), exit_sign_mat, Vector3(0, 180, 0))
+	var glow := MK.omni(self, Vector3((DOOR_X.x + DOOR_X.y) * 0.5, DOOR_H + 0.1, bz - 0.25), Color(0.4, 1.0, 0.5), 0.15, 1.6, false, "ExitGlow")
+	glow.light_volumetric_fog_energy = 0.0
+	var plate := MK.box(self, Vector3(0.08, 0.12, 0.015), Vector3(DOOR_X.x - 0.16, 1.25, bz - 0.008), MK.mat(Color(0.9, 0.88, 0.8), "", 0.4))
+	plate.name = "LightSwitch"
+	_switch_rocker = MK.box(self, Vector3(0.025, 0.045, 0.02), Vector3(DOOR_X.x - 0.16, 1.25, bz - 0.02), MK.mat(Color(0.95, 0.94, 0.88), "", 0.4))
+	_switch_rocker.rotation_degrees.x = -12.0
+	light_switch = Interactable.new()
+	light_switch.prompt = "Light switch"
+	light_switch.add_box(Vector3(0.16, 0.2, 0.12), Vector3(DOOR_X.x - 0.16, 1.25, bz - 0.05))
+	add_child(light_switch)
+	light_switch.activated.connect(func(): set_light_on(not light_on))
+	# Doormat.
+	MK.box(self, Vector3(0.8, 0.012, 0.5), Vector3((DOOR_X.x + DOOR_X.y) * 0.5, 0.006, bz - 0.3), MK.mat(Color(0.2, 0.17, 0.12), "", 1.0))
+	if decor == "b":
+		_decor_eerie()
+	else:
+		_decor_lived_in()
+
+
+## Design A: a booth people have actually worked in for years.
+func _decor_lived_in() -> void:
+	var bz := BACK_Z
+	var steel := MK.mat(Color(0.36, 0.42, 0.48), "metal", 0.5, 1.0, 0.4)
+	var dark := MK.mat(Color(0.08, 0.08, 0.08), "", 0.6)
+	# Two staff lockers against the right wall.
+	for i in 2:
+		var z0 := 0.42 + i * 0.42
+		MK.box_from(self, Vector3(1.38, 0, z0), Vector3(1.79, 1.85, z0 + 0.4), steel)
+		for k in 4:
+			MK.box(self, Vector3(0.005, 0.012, 0.22), Vector3(1.376, 1.6 - k * 0.04, z0 + 0.2), dark)   # vents
+		MK.box(self, Vector3(0.02, 0.08, 0.03), Vector3(1.37, 1.0, z0 + 0.34), MK.mat(Color(0.7, 0.7, 0.68), "", 0.3, 1.0, 0.9))
+	MK.quad(self, Vector2(0.14, 0.04), Vector3(1.372, 1.7, 0.62), MK.mat(Color(0.95, 0.95, 0.9), "", 0.6), Vector3(0, -90, 0))    # name tags
+	MK.quad(self, Vector2(0.14, 0.04), Vector3(1.372, 1.7, 1.04), MK.mat(Color(0.95, 0.95, 0.9), "", 0.6), Vector3(0, -90, 0))
+	# Coat hooks right of the door, with a rain coat and a hi-vis vest.
+	var hook_x := DOOR_X.y + 0.25
+	MK.box(self, Vector3(0.3, 0.05, 0.03), Vector3(hook_x, 1.75, bz - 0.02), MK.mat(Color(0.3, 0.2, 0.12), "", 0.7))
+	MK.taper(self, Vector3(0.36, 0.9, 0.12), 0.16, 0.0, Vector3(hook_x - 0.06, 1.3, bz - 0.08), MK.mat(Color(0.35, 0.3, 0.12), "beige_plastic", 0.9, 0.5))
+	MK.taper(self, Vector3(0.3, 0.55, 0.06), 0.18, 0.0, Vector3(hook_x + 0.08, 1.45, bz - 0.12), MK.emissive(Color(0.95, 0.85, 0.1), 0.15, Color(0.85, 0.8, 0.1)))
+	# Kettle, mugs and a tea caddy on the filing cabinet.
+	MK.cyl(self, 0.08, 0.09, 0.2, Vector3(-1.55, 1.4, 1.35), MK.mat(Color(0.85, 0.85, 0.82), "", 0.3), 12)
+	MK.box(self, Vector3(0.03, 0.12, 0.08), Vector3(-1.46, 1.42, 1.35), MK.mat(Color(0.2, 0.2, 0.2), "", 0.5))
+	MK.cyl(self, 0.04, 0.04, 0.09, Vector3(-1.62, 1.345, 1.12), MK.mat(Color(0.2, 0.4, 0.7), "", 0.4), 10)
+	MK.cyl(self, 0.04, 0.04, 0.09, Vector3(-1.5, 1.345, 1.06), MK.mat(Color(0.9, 0.9, 0.86), "", 0.4), 10)
+	MK.box(self, Vector3(0.1, 0.14, 0.1), Vector3(-1.66, 1.37, 1.5), MK.mat(Color(0.6, 0.12, 0.1), "metal", 0.4, 1.0, 0.4))
+	# Signs and posters.
+	MK.quad(self, Vector2(0.27, 0.36), Vector3(0.12, 1.55, bz - 0.012), MK.picture("poster_safety"), Vector3(0, 180, 0))
+	MK.quad(self, Vector2(0.18, 0.24), Vector3(IN_X - 0.012, 1.95, 1.3), MK.picture("sign_nosmoking"), Vector3(0, -90, 0))
+	# Fire extinguisher by the door.
+	MK.cyl(self, 0.075, 0.075, 0.5, Vector3(DOOR_X.y + 0.25, 0.32, bz - 0.12), MK.mat(Color(0.75, 0.08, 0.05), "", 0.35, 1.0, 0.3), 12)
+	MK.cyl(self, 0.03, 0.04, 0.08, Vector3(DOOR_X.y + 0.25, 0.61, bz - 0.12), dark, 8)
+	# Fan heater on the floor by the desk.
+	MK.box(self, Vector3(0.3, 0.26, 0.18), Vector3(-1.1, 0.13, 0.75), MK.mat(Color(0.78, 0.74, 0.62), "beige_plastic", 0.5, 0.4))
+	MK.box(self, Vector3(0.22, 0.14, 0.01), Vector3(-1.1, 0.14, 0.845), MK.mat(Color(0.15, 0.08, 0.05), "", 0.6))
+	# Waste bin.
+	MK.cyl(self, 0.13, 0.11, 0.32, Vector3(1.0, 0.16, 0.2), MK.mat(Color(0.2, 0.25, 0.2), "metal", 0.6, 1.0, 0.3), 10)
+
+
+## Design B: bare, cold, and someone else's things still here.
+func _decor_eerie() -> void:
+	var bz := BACK_Z
+	# A plastic stacking chair against the right wall, nobody's.
+	var orange := MK.mat(Color(0.75, 0.38, 0.12), "", 0.6)
+	var legs := MK.mat(Color(0.35, 0.35, 0.35), "metal", 0.4, 1.0, 0.6)
+	var c := Vector3(1.45, 0, 0.9)
+	MK.box(self, Vector3(0.42, 0.04, 0.4), c + Vector3(0, 0.45, 0), orange)
+	MK.box(self, Vector3(0.04, 0.4, 0.4), c + Vector3(0.2, 0.7, 0), orange, Vector3(0, 0, -6))
+	for lx in [-0.18, 0.18]:
+		for lz in [-0.17, 0.17]:
+			MK.box(self, Vector3(0.025, 0.45, 0.025), c + Vector3(lx, 0.225, lz), legs)
+	# Mop and bucket in the corner by the door.
+	MK.cyl(self, 0.16, 0.13, 0.3, Vector3(1.6, 0.15, 1.38), MK.mat(Color(0.75, 0.72, 0.1), "", 0.5), 12)
+	MK.cyl(self, 0.012, 0.012, 1.3, Vector3(1.6, 0.75, 1.42), MK.mat(Color(0.5, 0.4, 0.25), "", 0.7), 6, Vector3(10, 0, 0))
+	# Roy's coat still on the hook, and his missing poster beside the door.
+	MK.box(self, Vector3(0.06, 0.04, 0.06), Vector3(DOOR_X.y + 0.25, 1.78, bz - 0.03), MK.mat(Color(0.3, 0.3, 0.3), "metal", 0.4, 1.0, 0.6))
+	MK.taper(self, Vector3(0.38, 1.0, 0.12), 0.16, 0.0, Vector3(DOOR_X.y + 0.25, 1.28, bz - 0.08), MK.mat(Color(0.12, 0.13, 0.16), "", 0.9))
+	MK.quad(self, Vector2(0.3, 0.41), Vector3(0.12, 1.5, bz - 0.012), MK.picture("poster_missing"), Vector3(0, 180, -2))
+	MK.quad(self, Vector2(0.18, 0.24), Vector3(IN_X - 0.012, 1.55, 1.15), MK.picture("sheet_rota"), Vector3(0, -90, 0))
+	# A lost-property box with a torch and a flask in it.
+	var card := MK.mat(Color(0.55, 0.42, 0.26), "", 0.9)
+	MK.box(self, Vector3(0.45, 0.3, 0.35), Vector3(-1.0, 0.15, 1.35), card)
+	MK.quad(self, Vector2(0.3, 0.08), Vector3(-1.0, 0.22, 1.172), MK.mat(Color(0.95, 0.95, 0.9), "", 0.6), Vector3(0, 180, 0))
+	MK.cyl(self, 0.035, 0.035, 0.22, Vector3(-0.95, 0.38, 1.38), MK.mat(Color(0.3, 0.35, 0.3), "metal", 0.4, 1.0, 0.5), 8)
+	# Muddy footprints from the door to the chair, a few at a time.
+	var mud := MK.mat(Color(0.12, 0.1, 0.07), "", 1.0)
+	for i in 5:
+		var t := float(i) / 4.0
+		var p := Vector3(lerpf(0.95, 1.3, t), 0.003, lerpf(1.3, 1.05, t)) + Vector3(0.08 if i % 2 == 0 else -0.08, 0, 0)
+		MK.box(self, Vector3(0.09, 0.002, 0.22), p, mud)
+
+
+var _switch_rocker: MeshInstance3D
+
+
+## The booth's ceiling light, by the switch at the door.
+func set_light_on(on: bool) -> void:
+	light_on = on
+	_switch_rocker.rotation_degrees.x = -12.0 if on else 12.0
+	_set_light(1.0 if on else 0.0)
+	light_switched.emit(on)
 
 
 func _build_clock() -> void:

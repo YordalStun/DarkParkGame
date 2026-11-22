@@ -40,9 +40,16 @@ func apply(d: float) -> void:
 	env.ambient_light_color = Color(0.03, 0.034, 0.045).lerp(Color(0.34, 0.37, 0.42), d)
 	env.ambient_light_energy = lerpf(0.35, 1.0, d)
 	env.fog_light_color = Color(0.016, 0.017, 0.022).lerp(Color(0.26, 0.28, 0.32), d)
-	env.tonemap_exposure = lerpf(1.1, 1.0, d)
+	env.tonemap_exposure = lerpf(1.1, 1.05, d)
+	# The volumetric mist (GPU/Forward+ only) otherwise stays near-black and hides the whole
+	# sunrise: let it pick up the morning light and glow a little itself, warm first, then grey.
+	env.volumetric_fog_ambient_inject = lerpf(0.0, 1.6, d)
+	var glow := Color(0.55, 0.32, 0.18).lerp(Color(0.3, 0.32, 0.36), smoothstep(0.35, 0.9, d))
+	env.volumetric_fog_emission = glow
+	env.volumetric_fog_emission_energy = smoothstep(0.0, 0.6, d) * 0.06
+	env.volumetric_fog_albedo = Color(0.55, 0.56, 0.6).lerp(Color(0.8, 0.8, 0.82), d)
 	var up := smoothstep(0.1, 1.0, d)
-	sun.light_energy = up * 0.55
+	sun.light_energy = up * 0.9
 	sun.light_color = Color(1.0, 0.6, 0.34).lerp(Color(0.86, 0.9, 1.0), smoothstep(0.3, 0.9, d))
 	sun.rotation_degrees.x = lerpf(-4.0, -30.0, d)
 	if d > 0.55:

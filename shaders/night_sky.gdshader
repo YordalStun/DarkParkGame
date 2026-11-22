@@ -30,13 +30,13 @@ float fbm(vec2 p) {
 void sky() {
 	vec3 d = EYEDIR;
 	float up = clamp(d.y, 0.0, 1.0);
-	vec3 hor = mix(horizon, vec3(0.30, 0.33, 0.37), dawn);
-	vec3 zen = mix(zenith, vec3(0.14, 0.17, 0.22), dawn);
+	vec3 hor = mix(horizon, vec3(0.44, 0.47, 0.52), dawn);
+	vec3 zen = mix(zenith, vec3(0.22, 0.26, 0.32), dawn);
 	float band = smoothstep(0.05, 0.4, dawn) * (1.0 - smoothstep(0.55, 0.95, dawn));
 	float az = pow(max(dot(normalize(d.xz + vec2(0.0001)), normalize(SUN_DIR)), 0.0), 2.0);
 	vec3 col = mix(hor, zen, pow(up, 0.5));
 	col += city_glow * glow_strength * (1.0 - smoothstep(0.0, 0.6, dawn)) * exp(-max(d.y, 0.0) * 9.0);
-	col += sunrise_col * band * (0.25 + 0.75 * az) * 0.9 * exp(-max(d.y, 0.0) * 5.0);
+	col += sunrise_col * band * (0.25 + 0.75 * az) * 1.5 * exp(-max(d.y, 0.0) * 5.0);
 
 	if (d.y > 0.0) {
 		vec2 uv = d.xz / (d.y + 0.15);
