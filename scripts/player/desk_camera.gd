@@ -94,8 +94,16 @@ func _update_zoomed(delta: float) -> void:
 	global_transform = Transform3D(b, target.origin + breath)
 
 
+var blocked := false   ## an overlay (ID card, plate) is up: point at nothing
+
+
 func _physics_process(_delta: float) -> void:
 	if state == State.MOVING:
+		return
+	if blocked:
+		if hovered:
+			hovered = null
+			hover_changed.emit("")
 		return
 	var vp := get_viewport()
 	var size := Vector2(vp.size)

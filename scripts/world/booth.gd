@@ -36,6 +36,7 @@ var side_open := 0.0               ## 0..1 how far open (the ambience reads this
 var raise_button: Interactable     ## barrier panel on the left sill
 var lower_button: Interactable
 var _side_tw: Tween
+var lane_flood: SpotLight3D        ## floodlight outside the side window (story can switch it off)
 const SIDE_SPAN := Vector2(0.06, 0.95)   ## z range of the sliding pane
 
 func _ready() -> void:
@@ -174,6 +175,7 @@ func _build_windows() -> void:
 	# Left side: a fixed pane at the front, and the sliding pane by the lane (face +X).
 	_glass(self, Vector3(-IN_X - WALL * 0.5, yc, (FRONT_Z - 0.06) * 0.5), Vector2(-0.06 - FRONT_Z, h), Vector3(0, 90, 0), 0.6)
 	_build_side_window(yc, h)
+	_build_lane_flood()
 	# Right front pane (face -X).
 	_glass(self, Vector3(IN_X + WALL * 0.5, yc, (FRONT_Z + 0.18) * 0.5), Vector2(0.18 - FRONT_Z, h), Vector3(0, -90, 0), 0.4)
 
@@ -230,6 +232,34 @@ func _build_side_window(yc: float, h: float) -> void:
 	MK.cyl(panel, 0.016, 0.018, 0.016, Vector3(0.036, -0.01, -0.036), red, 10, Vector3(0, 0, 90))
 	raise_button = _panel_button(panel, "Raise barrier", Vector3(0.036, -0.01, 0.036))
 	lower_button = _panel_button(panel, "Lower barrier", Vector3(0.036, -0.01, -0.036))
+
+
+## A bright floodlight on the outside wall over the side window: lights up the lane, the
+## driver's window, and anything else that might be standing out there.
+func _build_lane_flood() -> void:
+	var fx := Node3D.new()
+	fx.name = "LaneFlood"
+	fx.position = Vector3(-IN_X - WALL - 0.02, CEIL - 0.05, 0.45)
+	add_child(fx)
+	var metal := MK.mat(Color(0.15, 0.15, 0.15), "metal", 0.5, 1.0, 0.5)
+	MK.box(fx, Vector3(0.12, 0.05, 0.06), Vector3(-0.06, 0, 0), metal)                 # bracket
+	MK.box(fx, Vector3(0.22, 0.16, 0.26), Vector3(-0.2, -0.04, 0), metal, Vector3(0, 0, -35))  # lamp housing
+	MK.box(fx, Vector3(0.02, 0.13, 0.22), Vector3(-0.28, -0.11, 0), MK.emissive(Color(1.0, 0.97, 0.88), 6.0, Color(1, 1, 1)), Vector3(0, 0, -35))
+	lane_flood = SpotLight3D.new()
+	lane_flood.name = "LaneFloodLight"
+	lane_flood.position = Vector3(-0.3, -0.12, 0)
+	# Spot shines along -Z; aim it out (-X) and down at the lane.
+	lane_flood.rotation_degrees = Vector3(-48, 90, 0)
+	lane_flood.light_color = Color(1.0, 0.96, 0.86)
+	lane_flood.light_energy = 5.0
+	lane_flood.spot_range = 14.0
+	lane_flood.spot_angle = 52.0
+	lane_flood.spot_attenuation = 0.9
+	lane_flood.light_volumetric_fog_energy = 1.0
+	lane_flood.shadow_enabled = true
+	lane_flood.shadow_bias = 0.05
+	lane_flood.light_cull_mask = 1   # not the inside of cars (CarModel.CABIN_LAYER)
+	fx.add_child(lane_flood)
 
 
 func _panel_button(parent: Node3D, label: String, pos: Vector3) -> Interactable:

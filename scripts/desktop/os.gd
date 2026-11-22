@@ -32,6 +32,7 @@ const APPS := {
 	"mines": {"title": "Minesweeper", "icon": "mine", "size": Vector2(170, 230), "max": false, "resize": false},
 	"camlink": {"title": "CamLink CCTV v1.3", "icon": "cam", "size": Vector2(420, 330), "min_size": Vector2(300, 240)},
 	"gatectl": {"title": "Gate Control", "icon": "gate", "size": Vector2(300, 190), "max": false, "resize": false},
+	"gatelog": {"title": "GateLog - Vehicle Entry", "icon": "doc", "size": Vector2(470, 370), "min_size": Vector2(380, 300)},
 	"help": {"title": "NightWin Help", "icon": "help", "size": Vector2(420, 300)},
 	"find": {"title": "Find: All Files", "icon": "find", "size": Vector2(380, 280)},
 }
@@ -344,6 +345,7 @@ func _build_icons() -> void:
 		["My Documents", "documents", func(): open_app("explorer", {"path": "C:\\MY DOCUMENTS"})],
 		["CamLink", "cam", func(): open_app("camlink")],
 		["Gate Control", "gate", func(): open_app("gatectl")],
+		["GateLog", "doc", func(): open_app("gatelog")],
 	]
 	var i := 0
 	for d in defs:
@@ -784,6 +786,7 @@ func _start_items() -> Array:
 		{"text": "Nightwatch", "icon": _ico("folder"), "sub": [
 			{"text": "CamLink CCTV", "icon": _ico("cam"), "act": app.call("camlink")},
 			{"text": "Gate Control", "icon": _ico("gate"), "act": app.call("gatectl")},
+			{"text": "GateLog", "icon": _ico("doc"), "act": app.call("gatelog")},
 		]},
 		{"sep": true},
 		{"text": "MS-DOS Prompt", "icon": _ico("dos"), "act": app.call("dos")},

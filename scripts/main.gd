@@ -16,12 +16,16 @@ extends Node
 const World := preload("res://scripts/world/world.gd")
 const Hud := preload("res://scripts/ui/hud.gd")
 const LoadingScreen := preload("res://scripts/ui/loading_screen.gd")
+const Inspect := preload("res://scripts/ui/inspect.gd")
+const Shift := preload("res://scripts/story/shift.gd")
 const TARGET_HEIGHT := 360.0   ## internal render height in pixels
 
 var container: SubViewportContainer
 var viewport: SubViewport
 var world: Node3D
 var hud: CanvasLayer
+var inspect: CanvasLayer
+var story: Node
 var post: ShaderMaterial
 
 var _shot_path := ""
@@ -79,6 +83,16 @@ func _ready() -> void:
 	hud = Hud.new()
 	hud.name = "HUD"
 	add_child(hud)
+	inspect = Inspect.new()
+	inspect.name = "Inspect"
+	add_child(inspect)
+	inspect.opened.connect(func(): world.camera.blocked = true)
+	inspect.closed.connect(func(_c): world.camera.blocked = false)
+	story = Shift.new()
+	story.name = "Story"
+	add_child(story)
+	world.story = story
+	story.setup(world, hud, inspect)
 	world.camera.hover_changed.connect(hud.set_prompt)
 	world.camera.focus_changed.connect(func(f): hud.set_zoomed(f != null))
 	var desk = world.props.desktop
@@ -101,6 +115,8 @@ func _ready() -> void:
 	await _loading.finish(0.01 if quick else 0.6)
 	_loaded = true
 	world.ambience.fade_in(0.01 if quick else 4.0)
+	if not quick or _args.has("story"):
+		story.start()
 	var tw := create_tween()
 	tw.tween_interval(0.0 if quick else 0.3)
 	tw.tween_method(func(v): post.set_shader_parameter("fade", v), 0.0, 1.0, 0.01 if quick else 3.5)
@@ -252,6 +268,8 @@ func _unhandled_input(event: InputEvent) -> void:
 			hud.set_paused(false)
 			return
 		if event.button_index == MOUSE_BUTTON_LEFT:
+			if not world.camera.hovered and hud.skip_line():
+				return
 			if world.camera.hovered:
 				world.ambience.play_ui("mouse_click", -8.0)
 			world.camera.click()
@@ -286,6 +304,8 @@ func _unhandled_input(event: InputEvent) -> void:
 					world.lot.gate.open()
 			KEY_F9:
 				hud.toggle_debug()
+			KEY_F10, KEY_P:
+				hud.set_paused(not hud.paused)
 			KEY_F11:
 				var w := get_window()
 				w.mode = Window.MODE_WINDOWED if w.mode == Window.MODE_FULLSCREEN else Window.MODE_FULLSCREEN
@@ -327,6 +347,14 @@ func _apply_args() -> void:
 		_strip_visuals()  # audio-only run: make software rendering fast
 	if _args.has("audiotest"):
 		_audio_stress_test()
+	if _args.has("car"):
+		story.debug_visitor(int(_args.car))
+		if _args.has("idcard"):
+			get_tree().create_timer(1.5).timeout.connect(func(): story._on_card(story.current, story.ARRIVALS[int(_args.car)], story.results[-1]))
+		if _args.has("plate"):
+			get_tree().create_timer(1.5).timeout.connect(func(): inspect.show_plate(story.ARRIVALS[int(_args.car)].reg))
+		if _args.has("drivein"):
+			get_tree().create_timer(1.0).timeout.connect(func(): story._on_raise())
 	if _args.has("side") or _args.has("sideopen"):
 		await get_tree().create_timer(0.1).timeout
 		world.camera.zoom_to(world.booth.side_view)

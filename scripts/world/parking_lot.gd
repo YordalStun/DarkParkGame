@@ -65,6 +65,8 @@ func _build_ground() -> void:
 	_plane(Vector2(30, 46), Vector3(-60, G - 0.02, -21), grass, "LeftGrass")
 	_plane(Vector2(30, 46), Vector3(60, G - 0.02, -21), grass, "RightGrass")
 	_plane(Vector2(120, 30), Vector3(0, G - 0.02, 17), grass, "BehindGrass")
+	# The access road the night staff drive in on, behind the booth.
+	_plane(Vector2(5.0, 44.0), Vector3(-4.1, G - 0.004, 23.5), _wet("asphalt", 0.22, 0.5, Color(1.2, 1.18, 1.12)), "AccessRoad")
 	# Kerbs along the far edge and around the lamp island.
 	var kerb := MK.mat(Color(0.7, 0.68, 0.64), "concrete", 0.85, 1.0)
 	MK.box_from(self, Vector3(-45, G, -44.2), Vector3(45, G + 0.14, -43.9), kerb)
@@ -127,8 +129,17 @@ func _build_cars() -> void:
 		[Color(0.07, 0.1, 0.22), "sedan", Vector3(-9.95, G, -21.9), 181.0],  # navy, edge of the lamp light
 		[Color(0.12, 0.16, 0.12), "van", Vector3(8.95, G, -27.0), 0.5],     # dark green van, far and dark
 	]
+	var styles := ["saloon", "hatch", "saloon", ""]
 	for s in specs:
-		var c := CarBuilder.make(s[0], s[1])
+		var c: Node3D
+		var st: String = styles[cars.size()]
+		if s[1] == "sedan":
+			var m := CarModel.new()
+			m.paint = s[0]
+			m.style = st
+			c = m.build()
+		else:
+			c = CarBuilder.make(s[0], s[1])
 		c.position = s[2]
 		c.rotation_degrees.y = s[3]
 		c.name = "Car_%d" % cars.size()

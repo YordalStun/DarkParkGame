@@ -252,6 +252,26 @@ func set_look_left(show: bool) -> void:
 	look_left_btn.visible = show
 
 
+## End-of-night report card. Click to dismiss.
+func show_report(text: String) -> void:
+	var bg := ColorRect.new()
+	bg.color = Color(0, 0, 0, 0.8)
+	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
+	bg.mouse_filter = Control.MOUSE_FILTER_STOP
+	add_child(bg)
+	move_child(bg, 1)
+	var l := _label(28, Color(0.85, 0.95, 0.85))
+	l.reparent(bg)
+	l.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	l.text = text + "\n\n(click to carry on sitting in the booth)"
+	bg.modulate.a = 0.0
+	create_tween().tween_property(bg, "modulate:a", 1.0, 1.5)
+	bg.gui_input.connect(func(e):
+		if e is InputEventMouseButton and e.pressed:
+			bg.queue_free())
+
+
 func _build_story_ui() -> void:
 	_sub_box = PanelContainer.new()
 	var sb := StyleBoxFlat.new()

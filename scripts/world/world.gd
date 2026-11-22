@@ -19,6 +19,7 @@ var lot: Node3D
 var weather_fx: Node3D
 var ambience: Node
 var cctv: Node3D  ## the four CCTV cameras (cctv.gd)
+var story: Node  ## the night's story director (story/shift.gd), set by main
 
 
 signal progress(fraction: float, text: String)
