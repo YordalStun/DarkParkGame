@@ -6,6 +6,17 @@ extends Node
 
 signal volume_changed(volume: float, muted: bool)
 signal mix_changed  ## one of the channel levels below changed
+signal graphics_changed(key: String)
+
+## Graphics options (pause screen > GRAPHICS). "pixels" picks the internal render height:
+## 0 = 360 (PS1 look), 1 = 480, 2 = 720, 3 = full resolution.
+const PIXEL_HEIGHTS := [360, 480, 720, 0]
+const FPS_CAPS := [0, 30, 60, 120, 144]
+var graphics := {
+	"pixels": 0, "fullscreen": false, "vsync": true, "fps_cap": 0,
+	"mist": true, "reflections": true, "ao": true, "glow": true,
+	"retro_colour": true, "grain": true, "shadows": true, "show_fps": false,
+}
 
 const PATH := "user://settings.cfg"
 const MASTER_DB := -3.0     ## fixed headroom (the limiter keeps peaks under -1.5 dBFS)
@@ -25,6 +36,9 @@ func _ready() -> void:
 		muted = bool(cfg.get_value("audio", "muted", muted))
 		for k in mix:
 			mix[k] = clampf(float(cfg.get_value("audio", k, mix[k])), 0.0, 1.0)
+		for k in graphics:
+			var v = cfg.get_value("graphics", k, graphics[k])
+			graphics[k] = v if typeof(v) == typeof(graphics[k]) else graphics[k]
 	apply()
 
 
@@ -55,6 +69,12 @@ func mix_db(channel: String) -> float:
 	return -80.0 if lin < 0.0001 else linear_to_db(lin)
 
 
+func set_graphics(key: String, v) -> void:
+	graphics[key] = v
+	save()
+	graphics_changed.emit(key)
+
+
 func set_fade(f: float) -> void:
 	fade = clampf(f, 0.0, 1.0)
 	apply()
@@ -73,4 +93,6 @@ func save() -> void:
 	cfg.set_value("audio", "muted", muted)
 	for k in mix:
 		cfg.set_value("audio", k, mix[k])
+	for k in graphics:
+		cfg.set_value("graphics", k, graphics[k])
 	cfg.save(PATH)

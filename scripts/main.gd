@@ -131,6 +131,9 @@ func _ready() -> void:
 	hud.set_look_left(true)
 
 	_apply_args()
+	_apply_graphics()
+	Settings.graphics_changed.connect(_apply_graphics)
+	hud.test_action.connect(_on_test)
 	await _warm_up()
 
 	# Loading screen away, then the scene and its sound fade in from black.
@@ -138,6 +141,11 @@ func _ready() -> void:
 	await _loading.finish(0.01 if quick else 0.6)
 	_loaded = true
 	world.ambience.fade_in(0.01 if quick else 4.0)
+	if _args.has("test"):   # testing: --test=id,id (testing-menu buttons, one a second)
+		for id in str(_args.test).split(","):
+			await get_tree().create_timer(1.0).timeout
+			print("TEST ", id)
+			_on_test(id)
 	if _args.has("leave_booth"):
 		story.debug_leave()
 	elif _args.has("shiftend"):
@@ -173,8 +181,96 @@ func _warm_up() -> void:
 
 func _update_scale() -> void:
 	var h := float(get_tree().root.size.y)
+	var target: float = Settings.PIXEL_HEIGHTS[Settings.graphics.pixels]
+	if target <= 0.0:
+		target = h   # full resolution
 	# At the desktop the picture needs more pixels than the PS1 look allows, or its text is mush.
-	container.stretch_shrink = maxi(1, int(round(h / (640.0 if _hires else TARGET_HEIGHT))))
+	container.stretch_shrink = maxi(1, int(round(h / (maxf(640.0, target) if _hires else target))))
+
+
+# ------------------------------------------------------------------ graphics options
+## Applies the GRAPHICS tab (all of it on start-up, or just the option that changed).
+func _apply_graphics(key := "") -> void:
+	var g: Dictionary = Settings.graphics
+	if key in ["", "pixels"]:
+		_update_scale()
+	if key in ["", "fullscreen"] and _shot_path == "":
+		var w := get_window()
+		if g.fullscreen:
+			w.mode = Window.MODE_FULLSCREEN
+		elif w.mode == Window.MODE_FULLSCREEN:
+			w.mode = Window.MODE_MAXIMIZED
+	if key in ["", "vsync"]:
+		DisplayServer.window_set_vsync_mode(DisplayServer.VSYNC_ENABLED if g.vsync else DisplayServer.VSYNC_DISABLED)
+	if key in ["", "fps_cap"]:
+		Engine.max_fps = Settings.FPS_CAPS[g.fps_cap]
+	var env: Environment = world.environment
+	if key in ["", "mist"] and not _args.has("nofog"):
+		env.volumetric_fog_enabled = g.mist
+	if key in ["", "reflections"]:
+		env.ssr_enabled = g.reflections
+	if key in ["", "ao"]:
+		env.ssao_enabled = g.ao
+	if key in ["", "glow"]:
+		env.glow_enabled = g.glow
+	if key in ["", "retro_colour"]:
+		post.set_shader_parameter("color_levels", 32.0 if g.retro_colour else 256.0)
+		post.set_shader_parameter("dither_strength", 1.0 if g.retro_colour else 0.0)
+	if key in ["", "grain"]:
+		post.set_shader_parameter("grain", 0.035 if g.grain else 0.0)
+	if key in ["", "show_fps"]:
+		hud.show_fps(g.show_fps)
+	# Shadows only change at start-up: switching shadow maps mid-game can upset some drivers.
+	if key == "" and not g.shadows:
+		for l in world.find_children("*", "Light3D", true, false):
+			(l as Light3D).shadow_enabled = false
+
+
+# ------------------------------------------------------------------ testing menu
+func _on_test(id: String) -> void:
+	var resume := true
+	match id:
+		"time_1": NightClock.set_time(1, 0)
+		"time_455": NightClock.set_time(4, 55)
+		"time_658": NightClock.set_time(6, 58)
+		"next_car": story.skip_wait()
+		"car_now":
+			if story.current == null:
+				story.debug_visitor(randi() % (story.ARRIVALS.size() - 1))
+			else:
+				hud.notify("There's already a car at the window.", 3.0)
+		"leaver": story.debug_send_leaver()
+		"clockout":
+			NightClock.set_time(6, 59)
+			story.debug_shift_end_now()
+		"leave": story.debug_leave()
+		"report": story.debug_report()
+		"w_clear": Weather.set_profile("clear", 4.0)
+		"w_rain": Weather.set_profile("rain_mist", 4.0)
+		"w_storm": Weather.set_profile("storm", 4.0)
+		"w_fog": Weather.set_profile("fog", 4.0)
+		"w_flash": Weather.strike_lightning(1.0)
+		"booth_a", "booth_b":
+			story._save_progress(story.money, 1 if id == "booth_a" else 2)
+			story._restart()
+		"flicker": world.booth.force_flicker()
+		"gate":
+			if world.lot.gate.is_open:
+				world.lot.gate.close()
+			else:
+				world.lot.gate.open()
+		"coins":
+			story.money += 5
+			hud.set_money(story.money)
+			resume = false
+		"reset":
+			story._save_progress(story.START_MONEY, 1)
+			story._restart()
+		"readout":
+			hud.toggle_debug()
+	if resume and hud.paused:
+		hud.set_paused(false)
+
 
 
 func _process(_delta: float) -> void:
@@ -349,8 +445,11 @@ func _unhandled_input(event: InputEvent) -> void:
 			KEY_F10, KEY_P:
 				hud.set_paused(not hud.paused)
 			KEY_F11:
-				var w := get_window()
-				w.mode = Window.MODE_WINDOWED if w.mode == Window.MODE_FULLSCREEN else Window.MODE_FULLSCREEN
+				Settings.set_graphics("fullscreen", not Settings.graphics.fullscreen)
+			KEY_F12:
+				# Testing menu.
+				hud.set_paused(true)
+				hud.show_tab("TESTING")
 
 
 func _parse_args() -> void:
@@ -386,6 +485,8 @@ func _apply_args() -> void:
 	_perf_log()
 	if _args.has("paused"):
 		hud.set_paused(true)
+		if _args.has("tab"):
+			hud.show_tab(str(_args.tab))
 	if _args.has("nofog"):
 		world.environment.volumetric_fog_enabled = false
 	if _args.has("audiotest") or _args.has("novisuals"):

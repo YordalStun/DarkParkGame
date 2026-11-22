@@ -67,7 +67,8 @@ func _ready() -> void:
 	pl.reparent(_pause)
 	pl.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	pl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	pl.text = "- PAUSED -\n\nClick to resume\nQ to quit"
+	pl.text = "- PAUSED -"
+	pl.vertical_alignment = VERTICAL_ALIGNMENT_TOP
 	# Which build this is (so two downloads can't be mixed up).
 	var ver := _label(20, Color(0.55, 0.55, 0.5))
 	ver.reparent(_pause)
@@ -78,8 +79,8 @@ func _ready() -> void:
 	ver.offset_bottom = -8
 	ver.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	ver.text = "Dark Park v%s  -  build %s" % [ProjectSettings.get_setting("application/config/version", "?"), load("res://scripts/build_info.gd").BUILD]
-	pl.offset_bottom = -230
-	_build_mixer()
+	pl.offset_top = 26
+	_build_pause_menu()
 	_build_story_ui()
 	_build_objectives()
 	_voice = AudioStreamPlayer.new()
@@ -160,11 +161,30 @@ func set_paused(p: bool) -> void:
 	get_tree().paused = p
 
 
+## Small FPS counter in the top-left corner (GRAPHICS > Show FPS).
+func show_fps(on: bool) -> void:
+	if _fps == null:
+		_fps = _label(22, Color(0.6, 1.0, 0.6, 0.85))
+		_fps.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+		_fps.position = Vector2(16, 690)
+		_fps.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_LEFT)
+		_fps.offset_left = 14
+		_fps.offset_top = -34
+		_fps.offset_right = 200
+		_fps.offset_bottom = -8
+	_fps.visible = on
+
+
+var _fps: Label
+
+
 func toggle_debug() -> void:
 	_debug.visible = not _debug.visible
 
 
 func _process(_delta: float) -> void:
+	if _fps and _fps.visible:
+		_fps.text = "%d FPS" % Engine.get_frames_per_second()
 	if _debug.visible:
 		_debug.text = "WEATHER %s%s\nrain %.2f  wind %.2f  fog %.2f  wet %.2f\ntime %s   fps %d" % [
 			Weather.profile, " (HEAVY)" if Weather.heavy else "", Weather.rain, Weather.gusty_wind(),
@@ -173,21 +193,207 @@ func _process(_delta: float) -> void:
 
 ## Sliders on the pause screen: master volume (shared with the PC's tray volume) and
 ## one per part of the mix. All saved to disk.
-func _build_mixer() -> void:
-	var box := VBoxContainer.new()
-	box.set_anchors_and_offsets_preset(Control.PRESET_CENTER_BOTTOM)
-	box.offset_top = -292
-	box.offset_bottom = -40
-	box.offset_left = -300
-	box.offset_right = 300
-	box.add_theme_constant_override("separation", 4)
-	_pause.add_child(box)
+## The pause screen's panel: SOUND / GRAPHICS / TESTING tabs, plus Resume and Quit.
+signal test_action(id: String)
+var _pages := {}
+var _tab_btns := {}
+
+
+func _build_pause_menu() -> void:
+	var panel := PanelContainer.new()
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = Color(0.05, 0.055, 0.05, 0.92)
+	sb.border_color = Color(0.3, 0.3, 0.28)
+	sb.set_border_width_all(1)
+	sb.content_margin_left = 22
+	sb.content_margin_right = 22
+	sb.content_margin_top = 14
+	sb.content_margin_bottom = 16
+	panel.add_theme_stylebox_override("panel", sb)
+	panel.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
+	panel.offset_left = -420
+	panel.offset_right = 420
+	panel.offset_top = -270
+	panel.offset_bottom = 300
+	panel.mouse_filter = Control.MOUSE_FILTER_STOP
+	_pause.add_child(panel)
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", 10)
+	panel.add_child(v)
+	var tabs := HBoxContainer.new()
+	tabs.add_theme_constant_override("separation", 6)
+	v.add_child(tabs)
+	var holder := Control.new()
+	holder.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	holder.custom_minimum_size = Vector2(796, 460)
+	v.add_child(holder)
+	for t in ["SOUND", "GRAPHICS", "TESTING"]:
+		var b := _menu_button(t, 26)
+		b.toggle_mode = true
+		b.pressed.connect(func(): show_tab(t))
+		tabs.add_child(b)
+		_tab_btns[t] = b
+		var scroll := ScrollContainer.new()
+		scroll.set_anchors_preset(Control.PRESET_FULL_RECT)
+		scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+		holder.add_child(scroll)
+		var page := VBoxContainer.new()
+		page.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		page.add_theme_constant_override("separation", 4)
+		scroll.add_child(page)
+		_pages[t] = scroll
+	var sp := Control.new()
+	sp.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	tabs.add_child(sp)
+	var resume := _menu_button("RESUME", 26)
+	resume.pressed.connect(func(): set_paused(false))
+	tabs.add_child(resume)
+	var quit := _menu_button("QUIT", 26)
+	quit.pressed.connect(func(): get_tree().quit())
+	tabs.add_child(quit)
+	_build_mixer(_pages["SOUND"].get_child(0))
+	_build_graphics(_pages["GRAPHICS"].get_child(0))
+	_build_testing(_pages["TESTING"].get_child(0))
+	show_tab("SOUND")
+
+
+func show_tab(t: String) -> void:
+	for k in _pages:
+		_pages[k].visible = k == t
+		_tab_btns[k].set_pressed_no_signal(k == t)
+
+
+func _menu_button(text: String, size := 24) -> Button:
+	var b := Button.new()
+	b.text = text
+	b.focus_mode = Control.FOCUS_NONE
+	b.add_theme_font_override("font", _font)
+	b.add_theme_font_size_override("font_size", size)
+	for st in ["normal", "hover", "pressed", "hover_pressed"]:
+		var bs := StyleBoxFlat.new()
+		bs.content_margin_left = 14
+		bs.content_margin_right = 14
+		bs.content_margin_top = 2
+		bs.content_margin_bottom = 2
+		bs.set_border_width_all(1)
+		bs.border_color = Color(0.4, 0.4, 0.38)
+		bs.bg_color = Color(0.1, 0.1, 0.1) if st == "normal" else (Color(0.91, 0.75, 0.44) if st in ["pressed", "hover_pressed"] else Color(0.2, 0.2, 0.19))
+		b.add_theme_stylebox_override(st, bs)
+	b.add_theme_color_override("font_color", Color(0.85, 0.85, 0.8))
+	b.add_theme_color_override("font_hover_color", Color(1, 1, 0.95))
+	b.add_theme_color_override("font_pressed_color", Color(0.05, 0.05, 0.05))
+	b.add_theme_color_override("font_hover_pressed_color", Color(0.05, 0.05, 0.05))
+	return b
+
+
+func _caption(parent: Control, text: String) -> void:
+	var l := _label(24, Color(0.91, 0.75, 0.44))
+	l.reparent(parent)
+	l.text = text
+	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+
+
+func _toggle_row(parent: Control, title: String, key: String, note := "") -> void:
+	var row := HBoxContainer.new()
+	parent.add_child(row)
+	var cb := CheckBox.new()
+	cb.text = title
+	cb.focus_mode = Control.FOCUS_NONE
+	cb.add_theme_font_override("font", _font)
+	cb.add_theme_font_size_override("font_size", 26)
+	_style_check(cb)
+	cb.button_pressed = Settings.graphics[key]
+	cb.toggled.connect(func(on): Settings.set_graphics(key, on))
+	row.add_child(cb)
+	if note != "":
+		var n := _label(22, Color(0.55, 0.55, 0.5))
+		n.reparent(row)
+		n.text = note
+
+
+## Tick boxes you can see whether they're ticked or not.
+func _style_check(cb: CheckBox) -> void:
+	for st in [["checked", true], ["unchecked", false]]:
+		var img := Image.create(20, 20, false, Image.FORMAT_RGBA8)
+		for y in 20:
+			for x in 20:
+				if x < 2 or y < 2 or x > 17 or y > 17:
+					img.set_pixel(x, y, Color(0.85, 0.85, 0.8))
+				elif st[1] and x >= 5 and y >= 5 and x <= 14 and y <= 14:
+					img.set_pixel(x, y, Color(0.91, 0.75, 0.44))
+		cb.add_theme_icon_override(st[0], ImageTexture.create_from_image(img))
+
+
+func _choice_row(parent: Control, title: String, key: String, options: Array) -> void:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 10)
+	parent.add_child(row)
+	var l := _label(26, Color(0.85, 0.85, 0.8))
+	l.reparent(row)
+	l.text = title
+	l.custom_minimum_size = Vector2(200, 0)
+	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	var group := ButtonGroup.new()
+	for i in options.size():
+		var b := _menu_button(options[i], 22)
+		b.toggle_mode = true
+		b.button_group = group
+		b.button_pressed = Settings.graphics[key] == i
+		b.pressed.connect(func(): Settings.set_graphics(key, i))
+		row.add_child(b)
+
+
+func _build_graphics(page: Control) -> void:
+	_caption(page, "PICTURE")
+	_choice_row(page, "Pixel size", "pixels", ["PS1 360", "480", "720", "FULL"])
+	_choice_row(page, "Frame cap", "fps_cap", ["OFF", "30", "60", "120", "144"])
+	_toggle_row(page, "Fullscreen", "fullscreen", "  (F11)")
+	_toggle_row(page, "VSync", "vsync")
+	_toggle_row(page, "Show FPS", "show_fps")
+	_caption(page, "EFFECTS  (turn off for speed)")
+	_toggle_row(page, "Mist and light beams", "mist", "  (biggest cost)")
+	_toggle_row(page, "Wet reflections", "reflections")
+	_toggle_row(page, "Ambient occlusion", "ao")
+	_toggle_row(page, "Glow", "glow")
+	_toggle_row(page, "Shadows", "shadows", "  (applies after a restart)")
+	_caption(page, "RETRO LOOK")
+	_toggle_row(page, "15-bit colour and dither", "retro_colour")
+	_toggle_row(page, "Film grain", "grain")
+
+
+## Buttons for trying things out without playing a whole night. main.gd does the work.
+const TESTS := [
+	["TIME", [["01:00", "time_1"], ["04:55 sunrise", "time_455"], ["06:58 shift end", "time_658"]]],
+	["CARS", [["Next car now", "next_car"], ["Car at the window", "car_now"], ["Send a car home", "leaver"]]],
+	["END OF NIGHT", [["Go to clock-out", "clockout"], ["Get up and leave", "leave"], ["End screen", "report"]]],
+	["WEATHER", [["Clear", "w_clear"], ["Rain", "w_rain"], ["Storm", "w_storm"], ["Fog", "w_fog"], ["Lightning", "w_flash"]]],
+	["BOOTH", [["Night 1 look", "booth_a"], ["Night 2 look", "booth_b"], ["Light flicker", "flicker"], ["Barrier", "gate"]]],
+	["SAVE", [["+5 coins", "coins"], ["Reset to night 1", "reset"], ["Weather readout", "readout"]]],
+]
+
+
+func _build_testing(page: Control) -> void:
+	for group in TESTS:
+		_caption(page, group[0])
+		var row := HFlowContainer.new()
+		row.add_theme_constant_override("h_separation", 8)
+		row.add_theme_constant_override("v_separation", 6)
+		page.add_child(row)
+		for t in group[1]:
+			var b := _menu_button(t[0], 22)
+			var id: String = t[1]
+			b.pressed.connect(func(): test_action.emit(id))
+			row.add_child(b)
+
+
+func _build_mixer(box: Control) -> void:
 
 	var master := _slider_row(box, "VOLUME", Settings.volume, func(v): Settings.set_volume(v))
 	var mute := CheckBox.new()
 	mute.text = "MUTE"
 	mute.add_theme_font_override("font", _font)
 	mute.add_theme_font_size_override("font_size", 26)
+	_style_check(mute)
 	mute.button_pressed = Settings.muted
 	mute.toggled.connect(func(on): Settings.set_muted(on))
 	master.row.add_child(mute)
@@ -214,7 +420,7 @@ func _slider_row(parent: Control, title: String, value: float, on_change: Callab
 	lbl.reparent(row)
 	lbl.text = title
 	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	lbl.custom_minimum_size = Vector2(190, 0)
+	lbl.custom_minimum_size = Vector2(230, 0)
 	var sl := HSlider.new()
 	sl.min_value = 0.0
 	sl.max_value = 1.0

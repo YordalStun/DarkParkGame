@@ -245,6 +245,32 @@ func debug_shift_end() -> void:
 	debug_report()
 
 
+var _skip := false
+
+
+## Testing menu: cut the current wait short (the next car comes now).
+func skip_wait() -> void:
+	_skip = true
+
+
+## Testing menu: send one of the evening cars home now.
+func debug_send_leaver() -> void:
+	for c in _leavers:
+		if is_instance_valid(c) and c.state == "parked":
+			c.go()
+			return
+	hud.notify("No evening cars left to go home.", 3.0)
+
+
+## Testing menu: jump straight to 07:00's clock-out (turn off the PC, sign the logbook, leave).
+func debug_shift_end_now() -> void:
+	if _shift_done:
+		return
+	started = true
+	await _shift_over()
+	_summary()
+
+
 ## Testing (--leave_booth): skip to clocking out, then get up, switch off and leave by itself.
 func debug_leave() -> void:
 	started = true
@@ -291,8 +317,12 @@ func debug_visitor(i: int, offer := true) -> void:
 
 func _wait(sec: float) -> void:
 	var left := sec
+	_skip = false
 	while left > 0.0:
 		await get_tree().process_frame
+		if _skip:
+			_skip = false
+			return
 		if not get_tree().paused:
 			left -= get_process_delta_time()
 
