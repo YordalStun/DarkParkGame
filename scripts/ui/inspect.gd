@@ -1,6 +1,8 @@
 extends CanvasLayer
 ## Close-up overlays for the story: a staff ID card held up beside tonight's list, and
-## a number plate. Emits `closed(choice)`: "ok" / "refuse" for an ID, "done" for a plate.
+## a number plate, and the vehicle log clipboard (type the reg, pick the name, log it).
+## Emits `closed(choice)`: "ok" / "hold" / "refuse" for an ID, "done" / "log" for a plate,
+## "done" for the vehicle log.
 
 signal closed(choice: String)
 signal opened
@@ -20,6 +22,15 @@ var _bold: Font
 var _mono: Font
 var _vt: Font
 var _date_text := ""
+var _log: Control            ## the vehicle log clipboard (built on first use)
+var _log_names: VBoxContainer
+var _log_reg: LineEdit
+var _log_name: Label
+var _log_status: Label
+var _log_list: Label
+var _log_pick := ""
+var _log_cb: Callable        ## func(reg, name)
+var _log_entries: Callable   ## func() -> Array of {time, reg, name}
 
 
 func _ready() -> void:
@@ -118,10 +129,184 @@ func show_plate(reg: String) -> void:
 	_card.visible = false
 	_list.visible = false
 	_plate.visible = true
+	if _log_ready:
+		_button("LOG THIS CAR", Color(0.91, 0.75, 0.44), "log")
 	_button("DONE", Color(0.75, 0.75, 0.7), "done")
 
 
+var _log_ready := false   ## the story has hooked up the vehicle log
+
+
+## The vehicle log clipboard. `reg` is the plate of the car at the window ("" if none),
+## shown as a close-up at the top so you can copy it straight across.
+func show_log(reg: String, staff_list: Array, date_text: String, on_log: Callable, get_entries: Callable) -> void:
+	_reg = reg
+	_staff_list = staff_list
+	_date_text = date_text
+	_log_cb = on_log
+	_log_entries = get_entries
+	_open("Type the plate, click the driver's name, then LOG ENTRY.")
+	_card.visible = false
+	_list.visible = false
+	_plate.visible = reg != ""
+	if _log == null:
+		_build_log()
+	_log.visible = true
+	_log_pick = ""
+	_fill_log()
+	_button("DONE", Color(0.75, 0.75, 0.7), "done")
+	_layout()
+	_log_reg.text = ""
+	_log_reg.grab_focus.call_deferred()
+
+
+func _build_log() -> void:
+	_log = Control.new()
+	_log.size = Vector2(900, 440)
+	_root.add_child(_log)
+	var paper := Panel.new()
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = Color(0.93, 0.92, 0.86)
+	sb.border_color = Color(0.42, 0.3, 0.18)
+	sb.set_border_width_all(12)
+	paper.add_theme_stylebox_override("panel", sb)
+	paper.size = Vector2(900, 440)
+	_log.add_child(paper)
+	var ink := Color(0.12, 0.12, 0.2)
+	var t := _paper_label("VEHICLE LOG  -  LOT C, BOOTH 2", _bold, 22, ink)
+	t.position = Vector2(30, 22)
+	var d := _paper_label("", _sans, 15, Color(0.35, 0.35, 0.38))
+	d.position = Vector2(32, 52)
+	d.name = "Date"
+	var lt := _paper_label("TONIGHT'S LIST  (click a name)", _bold, 15, Color(0.4, 0.3, 0.2))
+	lt.position = Vector2(30, 86)
+	_log_names = VBoxContainer.new()
+	_log_names.position = Vector2(26, 110)
+	_log_names.size = Vector2(400, 300)
+	_log_names.add_theme_constant_override("separation", 2)
+	_log.add_child(_log_names)
+	var rl := _paper_label("REG", _bold, 15, Color(0.4, 0.3, 0.2))
+	rl.position = Vector2(470, 86)
+	_log_reg = LineEdit.new()
+	_log_reg.position = Vector2(466, 108)
+	_log_reg.size = Vector2(300, 52)
+	_log_reg.max_length = 9
+	_log_reg.placeholder_text = "E123 ABC"
+	_log_reg.add_theme_font_override("font", _mono)
+	_log_reg.add_theme_font_size_override("font_size", 32)
+	_log_reg.add_theme_color_override("font_color", ink)
+	_log_reg.add_theme_color_override("font_placeholder_color", Color(0.6, 0.6, 0.6))
+	_log_reg.add_theme_color_override("caret_color", ink)
+	var fsb := StyleBoxFlat.new()
+	fsb.bg_color = Color(1, 1, 0.97)
+	fsb.border_color = Color(0.5, 0.5, 0.55)
+	fsb.border_width_bottom = 2
+	fsb.content_margin_left = 10
+	_log_reg.add_theme_stylebox_override("normal", fsb)
+	_log_reg.add_theme_stylebox_override("focus", fsb)
+	_log_reg.text_changed.connect(func(tx):
+		var c := _log_reg.caret_column
+		_log_reg.text = tx.to_upper()
+		_log_reg.caret_column = c)
+	_log_reg.text_submitted.connect(func(_t): _do_log())
+	_log.add_child(_log_reg)
+	var nl := _paper_label("NAME", _bold, 15, Color(0.4, 0.3, 0.2))
+	nl.position = Vector2(470, 172)
+	_log_name = _paper_label("-  click one on the left  -", _mono, 18, Color(0.45, 0.45, 0.5))
+	_log_name.position = Vector2(470, 194)
+	var b := Button.new()
+	b.text = "LOG ENTRY"
+	b.focus_mode = Control.FOCUS_NONE
+	b.position = Vector2(466, 232)
+	b.size = Vector2(200, 44)
+	b.add_theme_font_override("font", _vt)
+	b.add_theme_font_size_override("font_size", 28)
+	for st in ["normal", "hover", "pressed"]:
+		var bs := StyleBoxFlat.new()
+		bs.bg_color = Color(0.18, 0.3, 0.2) if st != "hover" else Color(0.24, 0.42, 0.28)
+		bs.set_corner_radius_all(3)
+		b.add_theme_stylebox_override(st, bs)
+	b.add_theme_color_override("font_color", Color(0.95, 0.95, 0.9))
+	b.pressed.connect(_do_log)
+	_log.add_child(b)
+	_log_status = _paper_label("", _sans, 16, Color(0.15, 0.45, 0.2))
+	_log_status.position = Vector2(680, 244)
+	var ll := _paper_label("LOGGED TONIGHT", _bold, 15, Color(0.4, 0.3, 0.2))
+	ll.position = Vector2(470, 292)
+	_log_list = _paper_label("", _mono, 15, ink)
+	_log_list.position = Vector2(470, 314)
+	_log_list.size = Vector2(410, 110)
+	_log_list.clip_text = true
+
+
+func _paper_label(text: String, f: Font, size: int, col: Color) -> Label:
+	var l := Label.new()
+	l.text = text
+	l.add_theme_font_override("font", f)
+	l.add_theme_font_size_override("font_size", size)
+	l.add_theme_color_override("font_color", col)
+	_log.add_child(l)
+	return l
+
+
+func _fill_log() -> void:
+	(_log.get_node("Date") as Label).text = _date_text
+	for c in _log_names.get_children():
+		c.queue_free()
+	for e in _staff_list:
+		var b := Button.new()
+		b.text = "  %-18s %s" % [e.name, e.staff_no]
+		b.alignment = HORIZONTAL_ALIGNMENT_LEFT
+		b.focus_mode = Control.FOCUS_NONE
+		b.toggle_mode = true
+		b.button_pressed = e.name == _log_pick
+		b.add_theme_font_override("font", _mono)
+		b.add_theme_font_size_override("font_size", 17)
+		for st in ["normal", "hover", "pressed", "hover_pressed"]:
+			var bs := StyleBoxFlat.new()
+			bs.bg_color = Color(0, 0, 0, 0) if st == "normal" else (Color(0.98, 0.85, 0.3, 0.8) if st.contains("pressed") else Color(0, 0, 0, 0.06))
+			b.add_theme_stylebox_override(st, bs)
+		for c in ["font_color", "font_hover_color", "font_pressed_color", "font_hover_pressed_color"]:
+			b.add_theme_color_override(c, Color(0.12, 0.12, 0.2))
+		var who: String = e.name
+		b.pressed.connect(func():
+			_log_pick = who
+			_log_name.text = who
+			_log_name.add_theme_color_override("font_color", Color(0.12, 0.12, 0.2))
+			_fill_log())
+		_log_names.add_child(b)
+	var lines := []
+	var all: Array = _log_entries.call() if _log_entries.is_valid() else []
+	for i in range(maxi(0, all.size() - 5), all.size()):
+		lines.append("%s  %-9s %s" % [all[i].time, all[i].reg, all[i].name])
+	_log_list.text = "\n".join(lines) if not lines.is_empty() else "(nothing yet)"
+
+
+func _do_log() -> void:
+	var reg := _log_reg.text.strip_edges()
+	if reg.length() < 3:
+		_log_status.text = "Type the plate first."
+		_log_status.add_theme_color_override("font_color", Color(0.7, 0.2, 0.15))
+		return
+	if _log_pick == "":
+		_log_status.text = "Click the driver's name."
+		_log_status.add_theme_color_override("font_color", Color(0.7, 0.2, 0.15))
+		return
+	_log_cb.call(reg, _log_pick)
+	_log_status.text = "Logged %s." % reg
+	_log_status.add_theme_color_override("font_color", Color(0.15, 0.45, 0.2))
+	_log_reg.text = ""
+	_log_pick = ""
+	_log_name.text = "-  click one on the left  -"
+	_log_name.add_theme_color_override("font_color", Color(0.45, 0.45, 0.5))
+	_fill_log()
+
+
 func _open(caption: String) -> void:
+	if _log:
+		_log.visible = false
+	if _log_status:
+		_log_status.text = ""
 	for c in _buttons.get_children():
 		c.queue_free()
 	_caption.text = caption + ("\nEsc / right click: keep hold of it and decide later." if _reg == "" else "")
@@ -164,6 +349,14 @@ func _layout() -> void:
 	_list.size = list_size
 	_plate.size = Vector2(720, 160) * s
 	_plate.position = (vs - _plate.size) * 0.5
+	if _log and _log.visible:
+		# Clipboard under a smaller plate close-up.
+		var ls := s * 0.95
+		_log.scale = Vector2(ls, ls)
+		var top := 112.0 * s if _plate.visible else 0.0
+		_log.position = Vector2((vs.x - 900 * ls) * 0.5, (vs.y - 440 * ls + top) * 0.5 + 10 * s)
+		_plate.size = Vector2(430, 96) * s
+		_plate.position = Vector2((vs.x - _plate.size.x) * 0.5, _log.position.y - _plate.size.y - 16 * s)
 	_card.set_meta("s", s)
 	_list.set_meta("s", s)
 	_plate.set_meta("s", s)
@@ -277,7 +470,7 @@ func _draw_plate() -> void:
 	var sz := ci.size
 	ci.draw_rect(Rect2(Vector2(-10, -10) * s, sz + Vector2(20, 20) * s), Color(0.05, 0.05, 0.05))
 	ci.draw_rect(Rect2(Vector2.ZERO, sz), Color(0.96, 0.8, 0.12))
-	var fs := int(110 * s)
+	var fs := int(sz.y * 0.69)
 	var w := _bold.get_string_size(_reg, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
 	ci.draw_string(_bold, Vector2((sz.x - w) * 0.5, sz.y * 0.5 + fs * 0.36), _reg, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, Color(0.05, 0.05, 0.05))
 	# Dirt and rain.

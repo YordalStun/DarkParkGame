@@ -46,6 +46,7 @@ var side_pane_interact: Interactable
 var side_is_open := false
 var side_open := 0.0               ## 0..1 how far open (the ambience reads this)
 var raise_button: Interactable     ## barrier panel on the left sill
+var vehicle_log: Interactable      ## clipboard under the side window: log plates from there
 var lower_button: Interactable
 var _side_tw: Tween
 var lane_flood: SpotLight3D        ## floodlight outside the side window (story can switch it off)
@@ -260,8 +261,30 @@ func _build_side_window(yc: float, h: float) -> void:
 	var red := MK.emissive(Color(0.95, 0.12, 0.08), 1.4, Color(0.4, 0.05, 0.03))
 	MK.cyl(panel, 0.016, 0.018, 0.016, Vector3(0.036, -0.01, 0.036), green, 10, Vector3(0, 0, 90))
 	MK.cyl(panel, 0.016, 0.018, 0.016, Vector3(0.036, -0.01, -0.036), red, 10, Vector3(0, 0, 90))
+	# The vehicle log (an upgrade bought after a shift): a clipboard hanging under the side
+	# window, so plates can be logged without going back to the PC.
+	if SaveGame.has_upgrade("vehicle_log"):
+		_build_vehicle_log()
 	raise_button = _panel_button(panel, "Raise barrier", Vector3(0.036, -0.01, 0.036))
 	lower_button = _panel_button(panel, "Lower barrier", Vector3(0.036, -0.01, -0.036))
+
+
+func _build_vehicle_log() -> void:
+	var clip := Node3D.new()
+	clip.name = "VehicleLog"
+	clip.position = Vector3(-IN_X + 0.03, SILL - 0.24, 0.22)
+	clip.rotation_degrees = Vector3(0, 90, 8)
+	add_child(clip)
+	MK.box(clip, Vector3(0.23, 0.32, 0.012), Vector3.ZERO, MK.mat(Color(0.42, 0.3, 0.18), "", 0.7))
+	var sheet := MK.quad(clip, Vector2(0.2, 0.27), Vector3(0, -0.015, 0.007), MK.picture("paper_log", 0.9))
+	sheet.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	MK.box(clip, Vector3(0.09, 0.03, 0.02), Vector3(0, 0.145, 0.012), MK.mat(Color(0.7, 0.7, 0.68), "", 0.25, 1.0, 0.9))
+	MK.cyl(clip, 0.004, 0.004, 0.16, Vector3(0.07, -0.05, 0.012), MK.mat(Color(0.1, 0.15, 0.5), "", 0.3), 6, Vector3(0, 0, 80))   # pen on a string
+	vehicle_log = Interactable.new()
+	vehicle_log.prompt = "Vehicle log"
+	vehicle_log.requires_focus = side_view
+	vehicle_log.add_box(Vector3(0.26, 0.36, 0.08))
+	clip.add_child(vehicle_log)
 
 
 ## A bright floodlight on the outside wall over the side window: lights up the lane, the

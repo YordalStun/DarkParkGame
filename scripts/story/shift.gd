@@ -120,6 +120,9 @@ func setup(p_world, p_hud, p_inspect) -> void:
 	world.props.logbook_interact.activated.connect(_on_logbook)
 	hud.set_money(money, false)
 	world.booth.raise_button.activated.connect(_on_raise)
+	if world.booth.vehicle_log:   # bought as an upgrade after a shift
+		world.booth.vehicle_log.activated.connect(_open_log)
+		inspect._log_ready = true
 	world.booth.lower_button.activated.connect(_on_lower)
 	world.booth.side_window_moved.connect(func(_o): world.ambience.play_at("window_slide", world.booth.side_pane.global_position, -6.0))
 	_ring = AudioStreamPlayer3D.new()
@@ -569,6 +572,20 @@ func _on_plate(car, p: Dictionary) -> void:
 	if inspect.is_open:
 		return
 	inspect.show_plate(p.reg)
+	var choice: String = await inspect.closed
+	if choice == "log":
+		_open_log()
+
+
+## The vehicle log clipboard under the side window: logs straight into GateLog.
+func _open_log() -> void:
+	if inspect.is_open:
+		return
+	var reg := ""
+	if current != null and is_instance_valid(current) and current.state == "waiting":
+		reg = current.person.reg
+	world.ambience.play_ui("click2", -16.0)
+	inspect.show_log(reg, LIST, DATE_TEXT, log_entry, func(): return entries)
 	await inspect.closed
 
 
@@ -699,6 +716,8 @@ func _summary() -> void:
 	var es = EndScreen.new()
 	add_child(es)
 	es.next_night.connect(func(coins):
+		for u in es.bought_upgrades():
+			SaveGame.add_upgrade(u)
 		SaveGame.finish_night(coins, ev.earned + ev.bonus, es.skipped_bills())
 		_restart())
 	es.start_again.connect(func():

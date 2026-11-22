@@ -516,6 +516,8 @@ func _apply_args() -> void:
 		story.debug_visitor(int(_args.car))
 		if _args.has("idcard"):
 			get_tree().create_timer(1.5).timeout.connect(func(): story._on_card(story.current, story.ARRIVALS[int(_args.car)], story.results[-1]))
+		if _args.has("vlog"):
+			get_tree().create_timer(1.5).timeout.connect(func(): story._open_log())
 		if _args.has("plate"):
 			get_tree().create_timer(1.5).timeout.connect(func(): inspect.show_plate(story.ARRIVALS[int(_args.car)].reg))
 		if _args.has("drivein"):

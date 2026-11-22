@@ -22,7 +22,7 @@ func _path(n: int) -> String:
 
 
 func _blank() -> Dictionary:
-	return {"night": 1, "coins": START_COINS, "skipped": {}, "history": [],
+	return {"night": 1, "coins": START_COINS, "skipped": {}, "history": [], "upgrades": {},
 		"started": Time.get_datetime_string_from_system(false, true),
 		"saved": Time.get_datetime_string_from_system(false, true), "playtime": 0.0}
 
@@ -87,6 +87,18 @@ func night() -> int:
 
 func coins() -> int:
 	return int(data.get("coins", START_COINS))
+
+
+## Upgrades bought on the end-of-shift screen (e.g. "vehicle_log").
+func has_upgrade(id: String) -> bool:
+	return bool((data.get("upgrades", {}) as Dictionary).get(id, false))
+
+
+func add_upgrade(id: String) -> void:
+	ensure_slot()
+	var u: Dictionary = data.get("upgrades", {})
+	u[id] = true
+	data["upgrades"] = u
 
 
 ## End of a night: record it and move on to the next one.

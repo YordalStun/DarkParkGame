@@ -25,6 +25,10 @@ const BILLS := [
 	["Bus pass", 1, false, "walk instead"],
 ]
 const BAR_MAX := 16.0
+## Upgrades you can buy here: [id, name, cost, what it does]. Shown until owned.
+const UPGRADES := [
+	["vehicle_log", "Vehicle log", 4, "clipboard at the window"],
+]
 
 var _black: ColorRect
 var _root: Control
@@ -40,6 +44,32 @@ var _warn: Label
 var _start := 0
 var _wages := 0
 var _broke := false
+var _up_ticks: Array = []    ## [id, cost, CheckBox]
+
+
+func _tick(text: String, on: bool) -> CheckBox:
+	var cb := CheckBox.new()
+	cb.text = text
+	cb.button_pressed = on
+	cb.focus_mode = Control.FOCUS_NONE
+	cb.add_theme_font_override("font", _font)
+	cb.add_theme_font_size_override("font_size", 28)
+	for st in ["font_color", "font_hover_color", "font_pressed_color", "font_hover_pressed_color", "font_focus_color"]:
+		cb.add_theme_color_override(st, INK)
+	cb.add_theme_icon_override("checked", _box(true))
+	cb.add_theme_icon_override("unchecked", _box(false))
+	for st in ["normal", "hover", "pressed", "focus", "hover_pressed"]:
+		cb.add_theme_stylebox_override(st, StyleBoxEmpty.new())
+	return cb
+
+
+## Upgrades ticked to buy tonight.
+func bought_upgrades() -> Array:
+	var out := []
+	for u in _up_ticks:
+		if u[2].button_pressed:
+			out.append(u[0])
+	return out
 
 
 func _ready() -> void:
@@ -191,8 +221,25 @@ func _build(ev: Dictionary, night_title: String, date_text: String, note: String
 			_click()
 			_recalc())
 		_ticks.append(cb)
+	for u in UPGRADES:
+		if SaveGame.has_upgrade(u[0]):
+			continue
+		var h2 := HBoxContainer.new()
+		h2.custom_minimum_size = Vector2(0, 34)
+		right.add_child(h2)
+		var cb2 := _tick("Buy: " + u[1], false)
+		h2.add_child(cb2)
+		_label(" (%s)" % u[3], 22, DIM, h2)
+		var sp2 := Control.new()
+		sp2.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		h2.add_child(sp2)
+		_label("-%d" % u[2], 28, RED, h2)
+		cb2.toggled.connect(func(_on):
+			_click()
+			_recalc())
+		_up_ticks.append([u[0], u[2], cb2])
 	var gap := Control.new()
-	gap.custom_minimum_size = Vector2(0, 14)
+	gap.custom_minimum_size = Vector2(0, 6)
 	right.add_child(gap)
 	_row(right, "Savings", str(_start))
 	_after_val = (_row(right, "After pay and bills", "0").get_child(-1) as Label)
@@ -314,6 +361,9 @@ func coins_left() -> int:
 	for i in BILLS.size():
 		if _ticks[i].button_pressed:
 			v -= BILLS[i][1]
+	for u in _up_ticks:
+		if u[2].button_pressed:
+			v -= u[1]
 	return v
 
 
