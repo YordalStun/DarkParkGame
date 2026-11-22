@@ -31,29 +31,29 @@ const LIST := [
 ## Who actually turns up, in order. `admit` is the right call under Dale's rules.
 const ARRIVALS := [
 	{"name": "Sandra Pike", "role": "Staff Nurse", "dept": "Ward 7", "staff_no": "40217", "expires": "03 / 1990",
-		"reg": "E412 KTV", "paint": Color(0.55, 0.06, 0.05), "skin": Color(0.9, 0.72, 0.6), "hair": Color(0.55, 0.32, 0.12),
+		"reg": "E412 KTV", "paint": Color(0.55, 0.06, 0.05), "style": "supermini", "skin": Color(0.9, 0.72, 0.6), "hair": Color(0.55, 0.32, 0.12),
 		"hair_style": "long", "shirt": Color(0.2, 0.3, 0.55), "admit": true, "delay": 14.0,
 		"greet": ["Evening, Dave. Still flooded over our side, then?", "It's going to be a long night. Full moon and Friday the thirteenth. A&E will be heaving."],
 		"ok": "Ta, love.", "drive": "See you in the morning, Dave.", "refused": "You what? I'm on the rota! Fine. I'll ring the ward from the payphone."},
 	{"name": "Michael Adeyemi", "role": "Porter", "dept": "Portering Services", "staff_no": "40388", "expires": "11 / 1990",
-		"reg": "C771 PFM", "paint": Color(0.62, 0.57, 0.45), "skin": Color(0.36, 0.24, 0.16), "hair": Color(0.05, 0.04, 0.03),
+		"reg": "C771 PFM", "paint": Color(0.62, 0.57, 0.45), "style": "estate", "skin": Color(0.36, 0.24, 0.16), "hair": Color(0.05, 0.04, 0.03),
 		"shirt": Color(0.6, 0.6, 0.62), "admit": true, "delay": 30.0,
 		"greet": ["Alright Dave? Night four of the swimming pool.", "Here you go. Same face as yesterday, I promise."],
 		"ok": "Cheers, mate.", "drive": "Don't let the bogeyman in.", "refused": "Seriously? I'm on there, Dave. Check again. ...Unbelievable."},
 	{"name": "Kevin Platt", "role": "Porter", "dept": "Portering Services", "staff_no": "40612", "expires": "06 / 1991",
-		"reg": "B908 RWD", "paint": Color(0.82, 0.82, 0.8), "style": "hatch", "skin": Color(0.88, 0.7, 0.58), "hair": Color(0.15, 0.12, 0.1),
+		"reg": "B908 RWD", "paint": Color(0.82, 0.82, 0.8), "style": "van", "skin": Color(0.88, 0.7, 0.58), "hair": Color(0.15, 0.12, 0.1),
 		"shirt": Color(0.6, 0.6, 0.62), "moustache": true, "admit": false, "delay": 34.0,
 		"why": "Not on tonight's list. He said he was covering for Mick Doyle, but nobody had told you.",
 		"greet": ["Evening. Don't think we've met. I'm covering for Mick Doyle, he's off sick.", "Nobody told you? Typical."],
 		"ok": "Lovely. Knew you'd be sensible.", "drive": "Cheers, pal.", "refused": "You're joking. Right. I'll tell them you sent me home, shall I?"},
 	{"name": "Dr Helen Marsh", "role": "Registrar", "dept": "Accident & Emergency", "staff_no": "31105", "expires": "08 / 1990",
-		"reg": "F23 HLM", "paint": Color(0.1, 0.2, 0.14), "skin": Color(0.92, 0.76, 0.66), "hair": Color(0.12, 0.1, 0.08),
+		"reg": "F23 HLM", "paint": Color(0.1, 0.2, 0.14), "style": "exec", "skin": Color(0.92, 0.76, 0.66), "hair": Color(0.12, 0.1, 0.08),
 		"hair_style": "long", "glasses": true, "shirt": Color(0.7, 0.72, 0.75), "card_color": Color(0.55, 0.08, 0.1),
 		"admit": true, "delay": 30.0,
 		"greet": ["Hello again. Marsh, A&E. Sorry, I'm in a terrible hurry. Again."],
 		"ok": "Thank you.", "drive": "Thanks. Stay dry.", "refused": "I'm the on-call registrar. If someone dies tonight it's on you."},
 	{"name": "Tom Baxter", "role": "Theatre Technician", "dept": "Main Theatres", "staff_no": "40562", "expires": "30 / 09 / 1989",
-		"reg": "A456 GNB", "paint": Color(0.33, 0.22, 0.12), "skin": Color(0.85, 0.65, 0.52), "hair": Color(0.45, 0.42, 0.4),
+		"reg": "A456 GNB", "paint": Color(0.33, 0.22, 0.12), "style": "coupe", "skin": Color(0.85, 0.65, 0.52), "hair": Color(0.45, 0.42, 0.4),
 		"shirt": Color(0.15, 0.4, 0.35), "admit": false, "delay": 34.0,
 		"why": "His ID card had expired (30 / 09 / 1989), and tonight is 13th October.",
 		"greet": ["Evening, Dave. Bet you're glad you're inside tonight.", "You didn't look at my card last night, you know. Very trusting."],
@@ -65,15 +65,24 @@ const ARRIVALS := [
 		"ok": "Lovely.", "drive": "Mind how you go.", "refused": "Me? I've been coming here eleven years, Dave."},
 	{"name": "R. Kessler", "role": "Night Security", "dept": "Lot C - Booth 2", "staff_no": "00217", "expires": "29 / 09 / 1989",
 		"org": "ASHFORD PARKING AUTHORITY", "card_color": Color(0.25, 0.27, 0.22), "stained": true,
-		"reg": "TKM 117", "paint": Color(0.16, 0.17, 0.18), "skin": Color(0.78, 0.78, 0.74), "hair": Color(0.3, 0.3, 0.3),
-		"shirt": Color(0.12, 0.14, 0.2), "admit": false, "delay": 40.0, "ghost": true,
-		"why": "Not on the list, an expired card (29 / 09 / 1989), the wrong organisation, and not a real person.", "bay": Vector3(11.65, -0.15, -27.0),
+		"reg": "TKM 117", "paint": Color(0.16, 0.17, 0.18), "style": "saloon", "skin": Color(0.78, 0.78, 0.74), "hair": Color(0.3, 0.3, 0.3),
+		"shirt": Color(0.12, 0.14, 0.2), "admit": false, "delay": 40.0, "ghost": true, "bay": Vector3(12.95, -0.15, -27.0),
+		"why": "Not on the list, an expired card (29 / 09 / 1989), the wrong organisation, and not a real person.",
 		"greet": ["...", "It's raining in here, Dave.", "You know me. I used to sit where you're sitting."],
 		"ok": "Thank you.", "drive": "Row C. Like always.", "refused": "You'll let me in. Everyone does, in the end."},
 ]
 
-## Free bays in row A (facing the booth), nearest first.
-const BAYS := [4, 5, 6, 2, 8, 9, 1, 10]
+## Free bays in row A (facing the booth) for arrivals; the leavers start in LEAVER_BAYS.
+## (Bays 1 and 2 are clipped by the lamp island.)
+const BAYS := [4, 5, 6, 8, 9, 0]
+const LEAVER_BAYS := [10, 11]
+## Evening staff still parked when you come on, who go home during the night.
+const LEAVERS := [
+	{"reg": "D88 OPW", "style": "4x4", "paint": Color(0.2, 0.22, 0.25)},
+	{"reg": "B227 TRE", "style": "sports", "paint": Color(0.75, 0.75, 0.72)},
+	{"reg": "E640 MBC", "style": "mpv", "paint": Color(0.35, 0.08, 0.1)},
+]
+const LeavingCar := preload("res://scripts/world/leaving_car.gd")
 
 var world
 var hud
@@ -91,6 +100,10 @@ var _debug_skip := false
 var money := START_MONEY   ## the coins shown top right; wages are settled when you clock out
 var _shift_done := false
 var _pc_off := false
+var _order: Array = []       ## tonight's arrivals, shuffled (the 3am car always last)
+var _bays: Array = []
+var _leavers: Array = []
+var _kessler_res: Dictionary = {}
 
 
 func setup(p_world, p_hud, p_inspect) -> void:
@@ -114,6 +127,60 @@ func setup(p_world, p_hud, p_inspect) -> void:
 	_ring.volume_db = -6.0
 	world.props.add_child(_ring)
 	_ring.global_position = world.props.phone_interact.global_position
+	# Tonight's order: everyone but the 3am car, shuffled.
+	for p in ARRIVALS:
+		if not p.get("ghost", false):
+			_order.append(p)
+	_order.shuffle()
+	for p in ARRIVALS:
+		if p.get("ghost", false):
+			_order.append(p)
+	_bays = BAYS.duplicate()
+	_bays.shuffle()
+	_spawn_leavers()
+
+
+func _bay_pos(i: int, nose_out := false) -> Vector3:
+	return Vector3(-16.7 + (i + 0.5) * 2.7, -0.15, -11.7 if nose_out else -11.9)
+
+
+func _spawn_leavers() -> void:
+	var bays := LEAVER_BAYS.duplicate()
+	bays.append(BAYS[-1])   # one more in the far west bay
+	_bays.erase(BAYS[-1])
+	for i in LEAVERS.size():
+		var c = LeavingCar.new()
+		var d: Dictionary = LEAVERS[i]
+		c.world = world
+		c.style = d.style
+		c.paint = d.paint
+		c.reg = d.reg
+		c.name = "Leaver_%d" % i
+		world.add_child(c)
+		c.park_at(_bay_pos(bays[i], true))
+		_leavers.append(c)
+
+
+## Everyone from the evening shift has gone home (sends any stragglers off now).
+func _all_leavers_gone() -> void:
+	for c in _leavers:
+		if is_instance_valid(c) and c.state == "parked":
+			c.go()
+	for c in _leavers:
+		while is_instance_valid(c):
+			await _wait(0.5)
+
+
+## Sends the evening staff home at random moments, never while someone is driving in.
+func _run_leavers() -> void:
+	var left := _leavers.duplicate()
+	left.shuffle()
+	for c in left:
+		await _wait(randf_range(35.0, 110.0))
+		while current != null and is_instance_valid(current) and current.state == "entering":
+			await _wait(1.0)
+		if is_instance_valid(c):
+			c.go()
 
 
 ## Expected names for GateLog.
@@ -149,14 +216,15 @@ func start() -> void:
 	hud.add_objective("shift", "Stay at your post until 07:00")
 	await _wait(2.0)
 	hud.notify("Cars arrive at the side window. Click  <  on the left, or the window itself.", 6.0)
-	for i in ARRIVALS.size():
-		var p: Dictionary = ARRIVALS[i]
-		await _wait(p.delay)
+	_run_leavers()
+	for i in _order.size():
+		var p: Dictionary = _order[i]
+		if p.get("ghost", false):
+			await _all_leavers_gone()
+		await _wait(p.delay if p.get("ghost", false) else (14.0 if i == 0 else randf_range(22.0, 40.0)))
 		await _visitor(p)
 	await _wait(10.0)
-	await _phone_call([["", "(You lift the receiver. Nobody speaks. You can hear rain on the line.)"],
-		["", "(It isn't raining where the phone is. It's raining in the receiver.)"],
-		["", "(The line goes dead.)"]])
+	await _phone_call(_kessler_call())
 	await _wait(3.0)
 	await _shift_over()
 	_summary()
@@ -241,6 +309,24 @@ func _on_logbook() -> void:
 
 
 # ------------------------------------------------------------------ phone
+## After the 3am car: Roy Kessler's wife, looking for him.
+func _kessler_call() -> Array:
+	var lines := [
+		["Woman", "Hello? Is that Booth 2? Lot C?"],
+		["Woman", "I'm sorry to ring so late. It's Margaret Kessler. Roy's wife."],
+		["Woman", "He hasn't been home since the twenty-ninth. The police say he just drove off. People do, they said."],
+		["Woman", "But he rang me tonight. Just now. First time in two weeks."],
+	]
+	if _kessler_res.get("decided", "") == "admitted":
+		lines.append(["Woman", "He said he was back at work. He said the new lad let him in, and he'd parked in Row C."])
+		lines.append(["Woman", "He sounded so cold. Is he there? Can you go and look? ...Please?"])
+	else:
+		lines.append(["Woman", "He said he was at work, but the new lad wouldn't let him in. He said he'd wait."])
+		lines.append(["Woman", "He said it's ever so cold, waiting. Is he out there? ...Can you see him?"])
+	lines.append(["", "(Before you can answer, she hangs up.)"])
+	return lines
+
+
 func _dale_call() -> Array:
 	return [
 		["Dale", "Dave? It's Dale. You got in alright, then. Roads are like rivers."],
@@ -292,9 +378,9 @@ func _visitor(p: Dictionary) -> void:
 	if p.has("bay"):
 		bay = p.bay
 	else:
-		var i: int = BAYS[_bay_i % BAYS.size()]
+		var i: int = _bays[_bay_i % _bays.size()]
 		_bay_i += 1
-		bay = Vector3(-16.7 + (i + 0.5) * 2.7, -0.15, -11.9)
+		bay = _bay_pos(i)
 	var car = VisitorCar.new()
 	car.setup(world, p, bay)
 	car.name = "Visitor_" + p.reg.replace(" ", "")
@@ -305,6 +391,8 @@ func _visitor(p: Dictionary) -> void:
 		car._dist = car._stop_dist - 0.02
 	var res := {"name": p.name, "reg": p.reg, "admit": p.admit, "decided": "", "checked": false, "why": p.get("why", "")}
 	results.append(res)
+	if p.get("ghost", false):
+		_kessler_res = res
 	car.card_interact.activated.connect(func(): _on_card(car, p, res))
 	car.plate_interact.activated.connect(func(): _on_plate(car, p))
 	await car.arrived

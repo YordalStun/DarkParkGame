@@ -33,6 +33,10 @@ func _init() -> void:
 	fl.mesh = pm
 	fl.material_override = floor_m
 	root.add_child(fl)
+	if args.has("all"):
+		await _all_styles(root, out)
+		quit()
+		return
 	var car := CarModel.new()
 	car.paint = Color(0.55, 0.06, 0.05)
 	car.style = args.get("style", "saloon")
@@ -60,3 +64,26 @@ func _init() -> void:
 		get_root().get_texture().get_image().save_png("%s/studio_%s.png" % [out, v[0]])
 	print("studio done")
 	quit()
+
+
+## --all: every design side by side, one picture each at a 3/4 front view.
+func _all_styles(root: Node3D, out: String) -> void:
+	var cam := Camera3D.new()
+	cam.fov = 40
+	root.add_child(cam)
+	var paints := [Color(0.55, 0.06, 0.05), Color(0.1, 0.2, 0.45), Color(0.75, 0.72, 0.6), Color(0.1, 0.25, 0.15), Color(0.6, 0.6, 0.62)]
+	var i := 0
+	for st in CarModel.STYLES:
+		var car := CarModel.new()
+		car.paint = paints[i % paints.size()]
+		car.style = st
+		car.build()
+		root.add_child(car)
+		for view in [["a", Vector3(4.6, 1.9, 6.0)], ["b", Vector3(-5.0, 1.8, -5.8)]]:
+			cam.look_at_from_position(view[1], Vector3(0, 0.75, 0))
+			for k in 6:
+				await process_frame
+			await RenderingServer.frame_post_draw
+			get_root().get_texture().get_image().save_png("%s/style_%02d_%s_%s.png" % [out, i, st, view[0]])
+		car.queue_free()
+		i += 1

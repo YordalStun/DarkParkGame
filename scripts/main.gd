@@ -378,6 +378,8 @@ func _apply_args() -> void:
 		t.autostart = true
 		t.timeout.connect(story._on_phone)
 		add_child(t)
+	if _args.has("leave"):   # testing: send one evening car home now
+		get_tree().create_timer(0.5).timeout.connect(func(): story._leavers[int(_args.leave)].go())
 	if _args.has("car"):
 		story.debug_visitor(int(_args.car))
 		if _args.has("idcard"):

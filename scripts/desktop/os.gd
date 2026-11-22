@@ -30,6 +30,8 @@ const APPS := {
 	"browser": {"title": "NightNet Explorer", "icon": "globe", "size": Vector2(604, 410), "min_size": Vector2(320, 220)},
 	"mail": {"title": "Inbox - Mail", "icon": "inbox", "size": Vector2(520, 340), "min_size": Vector2(320, 220)},
 	"mines": {"title": "Minesweeper", "icon": "mine", "size": Vector2(170, 230), "max": false, "resize": false},
+	"solitaire": {"title": "Solitaire", "icon": "cards", "size": Vector2(396, 440), "max": false, "resize": false},
+	"snake": {"title": "NightSnake", "icon": "snake", "size": Vector2(330, 322), "max": false, "resize": false},
 	"camlink": {"title": "CamLink CCTV v1.3", "icon": "cam", "size": Vector2(420, 330), "min_size": Vector2(300, 240)},
 	"gatectl": {"title": "Gate Control", "icon": "gate", "size": Vector2(300, 190), "max": false, "resize": false},
 	"gatelog": {"title": "GateLog - Vehicle Entry", "icon": "doc", "size": Vector2(470, 370), "min_size": Vector2(380, 300)},
@@ -346,6 +348,8 @@ func _build_icons() -> void:
 		["CamLink", "cam", func(): open_app("camlink")],
 		["Gate Control", "gate", func(): open_app("gatectl")],
 		["GateLog", "doc", func(): open_app("gatelog")],
+		["Solitaire", "cards", func(): open_app("solitaire")],
+		["NightSnake", "snake", func(): open_app("snake")],
 	]
 	var i := 0
 	for d in defs:
@@ -778,7 +782,11 @@ func _start_items() -> Array:
 	]
 	var programs := [
 		{"text": "Accessories", "icon": _ico("folder"), "sub": accessories},
-		{"text": "Games", "icon": _ico("folder"), "sub": [{"text": "Minesweeper", "icon": _ico("mine"), "act": app.call("mines")}]},
+		{"text": "Games", "icon": _ico("folder"), "sub": [
+			{"text": "Minesweeper", "icon": _ico("mine"), "act": app.call("mines")},
+			{"text": "NightSnake", "icon": _ico("snake"), "act": app.call("snake")},
+			{"text": "Solitaire", "icon": _ico("cards"), "act": app.call("solitaire")},
+		]},
 		{"text": "Internet", "icon": _ico("folder"), "sub": [
 			{"text": "NightNet Explorer", "icon": _ico("globe"), "act": app.call("browser")},
 			{"text": "Mail", "icon": _ico("inbox"), "act": app.call("mail")},
