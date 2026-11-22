@@ -12,7 +12,8 @@ const Store := preload("res://scripts/world/store.gd")
 const G := -0.15  # ground height
 
 var lamp: Node3D
-var gate: Node3D
+var gate: Node3D       ## entry barrier (the booth's buttons)
+var exit_gate: Node3D  ## exit barrier, opens by itself for cars leaving
 var trees: Array[Node3D] = []
 var cars: Array[Node3D] = []
 var payphone: Node3D
@@ -66,7 +67,7 @@ func _build_ground() -> void:
 	_plane(Vector2(30, 46), Vector3(60, G - 0.02, -21), grass, "RightGrass")
 	_plane(Vector2(120, 30), Vector3(0, G - 0.02, 17), grass, "BehindGrass")
 	# The access road the night staff drive in on, behind the booth.
-	_plane(Vector2(5.0, 44.0), Vector3(-4.1, G - 0.004, 23.5), _wet("asphalt", 0.22, 0.5, Color(1.2, 1.18, 1.12)), "AccessRoad")
+	_plane(Vector2(6.6, 44.0), Vector3(-4.95, G - 0.004, 23.5), _wet("asphalt", 0.22, 0.5, Color(1.2, 1.18, 1.12)), "AccessRoad")
 	# Kerbs along the far edge and around the lamp island.
 	var kerb := MK.mat(Color(0.7, 0.68, 0.64), "concrete", 0.85, 1.0)
 	MK.box_from(self, Vector3(-45, G, -44.2), Vector3(45, G + 0.14, -43.9), kerb)
@@ -110,7 +111,8 @@ func _build_lines() -> void:
 	# Entrance lane markings to the left of the booth.
 	for i in 6:
 		_line(Vector3(-4.4, 0, 3.0 - i * 2.2), Vector3(-4.4, 0, 2.0 - i * 2.2), 0.12)
-	_line(Vector3(-2.8, 0, -2.35), Vector3(-6.4, 0, -2.35), 0.3)  # stop line under the barrier
+	_line(Vector3(-2.8, 0, -2.35), Vector3(-5.1, 0, -2.35), 0.3)  # stop line under the entry barrier
+	_line(Vector3(-5.4, 0, -3.0), Vector3(-7.8, 0, -3.0), 0.3)    # and the exit's
 
 
 func _build_lamp() -> void:
@@ -129,17 +131,12 @@ func _build_cars() -> void:
 		[Color(0.07, 0.1, 0.22), "sedan", Vector3(-9.95, G, -21.9), 181.0],  # navy, edge of the lamp light
 		[Color(0.12, 0.16, 0.12), "van", Vector3(8.95, G, -27.0), 0.5],     # dark green van, far and dark
 	]
-	var styles := ["saloon", "hatch", "saloon", ""]
+	var styles := ["saloon", "hatch", "estate", "van"]
 	for s in specs:
-		var c: Node3D
-		var st: String = styles[cars.size()]
-		if s[1] == "sedan":
-			var m := CarModel.new()
-			m.paint = s[0]
-			m.style = st
-			c = m.build()
-		else:
-			c = CarBuilder.make(s[0], s[1])
+		var m := CarModel.new()
+		m.paint = s[0]
+		m.style = styles[cars.size()]
+		var c: Node3D = m.build()
 		c.position = s[2]
 		c.rotation_degrees.y = s[3]
 		c.name = "Car_%d" % cars.size()
@@ -150,13 +147,21 @@ func _build_cars() -> void:
 func _build_gate_and_signs() -> void:
 	gate = BarrierGate.new()
 	gate.name = "BarrierGate"
+	gate.arm_length = 2.6
 	gate.position = Vector3(-2.65, G, -2.6)
 	add_child(gate)
+	# Exit lane beside it: its own barrier on the far side, arm reaching back toward the booth.
+	exit_gate = BarrierGate.new()
+	exit_gate.name = "ExitGate"
+	exit_gate.arm_length = 3.1
+	exit_gate.position = Vector3(-8.5, G, -2.75)
+	exit_gate.rotation_degrees.y = 180.0
+	add_child(exit_gate)
 
 	# "LOT C" sign on a post beside the lane, angled toward the booth.
 	var sign := Node3D.new()
 	sign.name = "LotSign"
-	sign.position = Vector3(-7.0, G, -2.8)
+	sign.position = Vector3(-10.2, G, -3.8)
 	sign.rotation_degrees.y = 25
 	add_child(sign)
 	var post := MK.mat(Color(0.45, 0.46, 0.46), "metal", 0.5, 1.0, 0.5)

@@ -13,8 +13,9 @@ signal card_taken
 signal card_returned
 
 const G := -0.15
-const LANE_X := -3.4
-const STOP_Z := 0.33
+## Lane and stopping point depend on the vehicle (its width, where the driver sits).
+var LANE_X := -3.4
+var STOP_Z := 0.33
 const SPAWN_Z := 42.0
 const MAX_SPEED := 6.0
 const ENGINE_DB := -15.0   ## engine loudness before the CARS slider
@@ -50,23 +51,30 @@ var _engine: AudioStreamPlayer3D
 var _engine_on := true
 var _walker: Node3D
 
-const SHOULDER := Vector3(-0.55, 1.02, -0.27)
-const HAND_REST := Vector3(-0.42, 0.98, 0.2)
-const HAND_OUT := Vector3(-1.4, 1.22, -0.12)
+var SHOULDER := Vector3(-0.55, 1.02, -0.27)
+var HAND_REST := Vector3(-0.42, 0.98, 0.2)
+var HAND_OUT := Vector3(-1.4, 1.22, -0.12)
 
 
 func setup(p_world, p_person: Dictionary, bay: Vector3) -> void:
 	world = p_world
 	person = p_person
-	_build_path(bay)
-
-
-func _ready() -> void:
 	_model = CarModel.new()
 	_model.paint = person.get("paint", Color(0.4, 0.4, 0.42))
 	_model.style = person.get("style", "saloon")
 	_model.driver_window_open = true
 	_model.build()
+	# The driver's door lines up with the booth's side window, the car's flank just off the kerb.
+	LANE_X = -2.54 - _model.half_width
+	STOP_Z = 0.55 + _model.seat.z
+	var st: Vector3 = _model.seat
+	SHOULDER = st + Vector3(-0.18, 1.02, -0.05)
+	HAND_REST = st + Vector3(-0.05, 0.98, 0.42)
+	HAND_OUT = Vector3(-_model.half_width - 0.54, 1.22, st.z + 0.1)
+	_build_path(bay)
+
+
+func _ready() -> void:
 	add_child(_model)
 	_build_lights()
 	_build_plates()
@@ -80,7 +88,7 @@ func _ready() -> void:
 	_engine.unit_size = 2.0
 	_engine.max_db = 0.0
 	_engine.volume_db = ENGINE_DB + Settings.mix_db("cars")
-	_engine.position = Vector3(0, 0.6, 1.6)
+	_engine.position = Vector3(0, 0.6, 1.4)
 	add_child(_engine)
 	_engine.play(randf() * s.get_length())
 	_place()
