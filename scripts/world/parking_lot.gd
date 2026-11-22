@@ -108,7 +108,7 @@ func _build_lines() -> void:
 	# Entrance lane markings to the left of the booth.
 	for i in 6:
 		_line(Vector3(-4.4, 0, 3.0 - i * 2.2), Vector3(-4.4, 0, 2.0 - i * 2.2), 0.12)
-	_line(Vector3(-2.8, 0, -1.3), Vector3(-6.4, 0, -1.3), 0.3)  # stop line under the barrier
+	_line(Vector3(-2.8, 0, -2.35), Vector3(-6.4, 0, -2.35), 0.3)  # stop line under the barrier
 
 
 func _build_lamp() -> void:
@@ -139,7 +139,7 @@ func _build_cars() -> void:
 func _build_gate_and_signs() -> void:
 	gate = BarrierGate.new()
 	gate.name = "BarrierGate"
-	gate.position = Vector3(-2.65, G, -1.55)
+	gate.position = Vector3(-2.65, G, -2.6)
 	add_child(gate)
 
 	# "LOT C" sign on a post beside the lane, angled toward the booth.

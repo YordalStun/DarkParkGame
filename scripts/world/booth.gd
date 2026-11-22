@@ -26,6 +26,17 @@ var _min_hand: Node3D
 var _sec_hand: Node3D
 var _glass_shader: Shader
 
+## The sliding pane in the left wall, by the barrier lane. Open it to talk to drivers.
+signal side_window_moved(open: bool)
+var side_view: Interactable        ## click the left window to turn and face it (zoom with free look)
+var side_pane: Node3D              ## the sliding sash (glass + frame)
+var side_pane_interact: Interactable
+var side_is_open := false
+var side_open := 0.0               ## 0..1 how far open (the ambience reads this)
+var raise_button: Interactable     ## barrier panel on the left sill
+var lower_button: Interactable
+var _side_tw: Tween
+const SIDE_SPAN := Vector2(0.06, 0.95)   ## z range of the sliding pane
 
 func _ready() -> void:
 	_glass_shader = load("res://shaders/window_glass.gdshader")
@@ -160,12 +171,89 @@ func _build_windows() -> void:
 	for span in [[-IN_X, -0.31], [-0.19, 1.24], [1.36, IN_X]]:
 		var w: float = span[1] - span[0]
 		_glass(self, Vector3((span[0] + span[1]) * 0.5, yc, z), Vector2(w, h), Vector3.ZERO, 1.0)
-	# Left side panes (face +X).
-	for span in [[FRONT_Z, -0.06], [0.06, 0.95]]:
-		var w2: float = span[1] - span[0]
-		_glass(self, Vector3(-IN_X - WALL * 0.5, yc, (span[0] + span[1]) * 0.5), Vector2(w2, h), Vector3(0, 90, 0), 0.6)
+	# Left side: a fixed pane at the front, and the sliding pane by the lane (face +X).
+	_glass(self, Vector3(-IN_X - WALL * 0.5, yc, (FRONT_Z - 0.06) * 0.5), Vector2(-0.06 - FRONT_Z, h), Vector3(0, 90, 0), 0.6)
+	_build_side_window(yc, h)
 	# Right front pane (face -X).
 	_glass(self, Vector3(IN_X + WALL * 0.5, yc, (FRONT_Z + 0.18) * 0.5), Vector2(0.18 - FRONT_Z, h), Vector3(0, -90, 0), 0.4)
+
+
+## The sliding sash, the view that faces it, and the barrier buttons on the sill.
+func _build_side_window(yc: float, h: float) -> void:
+	var frame := MK.mat(Color(0.23, 0.17, 0.12), "metal", 0.45, 1.0, 0.6)
+	var w := SIDE_SPAN.y - SIDE_SPAN.x
+	side_pane = Node3D.new()
+	side_pane.name = "SidePane"
+	# Sits a little inside the fixed glass so it can slide over it.
+	side_pane.position = Vector3(-IN_X + 0.03, yc, (SIDE_SPAN.x + SIDE_SPAN.y) * 0.5)
+	add_child(side_pane)
+	_glass(side_pane, Vector3.ZERO, Vector2(w - 0.05, h - 0.05), Vector3(0, 90, 0), 0.6)
+	MK.box(side_pane, Vector3(0.03, h, 0.035), Vector3(0, 0, -w * 0.5 + 0.0175), frame)
+	MK.box(side_pane, Vector3(0.03, h, 0.035), Vector3(0, 0, w * 0.5 - 0.0175), frame)
+	MK.box(side_pane, Vector3(0.03, 0.035, w), Vector3(0, -h * 0.5 + 0.0175, 0), frame)
+	MK.box(side_pane, Vector3(0.03, 0.035, w), Vector3(0, h * 0.5 - 0.0175, 0), frame)
+	MK.box(side_pane, Vector3(0.03, 0.12, 0.025), Vector3(0.025, 0, w * 0.5 - 0.06), MK.mat(Color(0.7, 0.68, 0.6), "", 0.3, 1.0, 0.9))  # finger pull
+
+	# Turning to face the side window (from the desk).
+	side_view = Interactable.new()
+	side_view.name = "SideWindowView"
+	side_view.prompt = "Side window"
+	side_view.add_box(Vector3(0.12, h, 2.0), Vector3(-IN_X - 0.02, yc, -0.05))
+	add_child(side_view)
+	var marker := Node3D.new()
+	marker.name = "SideViewMarker"
+	marker.position = Vector3(-1.08, 1.24, 0.5)
+	marker.rotation_degrees = Vector3(-6, 90, 0)   # facing -X, out of the window
+	add_child(marker)
+	side_view.zoom_marker = marker
+	side_view.zoom_fov = 62.0
+	side_view.zoom_look = Vector2(62.0, 34.0)
+
+	side_pane_interact = Interactable.new()
+	side_pane_interact.prompt = "Open window"
+	side_pane_interact.requires_focus = side_view
+	side_pane_interact.add_box(Vector3(0.06, h, w))
+	side_pane.add_child(side_pane_interact)
+	side_pane_interact.activated.connect(func(): set_side_window(not side_is_open))
+
+	# Barrier control box on the wall under the side window: green RAISE, red LOWER.
+	var panel := Node3D.new()
+	panel.name = "BarrierPanel"
+	panel.position = Vector3(-IN_X + 0.03, SILL - 0.16, 0.66)
+	add_child(panel)
+	var grey := MK.mat(Color(0.32, 0.33, 0.32), "metal", 0.5, 1.0, 0.4)
+	MK.box(panel, Vector3(0.06, 0.1, 0.16), Vector3.ZERO, grey)
+	MK.quad(panel, Vector2(0.13, 0.02), Vector3(0.031, 0.035, 0), MK.mat(Color(0.85, 0.82, 0.7), "", 0.6), Vector3(0, 90, 0))
+	var green := MK.emissive(Color(0.1, 0.9, 0.2), 1.4, Color(0.05, 0.4, 0.1))
+	var red := MK.emissive(Color(0.95, 0.12, 0.08), 1.4, Color(0.4, 0.05, 0.03))
+	MK.cyl(panel, 0.016, 0.018, 0.016, Vector3(0.036, -0.01, 0.036), green, 10, Vector3(0, 0, 90))
+	MK.cyl(panel, 0.016, 0.018, 0.016, Vector3(0.036, -0.01, -0.036), red, 10, Vector3(0, 0, 90))
+	raise_button = _panel_button(panel, "Raise barrier", Vector3(0.036, -0.01, 0.036))
+	lower_button = _panel_button(panel, "Lower barrier", Vector3(0.036, -0.01, -0.036))
+
+
+func _panel_button(parent: Node3D, label: String, pos: Vector3) -> Interactable:
+	var it := Interactable.new()
+	it.prompt = label
+	it.requires_focus = side_view
+	it.add_box(Vector3(0.05, 0.045, 0.045), pos)
+	parent.add_child(it)
+	return it
+
+
+func set_side_window(open: bool) -> void:
+	if open == side_is_open:
+		return
+	side_is_open = open
+	side_pane_interact.prompt = "Close window" if open else "Open window"
+	if _side_tw:
+		_side_tw.kill()
+	_side_tw = create_tween().set_parallel(true)
+	_side_tw.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	var z := (SIDE_SPAN.x + SIDE_SPAN.y) * 0.5 - (0.82 if open else 0.0)
+	_side_tw.tween_property(side_pane, "position:z", z, 0.8)
+	_side_tw.tween_property(self, "side_open", 1.0 if open else 0.0, 0.8)
+	side_window_moved.emit(open)
 
 
 # ------------------------------------------------------------------- desk

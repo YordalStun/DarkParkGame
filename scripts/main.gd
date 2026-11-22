@@ -80,12 +80,18 @@ func _ready() -> void:
 	hud.name = "HUD"
 	add_child(hud)
 	world.camera.hover_changed.connect(hud.set_prompt)
-	world.camera.zoom_changed.connect(func(z): hud.set_zoomed(z))
+	world.camera.focus_changed.connect(func(f): hud.set_zoomed(f != null))
 	var desk = world.props.desktop
 	desk.world = world
 	desk.state_changed.connect(func(on): hud.set_hint("Esc to sit back" if on else "Right click to sit back", on))
 	desk.sound.connect(func(n, db): world.ambience.play_ui(n, db))
-	world.camera.zoom_changed.connect(func(z): desk.set_away(not z))
+	world.camera.focus_changed.connect(func(f): desk.set_away(f != world.props.crt_interact))
+	world.camera.focus_changed.connect(func(f): hud.set_look_left(f == null))
+	world.camera.zoom_changed.connect(func(z): if z: hud.set_look_left(false))
+	hud.look_left_btn.pressed.connect(func():
+		if world.camera.state == world.camera.State.SEATED:
+			world.camera.zoom_to(world.booth.side_view))
+	hud.set_look_left(true)
 
 	_apply_args()
 	await _warm_up()
@@ -151,8 +157,7 @@ func _process(_delta: float) -> void:
 ## Higher render resolution and a hidden system cursor while the player is using the desktop.
 func _update_desktop_mode(win_size: Vector2) -> void:
 	var desk = world.props.desktop
-	var zoomed: bool = world.camera.state == world.camera.State.ZOOMED
-	var want: bool = zoomed and desk.is_on()
+	var want: bool = _at_crt() and desk.is_on()
 	if want != _hires:
 		_hires = want
 		_update_scale()
@@ -169,6 +174,11 @@ func _update_desktop_mode(win_size: Vector2) -> void:
 	if Input.mouse_mode != mode:
 		Input.mouse_mode = mode
 	desk.set_pointer_visible(over)
+
+
+## Leaned in to the CRT (not some other close-up view like the side window).
+func _at_crt() -> bool:
+	return world.camera.state == world.camera.State.ZOOMED and world.camera.focus == world.props.crt_interact
 
 
 func _pointer_ndc(pos: Vector2, win_size: Vector2) -> Vector2:
@@ -188,7 +198,7 @@ func _on_screen(px: Vector2) -> bool:
 ## Returns true if the event was used.
 func _desktop_input(event: InputEvent) -> bool:
 	var desk = world.props.desktop
-	if world.camera.state != world.camera.State.ZOOMED:
+	if not _at_crt():
 		_desk_drag = false
 		return false
 	var win_size := Vector2(get_tree().root.size)
@@ -317,6 +327,11 @@ func _apply_args() -> void:
 		_strip_visuals()  # audio-only run: make software rendering fast
 	if _args.has("audiotest"):
 		_audio_stress_test()
+	if _args.has("side") or _args.has("sideopen"):
+		await get_tree().create_timer(0.1).timeout
+		world.camera.zoom_to(world.booth.side_view)
+		if _args.has("sideopen"):
+			world.booth.set_side_window(true)
 	if _args.has("zoom") or (_args.has("desktop") and not _args.has("seated")):
 		await get_tree().create_timer(0.1).timeout
 		world.camera.zoom_to(world.props.crt_interact)

@@ -10,6 +10,13 @@ var _debug: Label
 var _font: FontFile
 var _cursor_dot: ImageTexture
 var _cursor_ring: ImageTexture
+var _sub_box: PanelContainer
+var _sub: RichTextLabel
+var _sub_id := 0
+var _sub_skip := false
+var _note: Label
+var _note_id := 0
+var look_left_btn: Button   ## main.gd connects this to the camera
 
 
 func _ready() -> void:
@@ -49,7 +56,9 @@ func _ready() -> void:
 	pl.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	pl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	pl.text = "- PAUSED -\n\nClick to resume\nQ to quit"
-	_build_volume_row()
+	pl.offset_bottom = -200
+	_build_mixer()
+	_build_story_ui()
 
 	_make_cursors()
 	Input.set_custom_mouse_cursor(_cursor_dot, Input.CURSOR_ARROW, Vector2(8, 8))
@@ -134,43 +143,176 @@ func _process(_delta: float) -> void:
 			Weather.fog, Weather.wetness, NightClock.time_text(), Engine.get_frames_per_second()]
 
 
-## Volume slider on the pause screen (shared with the PC's tray volume, saved to disk).
-func _build_volume_row() -> void:
-	var row := HBoxContainer.new()
-	row.set_anchors_and_offsets_preset(Control.PRESET_CENTER_BOTTOM)
-	row.offset_top = -120
-	row.offset_bottom = -84
-	row.offset_left = -220
-	row.offset_right = 220
-	row.alignment = BoxContainer.ALIGNMENT_CENTER
-	row.add_theme_constant_override("separation", 14)
-	_pause.add_child(row)
-	var lbl := _label(30, Color(0.85, 0.85, 0.8))
-	lbl.reparent(row)
-	lbl.text = "VOLUME"
-	var sl := HSlider.new()
-	sl.min_value = 0.0
-	sl.max_value = 1.0
-	sl.step = 0.01
-	sl.value = Settings.volume
-	sl.custom_minimum_size = Vector2(200, 28)
-	sl.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	row.add_child(sl)
-	var pct := _label(30, Color(0.85, 0.85, 0.8))
-	pct.reparent(row)
-	pct.custom_minimum_size = Vector2(60, 0)
+## Sliders on the pause screen: master volume (shared with the PC's tray volume) and
+## one per part of the mix. All saved to disk.
+func _build_mixer() -> void:
+	var box := VBoxContainer.new()
+	box.set_anchors_and_offsets_preset(Control.PRESET_CENTER_BOTTOM)
+	box.offset_top = -230
+	box.offset_bottom = -40
+	box.offset_left = -300
+	box.offset_right = 300
+	box.add_theme_constant_override("separation", 4)
+	_pause.add_child(box)
+
+	var master := _slider_row(box, "VOLUME", Settings.volume, func(v): Settings.set_volume(v))
 	var mute := CheckBox.new()
 	mute.text = "MUTE"
 	mute.add_theme_font_override("font", _font)
 	mute.add_theme_font_size_override("font_size", 26)
 	mute.button_pressed = Settings.muted
-	row.add_child(mute)
-	var refresh := func(v: float, m: bool):
-		pct.text = "%d%%" % int(round(v * 100.0))
-		if not is_equal_approx(sl.value, v):
-			sl.set_value_no_signal(v)
-		mute.set_pressed_no_signal(m)
-	refresh.call(Settings.volume, Settings.muted)
-	sl.value_changed.connect(func(v): Settings.set_volume(v))
 	mute.toggled.connect(func(on): Settings.set_muted(on))
-	Settings.volume_changed.connect(refresh)
+	master.row.add_child(mute)
+	Settings.volume_changed.connect(func(v: float, m: bool):
+		if not is_equal_approx(master.slider.value, v):
+			master.slider.set_value_no_signal(v)
+		master.pct.text = "%d%%" % int(round(v * 100.0))
+		mute.set_pressed_no_signal(m))
+	for key in Settings.CHANNELS:
+		var k: String = key
+		_slider_row(box, Settings.CHANNELS[k], Settings.mix[k], func(v): Settings.set_mix(k, v))
+
+
+func _slider_row(parent: Control, title: String, value: float, on_change: Callable) -> Dictionary:
+	var row := HBoxContainer.new()
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	row.add_theme_constant_override("separation", 14)
+	parent.add_child(row)
+	var lbl := _label(28, Color(0.85, 0.85, 0.8))
+	lbl.reparent(row)
+	lbl.text = title
+	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	lbl.custom_minimum_size = Vector2(190, 0)
+	var sl := HSlider.new()
+	sl.min_value = 0.0
+	sl.max_value = 1.0
+	sl.step = 0.01
+	sl.value = value
+	sl.custom_minimum_size = Vector2(220, 28)
+	sl.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	row.add_child(sl)
+	var pct := _label(28, Color(0.85, 0.85, 0.8))
+	pct.reparent(row)
+	pct.custom_minimum_size = Vector2(60, 0)
+	pct.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	pct.text = "%d%%" % int(round(value * 100.0))
+	sl.value_changed.connect(func(v):
+		pct.text = "%d%%" % int(round(v * 100.0))
+		on_change.call(v))
+	return {"row": row, "slider": sl, "pct": pct}
+
+
+# ============================================================ story UI
+## Subtitles: one line at a time with the speaker's name. Returns when the line is done
+## (after `seconds`, or sooner if the player clicks to skip).
+func say(speaker: String, text: String, seconds := -1.0) -> void:
+	if seconds < 0.0:
+		seconds = clampf(1.2 + text.length() * 0.055, 2.2, 7.0)
+	_sub_id += 1
+	var id := _sub_id
+	_sub.text = ("[color=#e8c070]%s:[/color]  %s" % [speaker.to_upper(), text]) if speaker != "" else "[i]%s[/i]" % text
+	_sub_box.visible = true
+	_sub_skip = false
+	var left := seconds
+	while left > 0.0 and not _sub_skip and id == _sub_id:
+		await get_tree().process_frame
+		if not get_tree().paused:
+			left -= get_process_delta_time()
+	if id == _sub_id:
+		_sub_box.visible = false
+
+
+## Click while a line is showing: move on to the next one.
+func skip_line() -> bool:
+	if _sub_box.visible:
+		_sub_skip = true
+		return true
+	return false
+
+
+func clear_lines() -> void:
+	_sub_id += 1
+	_sub_box.visible = false
+
+
+## A short notice at the top of the screen ("A car has pulled up at the barrier").
+func notify(text: String, seconds := 4.0) -> void:
+	_note.text = text
+	_note_id += 1
+	var id := _note_id
+	var tw := create_tween()
+	tw.tween_property(_note, "modulate:a", 1.0, 0.3)
+	await get_tree().create_timer(seconds).timeout
+	if id == _note_id:
+		create_tween().tween_property(_note, "modulate:a", 0.0, 0.8)
+
+
+## The arrow at the left edge of the screen for turning to the side window.
+func set_look_left(show: bool) -> void:
+	look_left_btn.visible = show
+
+
+func _build_story_ui() -> void:
+	_sub_box = PanelContainer.new()
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = Color(0, 0, 0, 0.62)
+	sb.content_margin_left = 18
+	sb.content_margin_right = 18
+	sb.content_margin_top = 8
+	sb.content_margin_bottom = 8
+	sb.corner_radius_top_left = 4
+	sb.corner_radius_top_right = 4
+	sb.corner_radius_bottom_left = 4
+	sb.corner_radius_bottom_right = 4
+	_sub_box.add_theme_stylebox_override("panel", sb)
+	_sub_box.set_anchors_and_offsets_preset(Control.PRESET_CENTER_BOTTOM)
+	_sub_box.offset_left = -430
+	_sub_box.offset_right = 430
+	_sub_box.offset_top = -190
+	_sub_box.offset_bottom = -100
+	_sub_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_sub_box.visible = false
+	add_child(_sub_box)
+	move_child(_sub_box, 0)
+	_sub = RichTextLabel.new()
+	_sub.bbcode_enabled = true
+	_sub.fit_content = true
+	_sub.scroll_active = false
+	_sub.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_sub.add_theme_font_override("normal_font", _font)
+	_sub.add_theme_font_override("italics_font", _font)
+	_sub.add_theme_font_size_override("normal_font_size", 30)
+	_sub.add_theme_font_size_override("italics_font_size", 30)
+	_sub.add_theme_color_override("default_color", Color(0.92, 0.92, 0.88))
+	_sub_box.add_child(_sub)
+
+	_note = _label(30, Color(0.95, 0.85, 0.55))
+	_note.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP)
+	_note.offset_top = 44
+	_note.offset_bottom = 80
+	_note.offset_left = -400
+	_note.offset_right = 400
+	_note.modulate.a = 0.0
+
+	look_left_btn = Button.new()
+	look_left_btn.text = "<"
+	look_left_btn.tooltip_text = "Side window"
+	look_left_btn.focus_mode = Control.FOCUS_NONE
+	look_left_btn.add_theme_font_override("font", _font)
+	look_left_btn.add_theme_font_size_override("font_size", 54)
+	var flat := StyleBoxFlat.new()
+	flat.bg_color = Color(0, 0, 0, 0.0)
+	var hover := StyleBoxFlat.new()
+	hover.bg_color = Color(0, 0, 0, 0.35)
+	look_left_btn.add_theme_stylebox_override("normal", flat)
+	look_left_btn.add_theme_stylebox_override("hover", hover)
+	look_left_btn.add_theme_stylebox_override("pressed", hover)
+	look_left_btn.add_theme_color_override("font_color", Color(0.85, 0.85, 0.8, 0.45))
+	look_left_btn.add_theme_color_override("font_hover_color", Color(1, 0.9, 0.6, 0.95))
+	look_left_btn.set_anchors_and_offsets_preset(Control.PRESET_CENTER_LEFT)
+	look_left_btn.offset_left = 0
+	look_left_btn.offset_right = 54
+	look_left_btn.offset_top = -70
+	look_left_btn.offset_bottom = 70
+	look_left_btn.visible = false
+	add_child(look_left_btn)
