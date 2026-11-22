@@ -6,6 +6,8 @@ const MBar := preload("res://scripts/desktop/menu_bar.gd")
 const Dialogs := preload("res://scripts/desktop/dialogs.gd")
 
 const DEFAULT_MAIL := [
+	{"from": "Dale Whitcombe", "subj": "FWD: Hospital staff parking - Lot C", "date": "Fri 13 Oct", "unread": true, "body":
+"Dave,\n\nSame again tonight. Forwarding for your records.\n\nDale\n\n----- Forwarded message -----\nFrom: Facilities, Ashford General Hospital\nDate: Tue 10 Oct\n\nFollowing the burst culvert on Monday night, Staff Car Park A remains under water and is closed until further notice.\n\nNight staff will park in Ashford Parking Authority Lot C, entering through Booth 2. The booth will hold a list of rostered night staff each evening. Please have your staff identity card ready. Cards must be in date.\n\nWe expect the car park to reopen on Monday 16th.\n\nFacilities"},
 	{"from": "Dale Whitcombe", "subj": "Welcome to Lot C", "date": "Mon 9 Oct", "unread": true, "body":
 "Hi,\n\nWelcome to the night team. You'll be on Booth 2, 23:00 to 07:00, Thursday to Sunday.\n\nA few things:\n  - Log every car after 22:00.\n  - Patrol at midnight and 03:00. Take the torch.\n  - Keep the booth door shut. It lets the damp in.\n  - Don't bother with the cameras. They're being looked at.\n\nIf anything weird happens, write it in the logbook and ring me on 214. Not before 8am though. I like my sleep.\n\nDale"},
 	{"from": "Ashford Parking Authority", "subj": "Lot C: change to closing hours", "date": "Wed 11 Oct", "unread": true, "body":

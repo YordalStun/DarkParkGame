@@ -29,33 +29,33 @@ const ARRIVALS := [
 	{"name": "Sandra Pike", "role": "Staff Nurse", "dept": "Ward 7", "staff_no": "40217", "expires": "03 / 1990",
 		"reg": "E412 KTV", "paint": Color(0.55, 0.06, 0.05), "skin": Color(0.9, 0.72, 0.6), "hair": Color(0.55, 0.32, 0.12),
 		"hair_style": "long", "shirt": Color(0.2, 0.3, 0.55), "admit": true, "delay": 14.0,
-		"greet": ["Evening, Dave. It's going to be a long night.", "Full moon and Friday the thirteenth. A&E will be heaving."],
+		"greet": ["Evening, Dave. Still flooded over our side, then?", "It's going to be a long night. Full moon and Friday the thirteenth. A&E will be heaving."],
 		"ok": "Ta, love.", "drive": "See you in the morning, Dave.", "refused": "You what? I'm on the rota! Fine. I'll ring the ward from the payphone."},
 	{"name": "Michael Adeyemi", "role": "Porter", "dept": "Portering Services", "staff_no": "40388", "expires": "11 / 1990",
 		"reg": "C771 PFM", "paint": Color(0.62, 0.57, 0.45), "skin": Color(0.36, 0.24, 0.16), "hair": Color(0.05, 0.04, 0.03),
 		"shirt": Color(0.6, 0.6, 0.62), "admit": true, "delay": 30.0,
-		"greet": ["Alright Dave? Chucking it down, isn't it.", "Here you go. Same face as yesterday, I promise."],
+		"greet": ["Alright Dave? Night four of the swimming pool.", "Here you go. Same face as yesterday, I promise."],
 		"ok": "Cheers, mate.", "drive": "Don't let the bogeyman in.", "refused": "Seriously? I'm on there, Dave. Check again. ...Unbelievable."},
 	{"name": "Kevin Platt", "role": "Porter", "dept": "Portering Services", "staff_no": "40612", "expires": "06 / 1991",
 		"reg": "B908 RWD", "paint": Color(0.82, 0.82, 0.8), "style": "hatch", "skin": Color(0.88, 0.7, 0.58), "hair": Color(0.15, 0.12, 0.1),
 		"shirt": Color(0.6, 0.6, 0.62), "moustache": true, "admit": false, "delay": 34.0,
-		"greet": ["Evening. I'm covering for Mick Doyle, he's off sick.", "Nobody told you? Typical."],
+		"greet": ["Evening. Don't think we've met. I'm covering for Mick Doyle, he's off sick.", "Nobody told you? Typical."],
 		"ok": "Lovely. Knew you'd be sensible.", "drive": "Cheers, pal.", "refused": "You're joking. Right. I'll tell them you sent me home, shall I?"},
 	{"name": "Dr Helen Marsh", "role": "Registrar", "dept": "Accident & Emergency", "staff_no": "31105", "expires": "08 / 1990",
 		"reg": "F23 HLM", "paint": Color(0.1, 0.2, 0.14), "skin": Color(0.92, 0.76, 0.66), "hair": Color(0.12, 0.1, 0.08),
 		"hair_style": "long", "glasses": true, "shirt": Color(0.7, 0.72, 0.75), "card_color": Color(0.55, 0.08, 0.1),
 		"admit": true, "delay": 30.0,
-		"greet": ["Hello. Marsh, A&E. Sorry, I'm in a terrible hurry."],
+		"greet": ["Hello again. Marsh, A&E. Sorry, I'm in a terrible hurry. Again."],
 		"ok": "Thank you.", "drive": "Thanks. Stay dry.", "refused": "I'm the on-call registrar. If someone dies tonight it's on you."},
 	{"name": "Tom Baxter", "role": "Theatre Technician", "dept": "Main Theatres", "staff_no": "40562", "expires": "30 / 09 / 1989",
 		"reg": "A456 GNB", "paint": Color(0.33, 0.22, 0.12), "skin": Color(0.85, 0.65, 0.52), "hair": Color(0.45, 0.42, 0.4),
 		"shirt": Color(0.15, 0.4, 0.35), "admit": false, "delay": 34.0,
-		"greet": ["Evening. Bet you're glad you're inside tonight."],
+		"greet": ["Evening, Dave. Bet you're glad you're inside tonight.", "You didn't look at my card last night, you know. Very trusting."],
 		"ok": "Ta.", "drive": "Night, Dave.", "refused": "Expired? Oh, for... I've been meaning to get a new one. Fine. Fine."},
 	{"name": "Janet Lowe", "role": "Pharmacist", "dept": "Pharmacy", "staff_no": "40115", "expires": "01 / 1991",
 		"reg": "D310 YXE", "paint": Color(0.6, 0.62, 0.64), "style": "hatch", "skin": Color(0.95, 0.8, 0.7), "hair": Color(0.75, 0.72, 0.68),
 		"hair_style": "long", "glasses": true, "shirt": Color(0.5, 0.25, 0.45), "admit": true, "delay": 30.0,
-		"greet": ["Hiya. Only me.", "Have you heard? Someone's been sitting in a car in Row C all week. Gives me the creeps."],
+		"greet": ["Hiya Dave. Only me. Your fourth night of this, isn't it?", "Have you noticed? Someone's been sitting in a car in Row C every night since the flood. Gives me the creeps."],
 		"ok": "Lovely.", "drive": "Mind how you go.", "refused": "Me? I've been coming here eleven years, Dave."},
 	{"name": "R. Kessler", "role": "Night Security", "dept": "Lot C - Booth 2", "staff_no": "00217", "expires": "29 / 09 / 1989",
 		"org": "ASHFORD PARKING AUTHORITY", "card_color": Color(0.25, 0.27, 0.22), "stained": true,
@@ -161,12 +161,14 @@ func _wait(sec: float) -> void:
 # ------------------------------------------------------------------ phone
 func _dale_call() -> Array:
 	return [
-		["Dale", "Dave? It's Dale. Glad you made it in. Weather's foul."],
-		["Dale", "Hospital car park's flooded, so the night lot are coming through our gate tonight."],
-		["Dale", "They'll pull up on your left. Slide the side window open and take their staff card."],
-		["Dale", "Check the name's on tonight's list, and that the card's in date. The list's on the PC, in GateLog."],
-		["Dale", "If they're good, type their reg into GateLog, then the green button lifts the barrier."],
-		["Dale", "Not on the list, or the card's out of date? They don't come in. I don't care what they tell you."],
+		["Dale", "Dave? It's Dale. You got in alright, then. Roads are like rivers."],
+		["Dale", "Hospital car park's still under water. Fourth night now, so you know the drill."],
+		["Dale", "Their night lot come through our gate. They'll pull up on your left. Slide the window open, take the card."],
+		["Dale", "Name on tonight's list, card in date. The list's in GateLog on the PC, same as the last few nights."],
+		["Dale", "If they're good, type the reg into GateLog, then the green button lifts the barrier."],
+		["Dale", "Not on the list, or the card's out of date? They don't come in. I don't care how nice they are."],
+		["Dale", "Take your time with them, mind. Nobody gets in till you press that button."],
+		["Dale", "Facilities reckon the water'll be gone by Monday. Don't hold your breath."],
 		["Dale", "Right. I'm off to bed. Don't ring me."],
 	]
 
@@ -182,7 +184,7 @@ func _phone_call(lines: Array) -> void:
 	world.ambience.play_ui("handset", -8.0)
 	_lift_handset(true)
 	for l in lines:
-		await hud.say(l[0], l[1])
+		await hud.say(l[0], l[1], -1.0, true)
 	world.ambience.play_ui("handset", -8.0)
 	_lift_handset(false)
 

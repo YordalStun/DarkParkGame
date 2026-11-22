@@ -281,7 +281,7 @@ func _unhandled_input(event: InputEvent) -> void:
 			hud.set_paused(false)
 			return
 		if event.button_index == MOUSE_BUTTON_LEFT:
-			if not world.camera.hovered and hud.skip_line():
+			if (hud.waiting_click or not world.camera.hovered) and hud.skip_line():
 				return
 			if world.camera.hovered:
 				world.ambience.play_ui("mouse_click", -8.0)
@@ -289,6 +289,9 @@ func _unhandled_input(event: InputEvent) -> void:
 		elif event.button_index == MOUSE_BUTTON_RIGHT:
 			world.camera.back()
 	elif event is InputEventKey and event.pressed and not event.echo:
+		if hud.waiting_click and event.keycode in [KEY_SPACE, KEY_ENTER, KEY_KP_ENTER]:
+			hud.skip_line()
+			return
 		match event.keycode:
 			KEY_ESCAPE:
 				if not world.camera.back():
@@ -360,6 +363,12 @@ func _apply_args() -> void:
 		_strip_visuals()  # audio-only run: make software rendering fast
 	if _args.has("audiotest"):
 		_audio_stress_test()
+	if _args.has("answer"):   # testing: pick up the phone as soon as it rings
+		var t := Timer.new()
+		t.wait_time = 0.5
+		t.autostart = true
+		t.timeout.connect(story._on_phone)
+		add_child(t)
 	if _args.has("car"):
 		story.debug_visitor(int(_args.car))
 		if _args.has("idcard"):

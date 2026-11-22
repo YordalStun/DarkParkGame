@@ -14,6 +14,7 @@ var _sub_box: PanelContainer
 var _sub: RichTextLabel
 var _sub_id := 0
 var _sub_skip := false
+var waiting_click := false   ## a click-through line is up: any click moves it on
 var _note: Label
 var _note_id := 0
 var look_left_btn: Button   ## main.gd connects this to the camera
@@ -210,12 +211,18 @@ func _slider_row(parent: Control, title: String, value: float, on_change: Callab
 # ============================================================ story UI
 ## Subtitles: one line at a time with the speaker's name. Returns when the line is done
 ## (after `seconds`, or sooner if the player clicks to skip).
-func say(speaker: String, text: String, seconds := -1.0) -> void:
+## click_through: stay up until the player clicks (phone calls), however long that takes.
+func say(speaker: String, text: String, seconds := -1.0, click_through := false) -> void:
 	if seconds < 0.0:
-		seconds = clampf(1.2 + text.length() * 0.055, 2.2, 7.0)
+		seconds = clampf(1.6 + text.length() * 0.075, 3.0, 9.0)
+	if click_through:
+		seconds = INF
+	waiting_click = click_through
 	_sub_id += 1
 	var id := _sub_id
 	_sub.text = ("[color=#e8c070]%s:[/color]  %s" % [speaker.to_upper(), text]) if speaker != "" else "[i]%s[/i]" % text
+	if click_through:
+		_sub.text += "\n[right][color=#8a8a80][font_size=22]click to continue[/font_size][/color][/right]"
 	_sub_box.visible = true
 	_sub_skip = false
 	var left := seconds
@@ -225,6 +232,7 @@ func say(speaker: String, text: String, seconds := -1.0) -> void:
 			left -= get_process_delta_time()
 	if id == _sub_id:
 		_sub_box.visible = false
+		waiting_click = false
 
 
 ## Click while a line is showing: move on to the next one.
