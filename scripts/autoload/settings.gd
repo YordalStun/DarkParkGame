@@ -10,12 +10,12 @@ signal mix_changed  ## one of the channel levels below changed
 const PATH := "user://settings.cfg"
 const MASTER_DB := -3.0     ## fixed headroom (the limiter keeps peaks under -1.5 dBFS)
 ## Mix channels the pause screen shows a slider for: key -> label.
-const CHANNELS := {"weather": "RAIN & WEATHER", "music": "RADIO", "ambience": "ROOM & LOT"}
+const CHANNELS := {"weather": "RAIN & WEATHER", "music": "RADIO", "ambience": "ROOM & LOT", "cars": "CARS"}
 
 var volume := 0.8           ## 0..1
 var muted := false
 var fade := 0.0             ## 0..1, driven by the start-up fade-in
-var mix := {"weather": 0.7, "music": 1.0, "ambience": 1.0}   ## 0..1 each
+var mix := {"weather": 0.7, "music": 1.0, "ambience": 1.0, "cars": 0.8}   ## 0..1 each
 
 
 func _ready() -> void:

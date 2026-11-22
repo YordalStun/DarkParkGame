@@ -17,6 +17,7 @@ const LANE_X := -3.4
 const STOP_Z := 0.33
 const SPAWN_Z := 42.0
 const MAX_SPEED := 6.0
+const ENGINE_DB := -15.0   ## engine loudness before the CARS slider
 const ACCEL := 2.5
 const DECEL := 2.8
 
@@ -76,9 +77,9 @@ func _ready() -> void:
 	s.loop = true
 	_engine.stream = s
 	_engine.bus = "Outside"
-	_engine.unit_size = 4.0
+	_engine.unit_size = 2.0
 	_engine.max_db = 0.0
-	_engine.volume_db = -4.0
+	_engine.volume_db = ENGINE_DB + Settings.mix_db("cars")
 	_engine.position = Vector3(0, 0.6, 1.6)
 	add_child(_engine)
 	_engine.play(randf() * s.get_length())
@@ -136,6 +137,8 @@ func _process(delta: float) -> void:
 func _drive(delta: float) -> void:
 	if state in ["waiting", "parked", "gone"]:
 		_speed = 0.0
+		if _engine_on:
+			_engine.volume_db = ENGINE_DB + Settings.mix_db("cars")
 		return
 	var remaining := absf(_target - _dist)
 	var vmax := MAX_SPEED if state != "leaving" else 3.0
@@ -149,6 +152,7 @@ func _drive(delta: float) -> void:
 	_dist = move_toward(_dist, _target, _speed * delta)
 	_place()
 	_engine.pitch_scale = 0.9 + _speed * 0.11
+	_engine.volume_db = ENGINE_DB + _speed * 0.6 + Settings.mix_db("cars")
 	if absf(_target - _dist) < 0.01:
 		_reached()
 
@@ -197,7 +201,7 @@ func _park() -> void:
 	_engine_on = false
 	await get_tree().create_timer(1.6).timeout
 	if world:
-		world.ambience.play_at("car_door", global_position + global_basis * Vector3(-0.9, 1.0, 0), -2.0, "Outside", 6.0)
+		world.ambience.play_at("car_door", global_position + global_basis * Vector3(-0.9, 1.0, 0), -10.0 + Settings.mix_db("cars"), "Outside", 6.0)
 	_start_walk()
 	parked.emit()
 

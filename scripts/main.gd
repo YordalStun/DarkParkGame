@@ -88,6 +88,7 @@ func _ready() -> void:
 	add_child(inspect)
 	inspect.opened.connect(func(): world.camera.blocked = true)
 	inspect.closed.connect(func(_c): world.camera.blocked = false)
+	hud.overlay_changed.connect(func(o): world.camera.blocked = o)
 	story = Shift.new()
 	story.name = "Story"
 	add_child(story)

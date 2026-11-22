@@ -45,6 +45,8 @@ func set_pointer(p: Vector2) -> void:
 
 func _process(delta: float) -> void:
 	_t += delta
+	if blocked:
+		return   # an overlay is up (ID card, plate, report): hold the view still
 	if state == State.SEATED:
 		_update_seated(delta)
 	elif state == State.ZOOMED:

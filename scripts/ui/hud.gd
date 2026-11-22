@@ -56,7 +56,7 @@ func _ready() -> void:
 	pl.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	pl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	pl.text = "- PAUSED -\n\nClick to resume\nQ to quit"
-	pl.offset_bottom = -200
+	pl.offset_bottom = -230
 	_build_mixer()
 	_build_story_ui()
 
@@ -148,7 +148,7 @@ func _process(_delta: float) -> void:
 func _build_mixer() -> void:
 	var box := VBoxContainer.new()
 	box.set_anchors_and_offsets_preset(Control.PRESET_CENTER_BOTTOM)
-	box.offset_top = -230
+	box.offset_top = -250
 	box.offset_bottom = -40
 	box.offset_left = -300
 	box.offset_right = 300
@@ -170,7 +170,11 @@ func _build_mixer() -> void:
 		mute.set_pressed_no_signal(m))
 	for key in Settings.CHANNELS:
 		var k: String = key
-		_slider_row(box, Settings.CHANNELS[k], Settings.mix[k], func(v): Settings.set_mix(k, v))
+		var r := _slider_row(box, Settings.CHANNELS[k], Settings.mix[k], func(v): Settings.set_mix(k, v))
+		var pad := Control.new()
+		pad.custom_minimum_size = Vector2(mute.get_combined_minimum_size().x, 0)
+		pad.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		r.row.add_child(pad)
 
 
 func _slider_row(parent: Control, title: String, value: float, on_change: Callable) -> Dictionary:
@@ -253,7 +257,11 @@ func set_look_left(show: bool) -> void:
 
 
 ## End-of-night report card. Click to dismiss.
+signal overlay_changed(open: bool)
+
+
 func show_report(text: String) -> void:
+	overlay_changed.emit(true)
 	var bg := ColorRect.new()
 	bg.color = Color(0, 0, 0, 0.8)
 	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -269,6 +277,7 @@ func show_report(text: String) -> void:
 	create_tween().tween_property(bg, "modulate:a", 1.0, 1.5)
 	bg.gui_input.connect(func(e):
 		if e is InputEventMouseButton and e.pressed:
+			overlay_changed.emit(false)
 			bg.queue_free())
 
 
