@@ -282,6 +282,21 @@ func start() -> void:
 	_summary()
 
 
+## Testing (--walker): someone has just got out of their car and is walking to the hospital,
+## already most of the way along the aisle.
+func debug_walker(idx := 0, x := -52.0) -> void:
+	started = true
+	var p: Dictionary = ARRIVALS[idx]
+	var car = VisitorCar.new()
+	car.setup(world, p, Vector3(-9.0, -0.15, -11.9))
+	world.add_child(car)
+	await get_tree().process_frame
+	await get_tree().process_frame
+	car._start_walk()
+	car._walker.global_position = Vector3(x, -0.15, -7.4)
+	car._walk_path.pop_front()   # skip the leg from the car to the aisle
+
+
 ## Testing (--shiftend, with --time=6.98): the 07:00 hand-over, clocking out by itself after a few seconds.
 func debug_shift_end() -> void:
 	started = true

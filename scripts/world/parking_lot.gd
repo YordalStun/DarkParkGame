@@ -8,6 +8,7 @@ extends Node3D
 const StreetLamp := preload("res://scripts/world/street_lamp.gd")
 const BarrierGate := preload("res://scripts/world/barrier_gate.gd")
 const Store := preload("res://scripts/world/store.gd")
+const Hospital := preload("res://scripts/world/hospital.gd")
 
 const G := -0.15  # ground height
 
@@ -18,6 +19,7 @@ var trees: Array[Node3D] = []
 var cars: Array[Node3D] = []
 var payphone: Node3D
 var store: Node3D
+var hospital: Node3D   ## the A&E block the staff walk to (west end of the aisle)
 var _rng := RandomNumberGenerator.new()
 
 
@@ -29,6 +31,7 @@ func _ready() -> void:
 	_build_cars()
 	_build_gate_and_signs()
 	_build_store()
+	_build_hospital()
 	_build_fence()
 	_build_trees()
 	_build_distance()
@@ -188,6 +191,13 @@ func _build_gate_and_signs() -> void:
 
 
 ## The 24h store on the east edge, its front facing back across the lot.
+func _build_hospital() -> void:
+	hospital = Hospital.new()
+	hospital.name = "Hospital"
+	hospital.position = Vector3(-68.0, G, -7.4)   # the aisle the staff walk along ends at its doors
+	add_child(hospital)
+
+
 func _build_store() -> void:
 	store = Store.new()
 	store.name = "Store"

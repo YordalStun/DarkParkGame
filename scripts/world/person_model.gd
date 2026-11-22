@@ -22,6 +22,42 @@ const DESIGNS := {
 }
 
 
+## Which design suits a person, from their role (falls back to the porter look).
+## Open the umbrella this person carries (if any) after `delay` seconds, with the opening animation.
+static func open_umbrella(person: Node3D, delay := 0.0) -> void:
+	var um = person.get_meta("umbrella", null)
+	if um != null:
+		Umbrella.open_up(um as Node3D, delay)
+
+
+static func design_for(person: Dictionary) -> String:
+	var role: String = str(person.get("role", "")).to_lower()
+	if role.contains("nurse"):
+		return "nurse"
+	if role.contains("registrar") or role.contains("doctor"):
+		return "registrar"
+	if role.contains("technician"):
+		return "technician"
+	if role.contains("pharmac"):
+		return "pharmacist"
+	if role.contains("security"):
+		return "guard"
+	return "porter"
+
+
+## A walker for one of the night's arrivals: the matching design, wearing their own skin, hair
+## and glasses so each person is still recognisably themselves.
+static func from_arrival(person: Dictionary, with_umbrella: bool) -> Node3D:
+	var key := design_for(person)
+	var spec: Dictionary = (DESIGNS[key] as Dictionary).duplicate()
+	for k in ["skin", "hair", "hair_style", "glasses", "moustache"]:
+		if person.has(k):
+			spec[k] = person[k]
+	if person.has("shirt") and key not in ["nurse", "guard"]:
+		spec["top"] = (person.shirt as Color).lerp(spec.top, 0.5)
+	return build(spec, spec.umbrella if with_umbrella else "")
+
+
 static func build(spec: Dictionary, umbrella := "") -> Node3D:
 	var p := Node3D.new()
 	p.name = "Person"
@@ -34,11 +70,15 @@ static func build(spec: Dictionary, umbrella := "") -> Node3D:
 	var shoes := MK.mat(spec.get("shoes", Color(0.08, 0.06, 0.05)), "", 0.4)
 	var kind: String = spec.get("coat", "jacket")
 
-	# Legs and shoes.
-	for sx in [-0.085, 0.085]:
-		MK.cyl(p, 0.052, 0.062, 0.8, Vector3(sx, 0.47, 0), trousers, 7)
-		MK.box(p, Vector3(0.1, 0.07, 0.25), Vector3(sx, 0.035, 0.05), shoes)
-		MK.box(p, Vector3(0.1, 0.035, 0.1), Vector3(sx, 0.075, 0.12), shoes)
+	# Legs and shoes, each hanging from a hip pivot so a walker can swing them.
+	for side in [["LegL", -0.085], ["LegR", 0.085]]:
+		var leg := Node3D.new()
+		leg.name = side[0]
+		leg.position = Vector3(side[1], 0.9, 0)
+		p.add_child(leg)
+		MK.cyl(leg, 0.052, 0.062, 0.8, Vector3(0, -0.43, 0), trousers, 7)
+		MK.box(leg, Vector3(0.1, 0.07, 0.25), Vector3(0, -0.865, 0.05), shoes)
+		MK.box(leg, Vector3(0.1, 0.035, 0.1), Vector3(0, -0.825, 0.12), shoes)
 
 	# Body: hips, then the coat or tunic, then the shoulders.
 	var hem: float = {"jacket": 0.72, "mid": 0.52, "long": 0.32, "scrubs": 0.62}[kind]
@@ -139,7 +179,8 @@ static func build(spec: Dictionary, umbrella := "") -> Node3D:
 		# Move the canopy over the head: the pole leans in a little.
 		um.position.x = 0.3
 		p.add_child(um)
-		um.rotate_z(deg_to_rad(17.0))
+		um.rotation_degrees = Vector3(0, 0, 17.0)
+		p.set_meta("umbrella", um)
 	else:
 		MK.box(p, Vector3(0.1, 0.34, 0.11), Vector3(0.3, 1.27, 0.0), sleeve, Vector3(0, 0, 4))
 		MK.box(p, Vector3(0.09, 0.3, 0.1), Vector3(0.32, 0.98, 0.03), sleeve, Vector3(-6, 0, 2))

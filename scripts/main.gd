@@ -160,8 +160,12 @@ func _ready() -> void:
 		story.start()
 	if _args.has("pause"):
 		hud.set_paused(true)
+	if _args.has("walker"):
+		story.debug_walker(int(_args.walker) if str(_args.walker) != "true" else 0)
 	if _args.has("cctv"):
 		_cctv_grid()
+	if _args.has("hospcam"):
+		_hospital_cam()
 	var tw := create_tween()
 	tw.tween_interval(0.0 if quick else 0.3)
 	tw.tween_method(func(v): post.set_shader_parameter("fade", v), 0.0, 1.0, 0.01 if quick else 3.5)
@@ -477,6 +481,22 @@ func _parse_args() -> void:
 	if _args.has("pointer"):
 		var p: PackedStringArray = str(_args.pointer).split(",")
 		_args.pointer = Vector2(float(p[0]), float(p[1]))
+
+
+## Testing (--hospcam): a big picture from camera 1 re-aimed at the hospital end of the aisle.
+func _hospital_cam() -> void:
+	var c: Dictionary = world.cctv.cams[0]
+	c.viewport.size = Vector2i(1280, 720)
+	c.camera.look_at_from_position(Vector3(-44.0, 2.0, -2.0), Vector3(-60.0, 1.4, -7.4))
+	c.viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	var layer := CanvasLayer.new()
+	layer.layer = 50
+	add_child(layer)
+	var tr := TextureRect.new()
+	tr.texture = c.viewport.get_texture()
+	tr.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	tr.set_anchors_preset(Control.PRESET_FULL_RECT)
+	layer.add_child(tr)
 
 
 ## Testing (--cctv): shows the four camera feeds, with the CCTV look, in a 2x2 grid over everything.

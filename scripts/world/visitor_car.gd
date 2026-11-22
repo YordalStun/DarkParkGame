@@ -13,6 +13,7 @@ signal card_taken
 signal card_returned
 
 const G := -0.15
+const PersonModel := preload("res://scripts/world/person_model.gd")
 ## Lane and stopping point depend on the vehicle (its width, where the driver sits).
 var LANE_X := -3.4
 var STOP_Z := 0.33
@@ -389,27 +390,24 @@ func _build_interacts() -> void:
 # ------------------------------------------------------------------ getting out
 func _start_walk() -> void:
 	plate_interact.enabled = false
-	# The driver gets out on the right side and walks off west along the aisle, toward the hospital.
+	# The driver gets out on the right side and walks off west along the aisle to the A&E doors.
+	# A full standing figure takes over from the seated one in the cabin; if it is raining
+	# they have an umbrella, which stays furled until they have stepped out of the car.
 	_walker = Node3D.new()
 	get_parent().add_child(_walker)
 	var out := global_transform * Vector3(-1.3, 0.0, _model.seat.z)
 	_walker.global_position = Vector3(out.x, G, out.z)
-	_driver.get_parent().remove_child(_driver)
-	_walker.add_child(_driver)
-	_driver.transform = Transform3D(Basis(), Vector3(-_model.seat.x, 0.3, -_model.seat.z))   # seat -> standing
-	_arm.visible = false
-	_hand.visible = false
-	_thighs.visible = false
-	for c in _driver.get_children():
-		if c is VisualInstance3D:
-			c.layers = 1
-	var legs := MK.mat(Color(0.12, 0.12, 0.14), "", 0.8)
-	for sx in [-0.09, 0.09]:
-		MK.box(_driver, Vector3(0.12, 0.62, 0.13), _model.seat + Vector3(sx, 0.0, 0.0), legs)
-	_walk_path = [Vector3(out.x, G, -7.4), Vector3(-24.0, G, -7.4)]
+	_driver.visible = false
+	var raining: bool = Weather.rain > 0.1
+	_person = PersonModel.from_arrival(person, raining)
+	_walker.add_child(_person)
+	if raining:
+		PersonModel.open_umbrella(_person, 0.9)   # a moment after they are out of the door
+	_walk_path = [Vector3(out.x, G, -7.4), Vector3(-67.2, G, -7.4)]
 
 
 var _walk_path: Array = []
+var _person: Node3D
 
 
 func _walk(delta: float) -> void:
@@ -424,6 +422,9 @@ func _walk(delta: float) -> void:
 		_walk_path.pop_front()
 		return
 	var dir := to.normalized()
-	_walker.global_position += dir * 1.3 * delta
+	_walker.global_position += dir * 1.45 * delta
 	_walker.basis = Basis.looking_at(-dir, Vector3.UP)
-	_driver.position.y = 0.3 + absf(sin(Time.get_ticks_msec() * 0.009)) * 0.03
+	var phase := Time.get_ticks_msec() * 0.008
+	_person.position.y = absf(sin(phase)) * 0.03
+	(_person.get_node("LegL") as Node3D).rotation.x = sin(phase) * 0.5
+	(_person.get_node("LegR") as Node3D).rotation.x = -sin(phase) * 0.5

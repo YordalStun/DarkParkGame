@@ -50,6 +50,10 @@ static func build(style: String) -> Node3D:
 		_tri(st, m0, rm, m1, c)
 		_tri(st, m1, rm, r1, c)
 	var mesh := st.commit()
+	# The canopy and ribs hang off a pivot so the whole thing can fold shut and spring open.
+	var canopy := Node3D.new()
+	canopy.name = "Canopy"
+	root.add_child(canopy)
 	var mi := MeshInstance3D.new()
 	mi.mesh = mesh
 	var m := StandardMaterial3D.new()
@@ -61,7 +65,7 @@ static func build(style: String) -> Node3D:
 		m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 		m.roughness = 0.15
 	mi.material_override = m
-	root.add_child(mi)
+	canopy.add_child(mi)
 
 	# Pole, ferrule on top, ribs, and a crook handle.
 	var pole := MK.mat(d.pole, "", 0.4, 1.0, 0.4)
@@ -72,14 +76,14 @@ static func build(style: String) -> Node3D:
 		var a := TAU * i / panels
 		var from := Vector3(0, top + rise * 0.95, 0)
 		var to := Vector3(cos(a) * radius * 0.98, top + 0.005, sin(a) * radius * 0.98)
-		_rod(root, from, to, 0.005, rib)
+		_rod(canopy, from, to, 0.005, rib)
 	var handle := MK.mat(Color(0.2, 0.13, 0.08) if style != "clear" else Color(0.05, 0.05, 0.05), "", 0.5)
 	MK.cyl(root, 0.016, 0.016, 0.14, Vector3(0, 0.07, 0), handle, 6)
 	MK.cyl(root, 0.016, 0.016, 0.09, Vector3(0.045, -0.0, 0), handle, 6, Vector3(0, 0, 90))
 	MK.cyl(root, 0.016, 0.016, 0.07, Vector3(0.09, 0.03, 0), handle, 6)
 	if d.get("torn", false):
 		# One bent rib poking out through the hole.
-		_rod(root, Vector3(cos(0.0) * 0.1, top + 0.14, 0.0), Vector3(0.3, top - 0.1, 0.32), 0.006, rib)
+		_rod(canopy, Vector3(cos(0.0) * 0.1, top + 0.14, 0.0), Vector3(0.3, top - 0.1, 0.32), 0.006, rib)
 	return root
 
 
@@ -98,3 +102,24 @@ static func _rod(parent: Node3D, a: Vector3, b: Vector3, r: float, m: Material) 
 	var n := MK.cyl(parent, r, r, len, (a + b) * 0.5, m, 4)
 	n.look_at_from_position((a + b) * 0.5, b, Vector3.UP if absf((b - a).normalized().y) < 0.99 else Vector3.RIGHT)
 	n.rotate_object_local(Vector3.RIGHT, PI * 0.5)
+
+
+## 0 = furled tight against the pole, 1 = fully open.
+static func set_open(um: Node3D, t: float) -> void:
+	var canopy := um.get_node_or_null("Canopy") as Node3D
+	if canopy:
+		var r := lerpf(0.1, 1.0, t)
+		canopy.scale = Vector3(r, lerpf(1.25, 1.0, t), r)
+
+
+## Springs the umbrella open after `delay` seconds: it starts furled and pointed forward (the way
+## you carry it), swings up over the head and the canopy pops open with a small overshoot.
+## `rest_tilt` is the sideways lean it ends at (degrees).
+static func open_up(um: Node3D, delay := 0.0, rest_tilt := 17.0, duration := 0.55) -> void:
+	set_open(um, 0.0)
+	um.rotation_degrees = Vector3(-70.0, 0.0, rest_tilt * 0.3)
+	var tw := um.create_tween()
+	tw.tween_interval(delay)
+	tw.tween_property(um, "rotation_degrees", Vector3(-12.0, 0.0, rest_tilt * 0.6), duration * 0.45).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	tw.tween_method(func(t: float): set_open(um, t), 0.0, 1.0, duration).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tw.parallel().tween_property(um, "rotation_degrees", Vector3(0.0, 0.0, rest_tilt), duration).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)

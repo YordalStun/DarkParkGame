@@ -16,6 +16,8 @@ func _initialize() -> void:
 	get_root().size = Vector2i(1280, 720)
 	if what in ["all", "umbrellas"]:
 		await _sheet(out + "/umbrellas.png", _umbrellas(), Vector3(0, 1.45, 5.6), Vector3(0, 1.2, 0), 50.0, false)
+	if what == "open":
+		await _open_sequence(out)
 	if what in ["all", "people"]:
 		await _sheet(out + "/people.png", _people(), Vector3(0.4, 1.4, 6.2), Vector3(0.1, 1.0, 0), 50.0, false)
 	if what in ["all", "hospital"]:
@@ -100,3 +102,38 @@ func _sheet(path: String, content: Node3D, cam_pos: Vector3, look: Vector3, fov:
 	get_root().get_texture().get_image().save_png(path)
 	print("saved ", path)
 	root.queue_free()
+
+
+## The umbrella springing open: frames at fixed times after it starts (written as open_N.png).
+func _open_sequence(out: String) -> void:
+	var root := Node3D.new()
+	get_root().add_child(root)
+	var env := Environment.new()
+	env.background_mode = Environment.BG_COLOR
+	env.background_color = Color(0.2, 0.22, 0.26)
+	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
+	env.ambient_light_color = Color(0.6, 0.62, 0.66)
+	var we := WorldEnvironment.new()
+	we.environment = env
+	root.add_child(we)
+	var sun := DirectionalLight3D.new()
+	sun.rotation_degrees = Vector3(-35, 25, 0)
+	root.add_child(sun)
+	var spec: Dictionary = Person.DESIGNS.registrar
+	var p := Person.build(spec, "striped")
+	p.rotation_degrees.y = 35
+	root.add_child(p)
+	var cam := Camera3D.new()
+	cam.fov = 45
+	root.add_child(cam)
+	cam.look_at_from_position(Vector3(0.9, 1.5, 3.4), Vector3(0.15, 1.35, 0))
+	Person.open_umbrella(p, 0.0)
+	var t0 := Time.get_ticks_msec()
+	var i := 0
+	for t in [0.0, 0.12, 0.25, 0.4, 0.8]:
+		while (Time.get_ticks_msec() - t0) / 1000.0 < t:
+			await process_frame
+		await RenderingServer.frame_post_draw
+		get_root().get_texture().get_image().save_png("%s/open_%d.png" % [out, i])
+		i += 1
+	quit()
