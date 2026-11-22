@@ -13,6 +13,7 @@ const FAVORITES := [
 	["The Ashford Gazette", "http://www.ashfordgazette.com/"],
 	["Nightwatch Security Systems", "http://www.nightwatch-security.com/"],
 	["Ashford Parking Authority", "http://www.ashfordparking.gov/"],
+	["WorldWire News", "http://www.worldwire.com/"],
 	["Doug's Place", "http://home.freeweb.net/~dougk/"],
 	["Night Owls Message Board", "http://bbs.nightowls.net/"],
 	["CityWeather", "http://www.cityweather.net/"],
@@ -28,11 +29,12 @@ const INDEX := [
 	["http://bbs.nightowls.net/", "Night Owls Message Board", "A board for people who work nights. Security, cleaners, drivers.", "night shift bbs board security guards owls"],
 	["http://www.cityweather.net/", "CityWeather - Ashford forecast", "Today's forecast for Ashford and the valley.", "weather forecast ashford rain storm"],
 	["http://www.nightwatch-security.com/", "Nightwatch Security Systems", "Somebody is always watching the lot.", "nightwatch security systems cctv gate barrier"],
+	["http://www.worldwire.com/", "WorldWire - 1995 headlines", "National and world news wire: headlines from every month of 1995.", "news world headlines 1995 wire"],
 	["http://www.ashfordgazette.com/", "The Ashford Gazette Online", "Local news for Ashford County.", "ashford gazette news local"],
 	["http://home.freeweb.net/~dougk/", "Doug's Place", "Welcome to my homepage. Under construction.", "doug homepage freeweb trains cats"],
 ]
 
-const CANON := ["winnight.net", "findit.com", "nightwatch-security.com", "ashfordgazette.com", "ashfordparking.gov", "home.freeweb.net", "bbs.nightowls.net", "cityweather.net"]
+const CANON := ["worldwire.com", "winnight.net", "findit.com", "nightwatch-security.com", "ashfordgazette.com", "ashfordparking.gov", "home.freeweb.net", "bbs.nightowls.net", "cityweather.net"]
 
 
 static func canon_host(h: String) -> String:
@@ -53,6 +55,8 @@ static func get_page(url: String, vars: Dictionary) -> String:
 	var html := ""
 	if host == "findit.com" and path == "/search":
 		html = _search_page(u.query)
+	elif host == "worldwire.com":
+		html = _news_page(path, u.query)
 	else:
 		html = _SITES.get(host + path, "")
 	if html == "":
@@ -60,6 +64,163 @@ static func get_page(url: String, vars: Dictionary) -> String:
 	for k in vars:
 		html = html.replace("{{%s}}" % k, str(vars[k]))
 	return html
+
+
+
+# ------------------------------------------------------------------ WorldWire
+# Real 1995 headlines: [date, section, text]. Sections: world, uk, us, biz, sport, arts, sci.
+const SECTIONS := {"world": "World", "uk": "Britain", "us": "USA", "biz": "Business & Tech", "sport": "Sport", "arts": "Arts & Entertainment", "sci": "Science & Weather"}
+const NEWS := [
+	["1995-01-01", "world", "World Trade Organization is established to replace GATT; Austria, Finland and Sweden join the EU."],
+	["1995-01-01", "uk", "Fred West is found hanged in his cell at Winson Green Prison, Birmingham, while due to go on trial."],
+	["1995-01-10", "sport", "Manchester United sign Andy Cole from Newcastle United for 7 million pounds, a British transfer record."],
+	["1995-01-17", "world", "Great Hanshin earthquake strikes Japan's Hyogo Prefecture, killing thousands."],
+	["1995-01-31", "us", "Bill Clinton uses emergency powers to extend a $20 billion loan to Mexico during the peso crisis."],
+	["1995-02-02", "sport", "Tennis champion Fred Perry dies aged 85 in Melbourne, Australia, after a fall."],
+	["1995-02-14", "uk", "Sizewell B, the UK's only pressurised water reactor, is first synchronised with the National Grid."],
+	["1995-02-17", "biz", "Rover Group revives the MG brand with the MGF sports car, due on sale in September."],
+	["1995-02-23", "biz", "The Dow closes above 4,000 for the first time, at 4,003.33."],
+	["1995-02-26", "biz", "Barings Bank, Britain's oldest merchant bank, collapses after $1.4 billion in losses by rogue trader Nick Leeson."],
+	["1995-03-02", "biz", "Yahoo! is incorporated."],
+	["1995-03-14", "sci", "Norman Thagard becomes the first American to launch into space on a Russian vehicle, Soyuz TM-21."],
+	["1995-03-20", "world", "Aum Shinrikyo sarin attack on the Tokyo subway kills 14 and injures over a thousand."],
+	["1995-03-27", "arts", "Forrest Gump wins six awards, including Best Picture, at the 67th Academy Awards hosted by David Letterman."],
+	["1995-03-31", "arts", "Tejano singer Selena is shot dead in Corpus Christi, Texas, by her fan club president."],
+	["1995-04-16", "uk", "PhONEday changes all telephone area dialling codes across the UK."],
+	["1995-04-19", "us", "Car bomb destroys the Alfred P. Murrah Federal Building in Oklahoma City, killing 168 people."],
+	["1995-04-24", "us", "Unabomber bomb kills lobbyist Gilbert Murray in Sacramento, California."],
+	["1995-04-30", "biz", "US government stops funding NSFNET, leaving the internet fully privatized."],
+	["1995-05-10", "world", "Runaway locomotive at South Africa's Vaal Reefs gold mine sends a cage plunging down a shaft, killing 104."],
+	["1995-05-14", "sport", "Team New Zealand wins the America's Cup in San Diego, beating Stars & Stripes 5-0."],
+	["1995-05-17", "us", "Shawn Nelson steals an M60A3 tank in San Diego and rampages for 25 minutes before police shoot him."],
+	["1995-05-20", "sport", "Everton win the FA Cup with a 1-0 victory over Manchester United at Wembley."],
+	["1995-05-28", "world", "Neftegorsk earthquake strikes Sakhalin Island in Russia, killing 1,967 people."],
+	["1995-06-06", "world", "South Africa's Constitutional Court abolishes capital punishment."],
+	["1995-06-20", "arts", "Michael Jackson releases the double album HIStory: Past, Present and Future, Book I."],
+	["1995-06-24", "sport", "New Jersey Devils sweep the Detroit Red Wings to win their first Stanley Cup."],
+	["1995-06-28", "sci", "A heat wave begins across Great Britain and Ireland; the summer becomes the driest in recorded English history."],
+	["1995-06-29", "world", "Sampoong Department Store collapses in Seoul, killing 502 people."],
+	["1995-07-03", "sport", "Liverpool sign Stan Collymore from Nottingham Forest for 8.5 million pounds, another British transfer record."],
+	["1995-07-04", "uk", "John Major wins the Conservative Party leadership election, beating John Redwood 218 votes to 89."],
+	["1995-07-10", "world", "Aung San Suu Kyi is freed from house arrest in Burma."],
+	["1995-07-11", "world", "Bosnian Serb forces under Ratko Mladic enter Srebrenica and go on to kill thousands of Bosniak men and boys."],
+	["1995-07-13", "sci", "Dozens of US cities, including Chicago and Milwaukee, set all-time high temperature records during a heat wave."],
+	["1995-08-04", "world", "Croatian forces launch Operation Storm against Serb rebels in Krajina."],
+	["1995-08-07", "sci", "Chile declares a state of emergency in its south due to the \"White Earthquake\" storm."],
+	["1995-08-20", "uk", "BAPS Shri Swaminarayan Mandir, Europe's first traditional-style purpose-built Hindu temple, is inaugurated in Neasden."],
+	["1995-08-21", "us", "Atlantic Southeast Airlines Flight 529 crashes in Georgia after engine failure, killing nine of 29 aboard."],
+	["1995-08-24", "biz", "Microsoft releases Windows 95."],
+	["1995-09-02", "sport", "Frank Bruno wins the WBC world heavyweight championship."],
+	["1995-09-04", "world", "Fourth World Conference on Women opens in Beijing, running until 15 September."],
+	["1995-09-06", "sport", "Cal Ripken Jr. breaks the MLB consecutive games played record."],
+	["1995-09-09", "biz", "The first PlayStation is released in the US, and Kids' WB debuts on The WB."],
+	["1995-09-19", "us", "The Washington Post and The New York Times publish the Unabomber Manifesto."],
+	["1995-10-02", "arts", "Oasis release (What's the Story) Morning Glory?, which proves one of the most successful albums of all time."],
+	["1995-10-03", "us", "O. J. Simpson is found not guilty of the murders of Nicole Brown Simpson and Ronald Goldman."],
+	["1995-10-06", "sci", "Michel Mayor and Didier Queloz announce 51 Pegasi b, the first confirmed exoplanet orbiting a main-sequence star."],
+	["1995-10-24", "sci", "Total solar eclipse is visible from Iran, India, Thailand and Southeast Asia."],
+	["1995-10-28", "world", "Fire in the Baku Metro, Azerbaijan, kills 289 people, the world's deadliest subway disaster."],
+	["1995-10-28", "sport", "Atlanta Braves beat Cleveland Indians 4-2 to win their first World Series in Atlanta."],
+	["1995-11-04", "world", "Israeli Prime Minister Yitzhak Rabin is assassinated at a peace rally in Tel Aviv."],
+	["1995-11-07", "world", "Typhoon Angela devastates the Philippines and Vietnam, killing 882 people."],
+	["1995-11-14", "us", "A budget standoff between Democrats and Republicans forces a federal government shutdown."],
+	["1995-11-20", "uk", "Princess Diana is interviewed by Martin Bashir in a Panorama episode broadcast on BBC One."],
+	["1995-11-22", "arts", "Pixar and Disney release Toy Story, the first full-length computer-animated feature."],
+	["1995-11-22", "uk", "Rose West is convicted of murdering ten women and children at Winchester Crown Court and receives a life sentence."],
+	["1995-12-02", "biz", "Nick Leeson is jailed for six and a half years in Singapore on fraud charges linked to Barings' collapse."],
+	["1995-12-08", "uk", "Head teacher Philip Lawrence dies after being stabbed at his school's entrance in Maida Vale, North London."],
+	["1995-12-10", "world", "Joseph Rotblat wins the Nobel Peace Prize."],
+	["1995-12-13", "uk", "A riot takes place in Brixton, London."],
+	["1995-12-30", "sci", "Altnaharra in the Scottish Highlands matches the lowest UK temperature on record, -27.2 C."],
+]
+const TOP_STORIES := [16, 38, 45, 50, 3, 9, 54, 32]   # indices into NEWS
+const MONTHS := ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"]
+
+
+static func _nice_date(d: String) -> String:
+	var p := d.split("-")
+	return "%d %s %s" % [int(p[2]), MONTHS[int(p[1]) - 1], p[0]]
+
+
+static func _news_head(title: String) -> String:
+	var h := "<html><head><title>%s</title></head><body bgcolor=#ffffff text=#000000 link=#8b0000 vlink=#553333>" % title
+	h += "<table width=100%% border=0 cellpadding=6><tr><td bgcolor=#8b0000><font size=7 color=#ffffff><b>WorldWire</b></font><br><font size=2 color=#ffcccc>The wire service of the Net. 1995 headlines as they happened.</font></td></tr></table>"
+	h += "<font size=2><b><a href='/'>Top</a> | "
+	for k in SECTIONS:
+		h += "<a href='/%s.html'>%s</a> | " % [k, SECTIONS[k]]
+	h += "<a href='/archive.html'>Archive</a></b></font><hr>"
+	return h
+
+
+static func _news_li(i: int, with_section := false) -> String:
+	var e: Array = NEWS[i]
+	var tag := ("  <font size=1 color=#888888>[%s]</font>" % SECTIONS[e[1]]) if with_section else ""
+	return "<li><font size=2 color=#666666>%s</font> <a href='/story.html?id=%d'>%s</a>%s<br><br>" % [_nice_date(e[0]), i, e[2].xml_escape(), tag]
+
+
+static func _news_page(path: String, query: String) -> String:
+	var foot := "<hr><font size=2>(c) WorldWire 1995. Headlines compiled from the year's news. <a href='http://www.winnight.net/'>NightNet Start</a></font></body></html>"
+	if path == "/" or path == "":
+		var h := _news_head("WorldWire - Top Stories")
+		h += "<h2>Top stories of 1995</h2><ul>"
+		for i in TOP_STORIES:
+			h += _news_li(i, true)
+		h += "</ul><h3>Latest by section</h3><table width=100%% border=0 cellpadding=4><tr>"
+		var n := 0
+		for k in SECTIONS:
+			var items: Array = []
+			for i in NEWS.size():
+				if NEWS[i][1] == k:
+					items.append(i)
+			items.reverse()
+			h += "<td valign=top width=50%%><b><a href='/%s.html'>%s</a></b><ul>" % [k, SECTIONS[k]]
+			for j in mini(3, items.size()):
+				h += "<li><font size=2><a href='/story.html?id=%d'>%s</a></font>" % [items[j], NEWS[items[j]][2].xml_escape()]
+			h += "</ul></td>"
+			n += 1
+			if n % 2 == 0:
+				h += "</tr><tr>"
+		h += "</tr></table>" + foot
+		return h
+	if path == "/archive.html":
+		var h := _news_head("WorldWire - Archive") + "<h2>The 1995 archive</h2>"
+		var cur := ""
+		for i in NEWS.size():
+			var m: String = NEWS[i][0].substr(5, 2)
+			if m != cur:
+				if cur != "":
+					h += "</ul>"
+				cur = m
+				h += "<h3>%s 1995</h3><ul>" % MONTHS[int(m) - 1]
+			h += _news_li(i, true)
+		return h + "</ul>" + foot
+	if path == "/story.html":
+		var id := -1
+		for part in query.split("&"):
+			if part.begins_with("id="):
+				id = int(part.substr(3))
+		if id < 0 or id >= NEWS.size():
+			return ""
+		var e: Array = NEWS[id]
+		var h := _news_head(e[2].substr(0, 60))
+		h += "<font size=2 color=#666666>%s | %s | WorldWire</font>" % [_nice_date(e[0]), SECTIONS[e[1]]]
+		h += "<h2>%s</h2><p>%s</p>" % [e[2].xml_escape(), e[2].xml_escape()]
+		h += "<hr><b>More from %s</b><ul>" % SECTIONS[e[1]]
+		var shown := 0
+		for i in NEWS.size():
+			if i != id and NEWS[i][1] == e[1] and shown < 4:
+				h += _news_li(i)
+				shown += 1
+		return h + "</ul>" + foot
+	if path.ends_with(".html"):
+		var key := path.trim_prefix("/").trim_suffix(".html")
+		if SECTIONS.has(key):
+			var h := _news_head("WorldWire - " + SECTIONS[key]) + "<h2>%s</h2><ul>" % SECTIONS[key]
+			for i in range(NEWS.size() - 1, -1, -1):
+				if NEWS[i][1] == key:
+					h += _news_li(i)
+			return h + "</ul>" + foot
+	return ""
 
 
 static func _search_page(query: String) -> String:
@@ -77,7 +238,16 @@ static func _search_page(query: String) -> String:
 				score += 1
 		if score > 0:
 			hits.append([score, e])
+	for i in NEWS.size():
+		var hay2: String = NEWS[i][2].to_lower()
+		var sc := 0
+		for w in words:
+			if hay2.contains(w):
+				sc += 1
+		if sc > 0:
+			hits.append([sc, ["http://www.worldwire.com/story.html?id=%d" % i, NEWS[i][2].substr(0, 70), "WorldWire, %s" % _nice_date(NEWS[i][0]), ""]])
 	hits.sort_custom(func(a, b): return a[0] > b[0])
+	hits = hits.slice(0, 15)
 	var h := "<html><head><title>FindIt: %s</title></head><body bgcolor=#ffffff>" % q.xml_escape()
 	h += "<table width=100%% border=0><tr><td width=120><font size=6 color=#cc0000><b>FindIt!</b></font></td><td><font size=2>Searched the NightNet for: <b>%s</b></font></td></tr></table><hr>" % q.xml_escape()
 	if hits.is_empty():
@@ -114,6 +284,7 @@ const _SITES := {
 <h3>Around Ashford</h3>
 <ul>
 <li><a href="http://www.ashfordgazette.com/">The Ashford Gazette</a> - local news and classifieds
+<li><a href="http://www.worldwire.com/">WorldWire</a> - national and world headlines
 <li><a href="http://www.ashfordparking.gov/">Ashford Parking Authority</a> - car parks, permits and fines
 <li><a href="http://www.cityweather.net/">CityWeather</a> - up-to-the-hour forecast
 </ul>
@@ -226,7 +397,7 @@ const _SITES := {
 <td valign=top>
 <h3>In brief</h3>
 <ul><li>Fete cancelled due to rain<li>Library fines frozen<li>Sheep escape from farm on A41<li>Tree falls on garage on Church Lane</ul>
-<p><a href="/classifieds.html">Classifieds</a><br><a href="http://www.cityweather.net/">Weather</a></p>
+<p><a href="http://www.worldwire.com/">National and world news (WorldWire)</a><br><a href="/classifieds.html">Classifieds</a><br><a href="http://www.cityweather.net/">Weather</a></p>
 </td></tr></table>
 <hr><font size=2>(c) The Ashford Gazette. Reproduction without permission is prohibited.</font>
 </body></html>""",
