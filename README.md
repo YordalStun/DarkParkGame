@@ -99,6 +99,8 @@ The game is played entirely with the mouse.
 | Esc | Close a menu or dialog on the PC, else sit back, else pause (Q quits while paused) |
 | Keyboard | Typing works while you are using the PC |
 | F11 | Toggle fullscreen |
+| F12 | Testing menu (pause screen) |
+| WASD / arrows + mouse | Walk and look (only when you get up at the end of the shift) |
 
 Developer keys (for testing the atmosphere):
 

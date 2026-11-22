@@ -101,7 +101,6 @@ var _debug_skip := false
 var start_money := START_MONEY   ## coins brought forward from the last night (user://progress.cfg)
 var night := 1
 var money := START_MONEY   ## the coins shown top right; wages are settled when you clock out
-const PROGRESS := "user://progress.cfg"
 const EndScreen := preload("res://scripts/ui/end_screen.gd")
 var _shift_done := false
 var _pc_off := false
@@ -696,10 +695,10 @@ func _summary() -> void:
 	var es = EndScreen.new()
 	add_child(es)
 	es.next_night.connect(func(coins):
-		_save_progress(coins, night + 1)
+		SaveGame.finish_night(coins, ev.earned + ev.bonus, es.skipped_bills())
 		_restart())
 	es.start_again.connect(func():
-		_save_progress(START_MONEY, 1)
+		SaveGame.set_progress(START_MONEY, 1)
 		_restart())
 	es.show_night(ev, "END OF NIGHT %s" % word, "FRI 13 OCT 1989", _dale_note(ev))
 
@@ -715,18 +714,15 @@ func _dale_note(ev: Dictionary) -> String:
 
 
 func _load_progress() -> void:
-	var cfg := ConfigFile.new()
-	if cfg.load(PROGRESS) == OK:
-		start_money = int(cfg.get_value("career", "coins", START_MONEY))
-		night = int(cfg.get_value("career", "night", 1))
+	SaveGame.ensure_slot()
+	start_money = SaveGame.coins()
+	night = SaveGame.night()
 	money = start_money
 
 
+## Testing menu: set the coins and night in the current save slot.
 func _save_progress(coins: int, next_night: int) -> void:
-	var cfg := ConfigFile.new()
-	cfg.set_value("career", "coins", coins)
-	cfg.set_value("career", "night", next_night)
-	cfg.save(PROGRESS)
+	SaveGame.set_progress(coins, next_night)
 
 
 ## Start the next night from the top (only night one's story exists so far).
@@ -736,4 +732,5 @@ func _restart() -> void:
 	NightClock.running = true
 	Settings.set_fade(0.0)
 	get_tree().paused = false
+	SaveGame.skip_title = true
 	get_tree().reload_current_scene()

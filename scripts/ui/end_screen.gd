@@ -299,6 +299,15 @@ func _click() -> void:
 	p.finished.connect(p.queue_free)
 
 
+## The bills left unticked (unpaid) tonight.
+func skipped_bills() -> Array:
+	var out := []
+	for i in BILLS.size():
+		if BILLS[i][2] and not _ticks[i].button_pressed:   # optional ones (the bus pass) don't count
+			out.append(BILLS[i][0])
+	return out
+
+
 ## What's left after pay and the ticked bills.
 func coins_left() -> int:
 	var v := _start + _wages

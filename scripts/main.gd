@@ -42,6 +42,13 @@ var _desk_last := Vector2.ZERO
 func _ready() -> void:
 	_parse_args()
 
+	# Title screen (save slots) first, unless going straight on to the next night or testing.
+	if not SaveGame.skip_title and _shot_path == "" and not _args.has("notitle"):
+		var title = load("res://scripts/ui/title_screen.gd").new()
+		add_child(title)
+		await title.chosen
+	SaveGame.skip_title = false
+
 	# Show the loading screen before anything heavy happens.
 	_loading = LoadingScreen.new()
 	add_child(_loading)
@@ -75,11 +82,8 @@ func _ready() -> void:
 	_update_scale()
 
 	# Back-of-booth dressing: lived-in on night one, emptier and stranger from night two.
-	var prog := ConfigFile.new()
-	var night_no := 1
-	if prog.load("user://progress.cfg") == OK:
-		night_no = int(prog.get_value("career", "night", 1))
-	load("res://scripts/world/booth.gd").decor = "a" if night_no <= 1 else "b"
+	SaveGame.ensure_slot()
+	load("res://scripts/world/booth.gd").decor = "a" if SaveGame.night() <= 1 else "b"
 	if _args.has("booth"):   # testing: --booth=a | b
 		load("res://scripts/world/booth.gd").decor = str(_args.booth)
 	world = World.new()

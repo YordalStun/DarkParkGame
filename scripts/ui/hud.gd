@@ -248,6 +248,16 @@ func _build_pause_menu() -> void:
 	var resume := _menu_button("RESUME", 26)
 	resume.pressed.connect(func(): set_paused(false))
 	tabs.add_child(resume)
+	var title := _menu_button("TITLE", 26)
+	title.tooltip_text = "Back to the title screen (tonight starts again next time)"
+	title.pressed.connect(func():
+		get_tree().paused = false
+		NightClock.set_time(23, 4)
+		NightClock.shift_over = false
+		NightClock.running = true
+		Settings.set_fade(0.0)
+		get_tree().reload_current_scene())
+	tabs.add_child(title)
 	var quit := _menu_button("QUIT", 26)
 	quit.pressed.connect(func(): get_tree().quit())
 	tabs.add_child(quit)
