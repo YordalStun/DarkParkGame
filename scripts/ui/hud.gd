@@ -68,6 +68,16 @@ func _ready() -> void:
 	pl.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	pl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	pl.text = "- PAUSED -\n\nClick to resume\nQ to quit"
+	# Which build this is (so two downloads can't be mixed up).
+	var ver := _label(20, Color(0.55, 0.55, 0.5))
+	ver.reparent(_pause)
+	ver.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_LEFT)
+	ver.offset_left = 14
+	ver.offset_top = -30
+	ver.offset_right = 600
+	ver.offset_bottom = -8
+	ver.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	ver.text = "Dark Park v%s  -  build %s" % [ProjectSettings.get_setting("application/config/version", "?"), load("res://scripts/build_info.gd").BUILD]
 	pl.offset_bottom = -230
 	_build_mixer()
 	_build_story_ui()

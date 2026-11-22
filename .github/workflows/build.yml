@@ -39,6 +39,12 @@ jobs:
       - name: Fetch the Chromium web engine
         run: tools/fetch_cef.sh
 
+      - name: Stamp the build number
+        run: |
+          echo 'extends RefCounted' > scripts/build_info.gd
+          echo "const BUILD := \"${{ github.run_number }} (${GITHUB_SHA::7})\"" >> scripts/build_info.gd
+          cat scripts/build_info.gd
+
       - name: Export and package
         run: |
           godot=./Godot_v${GODOT_VERSION}-stable_linux.x86_64

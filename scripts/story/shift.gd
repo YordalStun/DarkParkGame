@@ -19,13 +19,14 @@ const VisitorCar := preload("res://scripts/world/visitor_car.gd")
 const DATE_TEXT := "Friday 13th October 1989  -  23:00 to 07:00"
 
 ## Tonight's list (what's on Dale's clipboard and in GateLog).
+## Alphabetical, like a real rota, so it never hints at who turns up when.
 const LIST := [
-	{"name": "PIKE, Sandra", "staff_no": "40217", "dept": "Staff Nurse - Ward 7"},
 	{"name": "ADEYEMI, Michael", "staff_no": "40388", "dept": "Porter"},
-	{"name": "MARSH, Dr Helen", "staff_no": "31105", "dept": "Registrar - A&E"},
 	{"name": "BAXTER, Tom", "staff_no": "40562", "dept": "Theatre Technician"},
-	{"name": "LOWE, Janet", "staff_no": "40115", "dept": "Pharmacy"},
 	{"name": "DOYLE, Mick", "staff_no": "40391", "dept": "Porter"},
+	{"name": "LOWE, Janet", "staff_no": "40115", "dept": "Pharmacy"},
+	{"name": "MARSH, Dr Helen", "staff_no": "31105", "dept": "Registrar - A&E"},
+	{"name": "PIKE, Sandra", "staff_no": "40217", "dept": "Staff Nurse - Ward 7"},
 ]
 
 ## Who actually turns up, in order. `admit` is the right call under Dale's rules.
