@@ -98,7 +98,11 @@ var _phone_ringing := false
 var _phone_answered := false
 var _ring: AudioStreamPlayer3D
 var _debug_skip := false
+var start_money := START_MONEY   ## coins brought forward from the last night (user://progress.cfg)
+var night := 1
 var money := START_MONEY   ## the coins shown top right; wages are settled when you clock out
+const PROGRESS := "user://progress.cfg"
+const EndScreen := preload("res://scripts/ui/end_screen.gd")
 var _shift_done := false
 var _pc_off := false
 var _order: Array = []       ## tonight's arrivals, shuffled (the 3am car always last)
@@ -112,6 +116,7 @@ func setup(p_world, p_hud, p_inspect) -> void:
 	hud = p_hud
 	camera = p_world.camera
 	inspect = p_inspect
+	_load_progress()
 	world.props.phone_interact.activated.connect(_on_phone)
 	world.props.logbook_interact.activated.connect(_on_logbook)
 	hud.set_money(money, false)
@@ -581,38 +586,61 @@ func evaluate() -> Dictionary:
 		if not real.has(e.key):
 			wrong.append("[color=#ffb060]You logged the plate '%s', which didn't match any car that came.[/color]" % e.reg)
 	var bonus := BONUS_PLATES if admitted > 0 and plates_ok == admitted else 0
-	var total := START_MONEY + earned + bonus
+	var total := start_money + earned + bonus
 	return {"rows": rows, "wrong": wrong, "earned": earned, "bonus": bonus, "total": total,
 		"right_in": right_in, "wrong_in": wrong_in, "admitted": admitted, "plates_ok": plates_ok,
-		"success": wrong_in == 0 and total > START_MONEY}
+		"start": start_money, "success": wrong_in == 0 and total > start_money}
+
+
+const NIGHT_WORDS := ["ONE", "TWO", "THREE", "FOUR", "FIVE", "SIX", "SEVEN", "EIGHT", "NINE", "TEN"]
 
 
 func _summary() -> void:
 	var ev := evaluate()
-	var t := "[center][font_size=40]END OF NIGHT ONE[/font_size][/center]\n"
-	if ev.success:
-		t += "[center][font_size=36][color=#7fe08a]SUCCESSFUL NIGHT[/color][/font_size][/center]\n\n"
-	else:
-		t += "[center][font_size=36][color=#ff6a5a]FAILED NIGHT[/color][/font_size][/center]\n\n"
-	t += "[center][font_size=34]TOTAL: %d coins[/font_size]\n[color=#b0b0a8]Start %d   Cars %+d   Plate bonus %+d[/color][/center]\n\n" % [ev.total, START_MONEY, ev.earned, ev.bonus]
-	for r in ev.rows:
-		var sign_ := "%+d" % r.delta if r.delta != 0 else " 0"
-		var col := "#7fe08a" if r.delta > 0 else ("#ff7060" if r.delta < 0 else "#b0b0a8")
-		t += "[color=%s]%s[/color]   %s:  %s\n" % [col, sign_, r.name, r.verdict]
-	t += "\n[color=#e8c070]PLATES LOGGED[/color]\n"
-	if ev.admitted == 0:
-		t += "You let nobody in, so there was nothing to log.\n"
-	else:
-		t += "%d of %d cars let in had the right plate logged.  " % [ev.plates_ok, ev.admitted]
-		t += ("[color=#7fe08a]+%d bonus![/color]\n" % BONUS_PLATES) if ev.bonus > 0 else "No bonus.\n"
-	t += "\n[color=#e8c070]WHERE YOU WENT WRONG[/color]\n"
-	if ev.wrong.is_empty():
-		t += "Nowhere. Every call by the book.\n"
-	else:
-		for w in ev.wrong:
-			t += "- " + w + "\n"
 	money = ev.total
-	world.props.terminal.add_log("SHIFT REPORT: %d COINS - %s" % [money, "SUCCESS" if ev.success else "FAILED"])
-	hud.show_report(t)
-	await _wait(1.8)
-	hud.set_money(money)
+	world.props.terminal.add_log("SHIFT REPORT: WAGES %+d" % (ev.earned + ev.bonus))
+	var word: String = NIGHT_WORDS[night - 1] if night <= NIGHT_WORDS.size() else str(night)
+	hud.visible = false
+	var es = EndScreen.new()
+	add_child(es)
+	es.next_night.connect(func(coins):
+		_save_progress(coins, night + 1)
+		_restart())
+	es.start_again.connect(func():
+		_save_progress(START_MONEY, 1)
+		_restart())
+	es.show_night(ev, "END OF NIGHT %s" % word, "FRI 13 OCT 1989", _dale_note(ev))
+
+
+## One line from Dale about the night (the first thing that went wrong, or a nod).
+func _dale_note(ev: Dictionary) -> String:
+	if ev.wrong.is_empty():
+		return "Dale: \"Not bad, Dave. Same again tonight.\""
+	var re := RegEx.new()
+	re.compile("\\[[^\\]]*\\]")
+	var first: String = re.sub(str(ev.wrong[0]), "", true)
+	return "Dale: \"%s\"" % first.strip_edges()
+
+
+func _load_progress() -> void:
+	var cfg := ConfigFile.new()
+	if cfg.load(PROGRESS) == OK:
+		start_money = int(cfg.get_value("career", "coins", START_MONEY))
+		night = int(cfg.get_value("career", "night", 1))
+	money = start_money
+
+
+func _save_progress(coins: int, next_night: int) -> void:
+	var cfg := ConfigFile.new()
+	cfg.set_value("career", "coins", coins)
+	cfg.set_value("career", "night", next_night)
+	cfg.save(PROGRESS)
+
+
+## Start the next night from the top (only night one's story exists so far).
+func _restart() -> void:
+	NightClock.set_time(23, 4)
+	NightClock.shift_over = false
+	Settings.set_fade(0.0)
+	get_tree().paused = false
+	get_tree().reload_current_scene()
