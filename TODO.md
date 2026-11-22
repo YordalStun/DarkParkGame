@@ -21,6 +21,8 @@ Running list for the game. Tick items off as they are done, and add new ones at 
 
 ## Builds
 
+- [ ] Mac port: export a macOS build (Godot export preset, signing and notarising, and check the Chromium web browser runs on Mac)
+
 - [ ] Confirm the Windows export still runs (`DarkPark.exe` plus the Chromium files)
 - [ ] Update the README "Status" section when a milestone is reached
 
