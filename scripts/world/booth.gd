@@ -240,7 +240,7 @@ func _build_side_window(yc: float, h: float) -> void:
 	add_child(marker)
 	side_view.zoom_marker = marker
 	side_view.zoom_fov = 62.0
-	side_view.zoom_look = Vector2(62.0, 34.0)
+	side_view.zoom_look = Vector2(46.0, 26.0)
 
 	side_pane_interact = Interactable.new()
 	side_pane_interact.prompt = "Open window"

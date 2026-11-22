@@ -16,6 +16,7 @@ var graphics := {
 	"pixels": 0, "fullscreen": false, "vsync": true, "fps_cap": 0,
 	"mist": true, "reflections": true, "ao": true, "glow": true,
 	"retro_colour": true, "grain": true, "shadows": true, "show_fps": false,
+	"motion": 0,   ## camera motion: 0 full, 1 reduced, 2 minimal
 }
 
 const PATH := "user://settings.cfg"

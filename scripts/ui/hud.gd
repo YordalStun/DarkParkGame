@@ -360,6 +360,8 @@ func _build_graphics(page: Control) -> void:
 	_toggle_row(page, "Fullscreen", "fullscreen", "  (F11)")
 	_toggle_row(page, "VSync", "vsync")
 	_toggle_row(page, "Show FPS", "show_fps")
+	_caption(page, "COMFORT")
+	_choice_row(page, "Camera motion", "motion", ["FULL", "REDUCED", "MINIMAL"])
 	_caption(page, "EFFECTS  (turn off for speed)")
 	_toggle_row(page, "Mist and light beams", "mist", "  (biggest cost)")
 	_toggle_row(page, "Wet reflections", "reflections")

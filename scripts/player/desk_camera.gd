@@ -74,20 +74,41 @@ func _shape(v: float) -> float:
 	return signf(v) * a * a * (3.0 - 2.0 * a) * 0.65 + signf(v) * a * 0.35
 
 
+## Comfort setting (GRAPHICS > Camera motion): how far the view turns, and how much it sways.
+const MOTION_RANGE := [1.0, 0.75, 0.55]
+const MOTION_SWAY := [1.0, 0.4, 0.0]
+
+
+func _range_k() -> float:
+	return MOTION_RANGE[clampi(int(Settings.graphics.get("motion", 0)), 0, 2)]
+
+
+func _sway_k() -> float:
+	return MOTION_SWAY[clampi(int(Settings.graphics.get("motion", 0)), 0, 2)]
+
+
+## Like _shape, but with a wider still zone in the middle (only the outer part of the screen turns).
+func _shape_soft(v: float) -> float:
+	var a := clampf((absf(v) - 0.3) / 0.7, 0.0, 1.0)
+	return signf(v) * a * a * (3.0 - 2.0 * a)
+
+
 func _update_seated(delta: float) -> void:
-	var ty := -_shape(pointer.x) * YAW_RANGE
+	var rk := _range_k()
+	var ty := -_shape(pointer.x) * YAW_RANGE * rk
 	var py := _shape(pointer.y)
-	var tp := BASE_PITCH - (py * PITCH_DOWN if py > 0.0 else py * PITCH_UP)
+	var tp := BASE_PITCH - (py * PITCH_DOWN if py > 0.0 else py * PITCH_UP) * rk
 	var k := 1.0 - exp(-delta * 3.2)
 	_yaw = lerpf(_yaw, ty, k)
 	_pitch = lerpf(_pitch, tp, k)
 
 	# Breathing and a little natural head sway.
-	var breath := sin(_t * 1.15) * 0.006
-	var sway := sin(_t * 0.37) * 0.004
+	var sk := _sway_k()
+	var breath := sin(_t * 1.15) * 0.006 * sk
+	var sway := sin(_t * 0.37) * 0.004 * sk
 	var head_turn := deg_to_rad(_yaw)
 	position = SEAT_POS + Vector3(-sin(head_turn) * 0.06 + sway, breath, -absf(sin(head_turn)) * 0.03)
-	rotation = Vector3(deg_to_rad(_pitch + sin(_t * 0.9) * 0.15), head_turn, deg_to_rad(sin(_t * 0.31) * 0.25))
+	rotation = Vector3(deg_to_rad(_pitch + sin(_t * 0.9) * 0.15 * sk), head_turn, deg_to_rad(sin(_t * 0.31) * 0.25 * sk))
 
 
 func _update_zoomed(delta: float) -> void:
@@ -99,14 +120,17 @@ func _update_zoomed(delta: float) -> void:
 		global_transform = target
 		return
 	# A view you can look around in (the side window): same edge-of-screen turning as seated.
-	var ty := -_shape(pointer.x) * focus.zoom_look.x
-	var py := _shape(pointer.y)
-	var tp := -py * focus.zoom_look.y
-	var k := 1.0 - exp(-delta * 3.2)
+	# Gentler than at the desk: a wide dead zone in the middle and a slow, soft follow,
+	# so reaching for the card or the buttons doesn't swing the whole view.
+	var rk := _range_k()
+	var ty := -_shape_soft(pointer.x) * focus.zoom_look.x * rk
+	var py := _shape_soft(pointer.y)
+	var tp := -py * focus.zoom_look.y * rk
+	var k := 1.0 - exp(-delta * 2.0)
 	_zyaw = lerpf(_zyaw, ty, k)
 	_zpitch = lerpf(_zpitch, tp, k)
 	var b := target.basis * Basis.from_euler(Vector3(deg_to_rad(_zpitch), deg_to_rad(_zyaw), 0))
-	var breath := Vector3(0, sin(_t * 1.15) * 0.004, 0)
+	var breath := Vector3(0, sin(_t * 1.15) * 0.004 * _sway_k(), 0)
 	global_transform = Transform3D(b, target.origin + breath)
 
 
@@ -207,9 +231,10 @@ func _update_walk(delta: float) -> void:
 			footstep.emit()
 	else:
 		_bob = lerpf(_bob, round(_bob / PI) * PI, 1.0 - exp(-delta * 6.0))
-	var bob_y := sin(_bob) * 0.022 if moving else sin(_bob) * 0.01
-	position = Vector3(p.x, EYE + bob_y + sin(_t * 1.1) * 0.003, p.y)
-	rotation = Vector3(_wpitch, _wyaw, sin(_bob * 0.5) * 0.004)
+	var sk := _sway_k()
+	var bob_y := (sin(_bob) * 0.022 if moving else sin(_bob) * 0.01) * sk
+	position = Vector3(p.x, EYE + bob_y + sin(_t * 1.1) * 0.003 * sk, p.y)
+	rotation = Vector3(_wpitch, _wyaw, sin(_bob * 0.5) * 0.004 * sk)
 
 
 func _free(p: Vector2) -> bool:
