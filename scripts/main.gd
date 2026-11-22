@@ -450,6 +450,13 @@ func _unhandled_input(event: InputEvent) -> void:
 				hud.set_paused(not hud.paused)
 			KEY_F11:
 				Settings.set_graphics("fullscreen", not Settings.graphics.fullscreen)
+			KEY_E:
+				# Standing: E uses what you're looking at (the door needs it to leave).
+				if world.camera.state == world.camera.State.WALK and world.camera.hovered and not world.camera.blocked:
+					var it = world.camera.hovered
+					it.key_used.emit()
+					if it == world.booth.light_switch:
+						it.activate()
 			KEY_F12:
 				# Testing menu.
 				hud.set_paused(true)

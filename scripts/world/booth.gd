@@ -431,7 +431,7 @@ func _build_decor() -> void:
 	_switch_rocker = MK.box(self, Vector3(0.025, 0.045, 0.02), Vector3(DOOR_X.x - 0.16, 1.25, bz - 0.02), MK.mat(Color(0.95, 0.94, 0.88), "", 0.4))
 	_switch_rocker.rotation_degrees.x = -12.0
 	light_switch = Interactable.new()
-	light_switch.prompt = "Light switch"
+	light_switch.prompt = "Light switch  [E]"
 	light_switch.add_box(Vector3(0.16, 0.2, 0.12), Vector3(DOOR_X.x - 0.16, 1.25, bz - 0.05))
 	add_child(light_switch)
 	light_switch.activated.connect(func(): set_light_on(not light_on))

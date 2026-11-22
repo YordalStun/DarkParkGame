@@ -6,6 +6,7 @@ extends Area3D
 ## If `zoom_marker` is set, clicking moves the camera to that marker (e.g. the CRT).
 
 signal activated
+signal key_used   ## the player pressed E while pointing at it (standing up)
 
 const LAYER := 2
 

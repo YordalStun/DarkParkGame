@@ -283,7 +283,7 @@ func debug_leave() -> void:
 		await _wait(3.5)
 		world.booth.light_switch.activate()
 		await _wait(1.0)
-		world.booth.door_interact.activate()
+		world.booth.door_interact.key_used.emit()
 	auto.call()
 	await _leave_booth()
 	debug_report()
@@ -370,16 +370,18 @@ func _leave_booth() -> void:
 	hud.set_crosshair(true)
 	hud.add_objective("light", "Turn off the light (switch by the door)")
 	hud.add_objective("leave", "Leave by the door behind you")
-	hud.notify("WASD to walk, mouse to look, click to use.", 6.0)
+	hud.notify("WASD to walk, mouse to look, click or E to use.", 6.0)
 	var booth = world.booth
 	booth.door_interact.enabled = true
-	booth.door_interact.prompt = "Leave"
+	booth.door_interact.prompt = "Leave  [E]"
+	booth.door_interact.activated.connect(func():
+		hud.notify("Press E to leave." if not booth.light_on else "Turn the light off first.", 3.0))
 	booth.light_switch.activated.connect(func():
 		world.ambience.play_at("radio_click", booth.light_switch.global_position, -4.0)
 		if not booth.light_on:
 			hud.complete_objective("light"))
 	while true:
-		await booth.door_interact.activated
+		await booth.door_interact.key_used
 		if booth.light_on:
 			hud.notify("Turn the light off first.", 3.0)
 			continue
