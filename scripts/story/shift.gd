@@ -270,14 +270,26 @@ func _on_card(car, p: Dictionary, res: Dictionary) -> void:
 	res.checked = true
 	inspect.show_id(p, LIST, DATE_TEXT)
 	var choice: String = await inspect.closed
-	car.return_card()
-	if choice == "refuse":
-		res.decided = "refused"
-		await hud.say(_short(p), p.refused)
-		if car.state == "waiting":
-			car.reverse_out()
-	else:
-		await hud.say(_short(p), p.ok)
+	if car.state != "waiting":
+		return   # the barrier went up meanwhile (that hands the card back)
+	match choice:
+		"refuse":
+			car.return_card()
+			res.decided = "refused"
+			await hud.say(_short(p), p.refused)
+			if car.state == "waiting":
+				car.reverse_out()
+		"ok":
+			# Handed back, but nothing is decided until the barrier goes up.
+			car.return_card()
+			car.card_interact.prompt = "Ask for the ID again"
+			car.card_interact.enabled = true
+			await hud.say(_short(p), p.ok)
+		_:
+			# Kept hold of it to go and check something. The driver waits.
+			car.card_interact.prompt = "Look at the ID card again"
+			car.card_interact.enabled = true
+			hud.notify("You keep hold of the card. The driver waits.", 3.5)
 
 
 func _on_plate(car, p: Dictionary) -> void:
@@ -298,9 +310,10 @@ func _on_raise() -> void:
 	if car != null and car.state == "waiting":
 		var res: Dictionary = results[results.size() - 1]
 		res.decided = "admitted"
+		if inspect.is_open:
+			inspect.close("ok")
 		if car.card_with_guard:
 			car.return_card()
-			inspect.close("ok")
 		hud.say(_short(car.person), car.person.drive)
 		await _wait(1.0)
 		car.drive_in()

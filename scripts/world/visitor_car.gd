@@ -209,6 +209,7 @@ func _park() -> void:
 # ------------------------------------------------------------------ the ID card
 ## Hold the ID card out of the window toward the booth.
 func offer_card() -> void:
+	card_interact.prompt = "Take ID card"
 	card_out = true
 	card_with_guard = false
 	_card.visible = true

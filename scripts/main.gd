@@ -86,8 +86,14 @@ func _ready() -> void:
 	inspect = Inspect.new()
 	inspect.name = "Inspect"
 	add_child(inspect)
-	inspect.opened.connect(func(): world.camera.blocked = true)
-	inspect.closed.connect(func(_c): world.camera.blocked = false)
+	inspect.opened.connect(func():
+		world.camera.blocked = true
+		hud._hint.visible = false
+		hud.set_look_back(false))
+	inspect.closed.connect(func(_c):
+		world.camera.blocked = false
+		hud._hint.visible = true
+		hud.set_look_back(world.camera.focus == world.booth.side_view))
 	hud.overlay_changed.connect(func(o): world.camera.blocked = o)
 	story = Shift.new()
 	story.name = "Story"
@@ -101,8 +107,14 @@ func _ready() -> void:
 	desk.state_changed.connect(func(on): hud.set_hint("Esc to sit back" if on else "Right click to sit back", on))
 	desk.sound.connect(func(n, db): world.ambience.play_ui(n, db))
 	world.camera.focus_changed.connect(func(f): desk.set_away(f != world.props.crt_interact))
-	world.camera.focus_changed.connect(func(f): hud.set_look_left(f == null))
+	world.camera.focus_changed.connect(func(f):
+		hud.set_look_left(f == null)
+		hud.set_look_back(f == world.booth.side_view))
 	world.camera.zoom_changed.connect(func(z): if z: hud.set_look_left(false))
+	hud.look_back_btn.pressed.connect(func():
+		if world.camera.state == world.camera.State.ZOOMED:
+			hud.set_look_back(false)
+			world.camera.unzoom())
 	hud.look_left_btn.pressed.connect(func():
 		if world.camera.state == world.camera.State.SEATED:
 			world.camera.zoom_to(world.booth.side_view))

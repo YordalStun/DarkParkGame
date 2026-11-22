@@ -35,6 +35,9 @@ func _ready() -> void:
 	_root.mouse_filter = Control.MOUSE_FILTER_STOP
 	_root.visible = false
 	add_child(_root)
+	_root.gui_input.connect(func(e):
+		if e is InputEventMouseButton and e.pressed and e.button_index == MOUSE_BUTTON_RIGHT:
+			close("hold" if _reg == "" else "done"))
 
 	_card = Control.new()
 	_card.draw.connect(_draw_card)
@@ -59,15 +62,15 @@ func _ready() -> void:
 	_caption.offset_left = -500
 	_caption.offset_right = 500
 	_caption.offset_top = 24
-	_caption.offset_bottom = 60
+	_caption.offset_bottom = 96
 	_root.add_child(_caption)
 
 	_buttons = HBoxContainer.new()
 	_buttons.alignment = BoxContainer.ALIGNMENT_CENTER
 	_buttons.add_theme_constant_override("separation", 30)
 	_buttons.set_anchors_and_offsets_preset(Control.PRESET_CENTER_BOTTOM)
-	_buttons.offset_left = -400
-	_buttons.offset_right = 400
+	_buttons.offset_left = -520
+	_buttons.offset_right = 520
 	_buttons.offset_top = -90
 	_buttons.offset_bottom = -36
 	_root.add_child(_buttons)
@@ -104,6 +107,7 @@ func show_id(person: Dictionary, staff_list: Array, date_text: String) -> void:
 	_list.visible = true
 	_plate.visible = false
 	_button("HAND IT BACK - OK", Color(0.3, 0.8, 0.35), "ok")
+	_button("HOLD ON TO IT", Color(0.75, 0.75, 0.7), "hold")
 	_button("REFUSE ENTRY", Color(0.9, 0.25, 0.2), "refuse")
 
 
@@ -120,7 +124,7 @@ func show_plate(reg: String) -> void:
 func _open(caption: String) -> void:
 	for c in _buttons.get_children():
 		c.queue_free()
-	_caption.text = caption
+	_caption.text = caption + ("\nEsc / right click: keep hold of it and decide later." if _reg == "" else "")
 	_root.visible = true
 	is_open = true
 	opened.emit()
@@ -140,10 +144,10 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	if event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:
 		get_viewport().set_input_as_handled()
-		close("ok" if _reg == "" else "done")
+		close("hold" if _reg == "" else "done")
 	elif event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_RIGHT:
 		get_viewport().set_input_as_handled()
-		close("ok" if _reg == "" else "done")
+		close("hold" if _reg == "" else "done")
 
 
 func _layout() -> void:

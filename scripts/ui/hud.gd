@@ -17,6 +17,7 @@ var _sub_skip := false
 var _note: Label
 var _note_id := 0
 var look_left_btn: Button   ## main.gd connects this to the camera
+var look_back_btn: Button   ## the > arrow in the side-window view
 
 
 func _ready() -> void:
@@ -251,9 +252,13 @@ func notify(text: String, seconds := 4.0) -> void:
 		create_tween().tween_property(_note, "modulate:a", 0.0, 0.8)
 
 
-## The arrow at the left edge of the screen for turning to the side window.
+## The arrows at the screen edges: < turns to the side window, > turns back to the desk.
 func set_look_left(show: bool) -> void:
 	look_left_btn.visible = show
+
+
+func set_look_back(show: bool) -> void:
+	look_back_btn.visible = show
 
 
 ## End-of-night report card. Click to dismiss.
@@ -323,9 +328,13 @@ func _build_story_ui() -> void:
 	_note.offset_right = 400
 	_note.modulate.a = 0.0
 
-	look_left_btn = Button.new()
-	look_left_btn.text = "<"
-	look_left_btn.tooltip_text = "Side window"
+	look_left_btn = _edge_button("<", true)
+	look_back_btn = _edge_button(">", false)
+
+
+func _edge_button(text: String, left: bool) -> Button:
+	var look_left_btn := Button.new()
+	look_left_btn.text = text
 	look_left_btn.focus_mode = Control.FOCUS_NONE
 	look_left_btn.add_theme_font_override("font", _font)
 	look_left_btn.add_theme_font_size_override("font_size", 54)
@@ -338,10 +347,11 @@ func _build_story_ui() -> void:
 	look_left_btn.add_theme_stylebox_override("pressed", hover)
 	look_left_btn.add_theme_color_override("font_color", Color(0.85, 0.85, 0.8, 0.45))
 	look_left_btn.add_theme_color_override("font_hover_color", Color(1, 0.9, 0.6, 0.95))
-	look_left_btn.set_anchors_and_offsets_preset(Control.PRESET_CENTER_LEFT)
-	look_left_btn.offset_left = 0
-	look_left_btn.offset_right = 54
+	look_left_btn.set_anchors_and_offsets_preset(Control.PRESET_CENTER_LEFT if left else Control.PRESET_CENTER_RIGHT)
+	look_left_btn.offset_left = 0 if left else -54
+	look_left_btn.offset_right = 54 if left else 0
 	look_left_btn.offset_top = -70
 	look_left_btn.offset_bottom = 70
 	look_left_btn.visible = false
 	add_child(look_left_btn)
+	return look_left_btn
