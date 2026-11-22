@@ -362,6 +362,8 @@ func _leave_booth() -> void:
 	await hud.big_button("GET UP")
 	hud.complete_objective("getup")
 	inspect.close()
+	world.booth.push_chair_back()
+	world.ambience.play_at("window_slide", world.booth.chair.global_position + Vector3(0, 0.3, 0), -16.0)
 	await camera.stand_up()
 	hud.set_look_left(false)
 	hud.set_look_back(false)

@@ -11,7 +11,7 @@ signal focus_changed(focus: Interactable)  ## zoomed in to something (null = sat
 enum State { SEATED, MOVING, ZOOMED, WALK }
 
 ## Standing up and walking (end of the shift only): first-person mouse look and WASD inside the booth.
-const EYE := 1.62
+const EYE := 1.5
 const WALK_SPEED := 1.35
 const BODY_R := 0.24
 var walk_blockers: Array = []    ## Rect2 in x/z the player can't walk into (furniture)
@@ -161,7 +161,7 @@ func stand_up() -> void:
 	hover_changed.emit("")
 	_wyaw = PI
 	_wpitch = deg_to_rad(-6.0)
-	var target := Transform3D(Basis.from_euler(Vector3(_wpitch, _wyaw, 0)), Vector3(0.1, EYE, 0.5))
+	var target := Transform3D(Basis.from_euler(Vector3(_wpitch, _wyaw, 0)), Vector3(0.42, EYE, 0.42))
 	var tw := create_tween().set_parallel(true)
 	tw.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 	tw.tween_property(self, "global_transform", target, 1.8)

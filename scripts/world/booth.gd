@@ -58,6 +58,7 @@ func _ready() -> void:
 	_build_desk()
 	_build_light()
 	_build_decor()
+	_build_chair()
 	_build_clock()
 
 	# Cancel the outdoor mist inside the booth.
@@ -520,6 +521,48 @@ func _decor_eerie() -> void:
 
 
 var _switch_rocker: MeshInstance3D
+var chair: Node3D   ## the desk chair (rolls back when you get up)
+
+
+## An office swivel chair at the desk: five-star base on castors, gas lift, padded seat and
+## back, armrests. Origin on the floor under the seat.
+func _build_chair() -> void:
+	chair = Node3D.new()
+	chair.name = "DeskChair"
+	chair.position = Vector3(0.0, 0.0, 0.5)
+	add_child(chair)
+	var fabric := MK.mat(Color(0.13, 0.16, 0.24), "", 0.95)        # worn navy upholstery
+	var plastic := MK.mat(Color(0.06, 0.06, 0.06), "", 0.5)
+	var steel := MK.mat(Color(0.55, 0.55, 0.55), "metal", 0.35, 1.0, 0.8)
+	# Base: five legs and castors.
+	for i in 5:
+		var a := i * TAU / 5.0 + 0.3
+		var tip := Vector3(cos(a), 0.0, sin(a)) * 0.3
+		var leg := MK.box(chair, Vector3(0.05, 0.035, 0.3), tip * 0.5 + Vector3(0, 0.09, 0), plastic)
+		leg.rotation.y = -a + PI * 0.5
+		MK.cyl(chair, 0.025, 0.025, 0.03, tip + Vector3(0, 0.03, 0), plastic, 8, Vector3(90, rad_to_deg(-a), 0))
+	MK.cyl(chair, 0.05, 0.05, 0.06, Vector3(0, 0.1, 0), plastic, 10)
+	MK.cyl(chair, 0.025, 0.025, 0.28, Vector3(0, 0.25, 0), steel, 10)          # gas lift
+	MK.box(chair, Vector3(0.22, 0.04, 0.22), Vector3(0, 0.39, 0), plastic)      # seat plate
+	# Seat cushion (rounded front edge) and the backrest on its stem.
+	MK.box(chair, Vector3(0.48, 0.08, 0.46), Vector3(0, 0.45, 0), fabric)
+	MK.cyl(chair, 0.04, 0.04, 0.48, Vector3(0, 0.45, -0.22), fabric, 8, Vector3(0, 0, 90))
+	MK.box(chair, Vector3(0.06, 0.32, 0.03), Vector3(0, 0.55, 0.25), plastic, Vector3(-8, 0, 0))
+	MK.box(chair, Vector3(0.44, 0.5, 0.08), Vector3(0, 0.88, 0.3), fabric, Vector3(-8, 0, 0))
+	MK.box(chair, Vector3(0.4, 0.44, 0.02), Vector3(0, 0.88, 0.345), plastic, Vector3(-8, 0, 0))
+	# Armrests.
+	for sx in [-0.26, 0.26]:
+		MK.box(chair, Vector3(0.03, 0.2, 0.03), Vector3(sx, 0.57, 0.02), plastic)
+		MK.box(chair, Vector3(0.06, 0.03, 0.28), Vector3(sx, 0.68, -0.02), plastic)
+
+
+## Getting up: the chair rolls back and swivels, and becomes something you walk round.
+func push_chair_back() -> void:
+	var tw := create_tween().set_parallel(true)
+	tw.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	tw.tween_property(chair, "position", Vector3(-0.32, 0.0, 0.78), 1.2)
+	tw.tween_property(chair, "rotation:y", deg_to_rad(28.0), 1.4)
+	walk_blockers.append(Rect2(-0.62, 0.48, 0.6, 0.6))
 
 
 ## The booth's ceiling light, by the switch at the door.
