@@ -444,6 +444,53 @@ func _refresh_objectives() -> void:
 	_obj_box.visible = not _objectives.is_empty()
 
 
+## Standing up: a dot in the middle of the view to aim with.
+func set_crosshair(on: bool) -> void:
+	if _cross == null:
+		_cross = ColorRect.new()
+		_cross.color = Color(0.92, 0.92, 0.86, 0.85)
+		_cross.size = Vector2(4, 4)
+		_cross.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
+		_cross.offset_left = -2
+		_cross.offset_top = -2
+		_cross.offset_right = 2
+		_cross.offset_bottom = 2
+		_cross.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		add_child(_cross)
+		move_child(_cross, 0)
+	_cross.visible = on
+
+
+## A big button at the bottom of the screen (e.g. "GET UP"). Returns when it's pressed.
+func big_button(text: String) -> void:
+	var b := Button.new()
+	b.text = text
+	b.focus_mode = Control.FOCUS_NONE
+	b.add_theme_font_override("font", _font)
+	b.add_theme_font_size_override("font_size", 34)
+	for st in ["normal", "hover", "pressed"]:
+		var sb := StyleBoxFlat.new()
+		sb.bg_color = Color(0.91, 0.75, 0.44) if st != "hover" else Color(1.0, 0.85, 0.55)
+		sb.content_margin_left = 30
+		sb.content_margin_right = 30
+		sb.content_margin_top = 4
+		sb.content_margin_bottom = 4
+		b.add_theme_stylebox_override(st, sb)
+	for c in ["font_color", "font_hover_color", "font_pressed_color"]:
+		b.add_theme_color_override(c, Color(0.05, 0.05, 0.05))
+	b.set_anchors_and_offsets_preset(Control.PRESET_CENTER_BOTTOM)
+	b.offset_left = -110
+	b.offset_right = 110
+	b.offset_top = -150
+	b.offset_bottom = -96
+	add_child(b)
+	await b.pressed
+	b.queue_free()
+
+
+var _cross: ColorRect
+
+
 func _build_story_ui() -> void:
 	_sub_box = PanelContainer.new()
 	var sb := StyleBoxFlat.new()

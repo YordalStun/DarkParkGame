@@ -110,6 +110,8 @@ func _ready() -> void:
 	story.setup(world, hud, inspect)
 	world.camera.hover_changed.connect(hud.set_prompt)
 	world.camera.focus_changed.connect(func(f): hud.set_zoomed(f != null))
+	world.camera.walk_blockers = world.booth.walk_blockers
+	world.camera.footstep.connect(func(): world.ambience.play_at("footstep", world.camera.global_position - Vector3(0, 1.5, 0), -10.0 + randf_range(-2, 1), "Interior", 1.0))
 	var desk = world.props.desktop
 	desk.world = world
 	desk.state_changed.connect(func(on): hud.set_hint("Esc to sit back" if on else "Right click to sit back", on))
@@ -136,7 +138,9 @@ func _ready() -> void:
 	await _loading.finish(0.01 if quick else 0.6)
 	_loaded = true
 	world.ambience.fade_in(0.01 if quick else 4.0)
-	if _args.has("shiftend"):
+	if _args.has("leave_booth"):
+		story.debug_leave()
+	elif _args.has("shiftend"):
 		story.debug_shift_end()
 	elif _args.has("report"):
 		story.debug_report()
@@ -178,7 +182,9 @@ func _process(_delta: float) -> void:
 		return
 	var win := get_tree().root
 	var size := Vector2(win.size)
-	if _args.has("pointer"):
+	if world.camera.state == world.camera.State.WALK:
+		world.camera.set_pointer(Vector2.ZERO)   # standing: you use what's in the middle of the view
+	elif _args.has("pointer"):
 		world.camera.set_pointer(_args.pointer)
 	elif size.x > 0.0:
 		var m := win.get_mouse_position()
@@ -212,7 +218,10 @@ func _update_desktop_mode(win_size: Vector2) -> void:
 	var focused := DisplayServer.window_is_focused()
 	var confine: bool = want and not hud.paused and focused
 	var mode := Input.MOUSE_MODE_VISIBLE
-	if confine:
+	var walking: bool = world.camera.state == world.camera.State.WALK
+	if walking and not hud.paused and focused and _shot_path == "":
+		mode = Input.MOUSE_MODE_CAPTURED
+	elif confine:
 		mode = Input.MOUSE_MODE_CONFINED_HIDDEN if over else Input.MOUSE_MODE_CONFINED
 	if Input.mouse_mode != mode:
 		Input.mouse_mode = mode
@@ -289,6 +298,9 @@ func _unhandled_input(event: InputEvent) -> void:
 	if not _loaded:
 		return
 	if not hud.paused and _desktop_input(event):
+		return
+	if event is InputEventMouseMotion and world.camera.state == world.camera.State.WALK and not hud.paused:
+		world.camera.look(event.relative)
 		return
 	if event is InputEventMouseButton and event.pressed:
 		if hud.paused:

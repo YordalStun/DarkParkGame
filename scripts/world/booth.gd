@@ -25,6 +25,7 @@ var door_interact: Interactable
 var light_switch: Interactable
 var light_on := true
 var exit_sign_mat: StandardMaterial3D
+var walk_blockers: Array = []   ## Rect2 (x, z) of furniture you can't walk through
 
 var light: OmniLight3D
 var fill: OmniLight3D
@@ -415,6 +416,7 @@ func _build_decor() -> void:
 	# Grey filing cabinet in the back-left corner.
 	var cab := MK.mat(Color(0.5, 0.52, 0.5), "metal", 0.5, 1.0, 0.3)
 	MK.box_from(self, Vector3(-1.78, 0, 0.95), Vector3(-1.3, 1.3, 1.58), cab, "FilingCabinet")
+	walk_blockers.append(Rect2(-1.78, 0.95, 0.48, 0.63))
 	for i in 3:
 		MK.box(self, Vector3(0.02, 0.02, 0.12), Vector3(-1.295, 1.1 - i * 0.42, 1.27), MK.mat(Color(0.8, 0.8, 0.78), "", 0.3, 1.0, 0.9))
 	# Over the door: a lit EXIT sign. Beside it: the light switch.
@@ -445,6 +447,9 @@ func _decor_lived_in() -> void:
 	var bz := BACK_Z
 	var steel := MK.mat(Color(0.36, 0.42, 0.48), "metal", 0.5, 1.0, 0.4)
 	var dark := MK.mat(Color(0.08, 0.08, 0.08), "", 0.6)
+	walk_blockers.append(Rect2(1.38, 0.42, 0.42, 0.84))   # lockers
+	walk_blockers.append(Rect2(-1.25, 0.66, 0.3, 0.18))   # heater
+	walk_blockers.append(Rect2(0.87, 0.07, 0.26, 0.26))   # bin
 	# Two staff lockers against the right wall.
 	for i in 2:
 		var z0 := 0.42 + i * 0.42
@@ -481,6 +486,9 @@ func _decor_lived_in() -> void:
 ## Design B: bare, cold, and someone else's things still here.
 func _decor_eerie() -> void:
 	var bz := BACK_Z
+	walk_blockers.append(Rect2(1.24, 0.7, 0.42, 0.4))     # chair
+	walk_blockers.append(Rect2(1.44, 1.22, 0.32, 0.32))   # bucket
+	walk_blockers.append(Rect2(-1.22, 1.17, 0.45, 0.35))  # lost property box
 	# A plastic stacking chair against the right wall, nobody's.
 	var orange := MK.mat(Color(0.75, 0.38, 0.12), "", 0.6)
 	var legs := MK.mat(Color(0.35, 0.35, 0.35), "metal", 0.4, 1.0, 0.6)

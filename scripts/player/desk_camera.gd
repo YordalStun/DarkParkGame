@@ -8,7 +8,19 @@ signal hover_changed(prompt: String)
 signal zoom_changed(zoomed: bool)
 signal focus_changed(focus: Interactable)  ## zoomed in to something (null = sat back)
 
-enum State { SEATED, MOVING, ZOOMED }
+enum State { SEATED, MOVING, ZOOMED, WALK }
+
+## Standing up and walking (end of the shift only): first-person mouse look and WASD inside the booth.
+const EYE := 1.62
+const WALK_SPEED := 1.35
+const BODY_R := 0.24
+var walk_blockers: Array = []    ## Rect2 in x/z the player can't walk into (furniture)
+var walk_bounds := Rect2(-1.6, -0.25, 3.2, 1.62)   ## x, z of the walkable floor
+var _wyaw := PI
+var _wpitch := 0.0
+var _bob := 0.0
+var _step_acc := 0.0
+signal footstep
 
 const SEAT_POS := Vector3(0.0, 1.2, 0.32)
 const BASE_PITCH := -5.0      # degrees, looking slightly down at the desk
@@ -51,6 +63,8 @@ func _process(delta: float) -> void:
 		_update_seated(delta)
 	elif state == State.ZOOMED:
 		_update_zoomed(delta)
+	elif state == State.WALK:
+		_update_walk(delta)
 
 
 func _shape(v: float) -> float:
@@ -109,7 +123,7 @@ func _physics_process(_delta: float) -> void:
 		return
 	var vp := get_viewport()
 	var size := Vector2(vp.size)
-	var screen := (pointer * 0.5 + Vector2(0.5, 0.5)) * size
+	var screen := (pointer * 0.5 + Vector2(0.5, 0.5)) * size if state != State.WALK else size * 0.5
 	var from := project_ray_origin(screen)
 	var to := from + project_ray_normal(screen) * 4.0
 	var q := PhysicsRayQueryParameters3D.create(from, to, 1 << (Interactable.LAYER - 1))
@@ -132,6 +146,80 @@ func _physics_process(_delta: float) -> void:
 	if it != hovered:
 		hovered = it
 		hover_changed.emit(it.prompt if it else "")
+
+
+# ------------------------------------------------------------------ standing up
+## Get up from the desk: rise and turn round to face the back of the booth, then walk.
+func stand_up() -> void:
+	if state == State.WALK:
+		return
+	if state == State.ZOOMED:
+		unzoom()
+		await zoom_changed
+	state = State.MOVING
+	hovered = null
+	hover_changed.emit("")
+	_wyaw = PI
+	_wpitch = deg_to_rad(-6.0)
+	var target := Transform3D(Basis.from_euler(Vector3(_wpitch, _wyaw, 0)), Vector3(0.1, EYE, 0.5))
+	var tw := create_tween().set_parallel(true)
+	tw.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	tw.tween_property(self, "global_transform", target, 1.8)
+	tw.tween_property(self, "fov", 70.0, 1.8)
+	await tw.finished
+	state = State.WALK
+
+
+## Mouse movement while standing (relative pixels).
+func look(rel: Vector2) -> void:
+	if state != State.WALK or blocked:
+		return
+	_wyaw -= rel.x * 0.0035
+	_wpitch = clampf(_wpitch - rel.y * 0.0035, deg_to_rad(-70), deg_to_rad(70))
+
+
+func _update_walk(delta: float) -> void:
+	var dir := Vector2.ZERO
+	if Input.is_key_pressed(KEY_W) or Input.is_key_pressed(KEY_UP):
+		dir.y -= 1.0
+	if Input.is_key_pressed(KEY_S) or Input.is_key_pressed(KEY_DOWN):
+		dir.y += 1.0
+	if Input.is_key_pressed(KEY_A) or Input.is_key_pressed(KEY_LEFT):
+		dir.x -= 1.0
+	if Input.is_key_pressed(KEY_D) or Input.is_key_pressed(KEY_RIGHT):
+		dir.x += 1.0
+	var p := Vector2(position.x, position.z)
+	var moving := dir != Vector2.ZERO and not blocked
+	if moving:
+		dir = dir.normalized().rotated(-_wyaw)
+		var step := dir * WALK_SPEED * delta
+		# Slide along walls and furniture: try each axis on its own.
+		var nx := p + Vector2(step.x, 0)
+		if _free(nx):
+			p = nx
+		var nz := p + Vector2(0, step.y)
+		if _free(nz):
+			p = nz
+		_bob += delta * 9.0
+		_step_acc += delta
+		if _step_acc > 0.48:
+			_step_acc = 0.0
+			footstep.emit()
+	else:
+		_bob = lerpf(_bob, round(_bob / PI) * PI, 1.0 - exp(-delta * 6.0))
+	var bob_y := sin(_bob) * 0.022 if moving else sin(_bob) * 0.01
+	position = Vector3(p.x, EYE + bob_y + sin(_t * 1.1) * 0.003, p.y)
+	rotation = Vector3(_wpitch, _wyaw, sin(_bob * 0.5) * 0.004)
+
+
+func _free(p: Vector2) -> bool:
+	var b := walk_bounds.grow(-BODY_R)
+	if not b.has_point(p):
+		return false
+	for r in walk_blockers:
+		if (r as Rect2).grow(BODY_R).has_point(p):
+			return false
+	return true
 
 
 ## Left click.

@@ -245,6 +245,25 @@ func debug_shift_end() -> void:
 	debug_report()
 
 
+## Testing (--leave_booth): skip to clocking out, then get up, switch off and leave by itself.
+func debug_leave() -> void:
+	started = true
+	_shift_done = true
+	_pc_off = true
+	var auto := func():
+		await _wait(1.0)
+		for c in hud.get_children():
+			if c is Button and c.text == "GET UP":
+				c.pressed.emit()
+		await _wait(3.5)
+		world.booth.light_switch.activate()
+		await _wait(1.0)
+		world.booth.door_interact.activate()
+	auto.call()
+	await _leave_booth()
+	debug_report()
+
+
 ## Testing (--report): a made-up night, ending on the report screen.
 func debug_report() -> void:
 	started = true
@@ -302,7 +321,50 @@ func _shift_over() -> void:
 	await clocked_out
 	hud.complete_objective("out")
 	world.ambience.play_ui("click2", -10.0)
-	await _wait(1.2)
+	await _wait(1.0)
+	await _leave_booth()
+
+
+## Get up, turn the light off by the door, and walk out. The door's sound plays as the
+## night fades out (the end-of-shift screen takes over from there).
+func _leave_booth() -> void:
+	hud.add_objective("getup", "Get up from the desk")
+	hud.set_look_left(false)
+	await hud.big_button("GET UP")
+	hud.complete_objective("getup")
+	inspect.close()
+	await camera.stand_up()
+	hud.set_look_left(false)
+	hud.set_look_back(false)
+	hud.set_crosshair(true)
+	hud.add_objective("light", "Turn off the light (switch by the door)")
+	hud.add_objective("leave", "Leave by the door behind you")
+	hud.notify("WASD to walk, mouse to look, click to use.", 6.0)
+	var booth = world.booth
+	booth.door_interact.enabled = true
+	booth.door_interact.prompt = "Leave"
+	booth.light_switch.activated.connect(func():
+		world.ambience.play_at("radio_click", booth.light_switch.global_position, -4.0)
+		if not booth.light_on:
+			hud.complete_objective("light"))
+	while true:
+		await booth.door_interact.activated
+		if booth.light_on:
+			hud.notify("Turn the light off first.", 3.0)
+			continue
+		break
+	hud.complete_objective("leave")
+	booth.door_interact.enabled = false
+	camera.blocked = true
+	hud.set_crosshair(false)
+	# The door: latch, creak open (a breath of rain), then it bangs shut as everything fades.
+	world.ambience.play_at("door_open_close", booth.door.global_position + Vector3(-0.4, 1.0, 0), -2.0, "Interior", 3.0)
+	var tw := create_tween()
+	tw.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	tw.tween_property(booth.door, "rotation:y", deg_to_rad(80.0), 1.2)
+	tw.tween_interval(0.6)
+	tw.tween_property(booth.door, "rotation:y", 0.0, 0.45).set_ease(Tween.EASE_IN)
+	await _wait(0.5)
 
 
 func _on_logbook() -> void:
