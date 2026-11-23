@@ -33,7 +33,6 @@ Running list for the game. Tick items off as they are done, and add new ones at 
 ## Desk
 
 - [ ] Mug: the inside of the mug is not modelled yet. Model the hollow inside so the mug looks right when looked into.
-- [ ] Mug: a hole in the mug (coffee leaks out or the mug is cracked). Applies all night, not just night two.
 
 ## Side hustle: hack the hospital (PC)
 
