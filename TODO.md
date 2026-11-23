@@ -30,6 +30,10 @@ Running list for the game. Tick items off as they are done, and add new ones at 
 
 - [ ] Wet sill from an open window: leaving the side window open lets rain in. The sill and the floor by the window get wet, the puddle grows the longer it stays open, and it dries after the window is shut. Dale can notice it.
 
+## Cars
+
+- [ ] Cars: the car interiors need to make sense. Some cars clip through the models of the people pulling up (the drivers), so check each car's seats and interior against where the driver sits.
+
 ## Desk
 
 - [ ] Mug: the inside of the mug is not modelled yet. Model the hollow inside so the mug looks right when looked into.
