@@ -346,7 +346,9 @@ func _update_desktop_mode(win_size: Vector2) -> void:
 	var confine: bool = want and not hud.paused and focused
 	var mode := Input.MOUSE_MODE_VISIBLE
 	var walking: bool = world.camera.state == world.camera.State.WALK
-	if walking and not hud.paused and focused and _shot_path == "":
+	if story.ending:
+		mode = Input.MOUSE_MODE_VISIBLE   # the end screen: you need the cursor to click NEXT NIGHT
+	elif walking and not hud.paused and focused and _shot_path == "":
 		mode = Input.MOUSE_MODE_CAPTURED
 	elif confine:
 		mode = Input.MOUSE_MODE_CONFINED_HIDDEN if over else Input.MOUSE_MODE_CONFINED

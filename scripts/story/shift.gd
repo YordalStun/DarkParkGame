@@ -400,6 +400,7 @@ func _watch_notes(before: String) -> void:
 
 
 var _notes_opened_since_call := false
+var ending := false             ## the end-of-night screen is up (the mouse must be free to click it)
 var night_flow_done := false   ## the cars and phone calls are over; only 07:00 is left (used by the autoplay watchdog)
 
 
@@ -1003,6 +1004,7 @@ const NIGHT_WORDS := ["ONE", "TWO", "THREE", "FOUR", "FIVE", "SIX", "SEVEN", "EI
 
 
 func _summary() -> void:
+	ending = true
 	var ev := evaluate()
 	money = ev.total
 	world.props.terminal.add_log("SHIFT REPORT: WAGES %+d" % (ev.earned + ev.bonus))
