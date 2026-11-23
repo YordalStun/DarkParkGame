@@ -621,12 +621,36 @@ func _open_desktop_for_test() -> void:
 		desk.toggle_start()
 	if _args.has("volpopup"):
 		desk._volume_popup()
+	# --hackstep=dial|login|wrong|files|done : put the hospital hack into that step (night 3, with --desktop=remote)
+	if _args.has("hackstep") and story.hack:
+		var h = story.hack
+		var step := str(_args.hackstep)
+		if step != "dial":
+			h.connect_to(h.GATEWAY_IP, 1)
+		if step == "wrong":
+			h.login("K.PLATT", "SPOT", 1)
+		if step in ["files", "done"]:
+			story.flags["clue_pet_biscuit"] = true
+			h.login(h.USER_ID, h.PASSWORD, 1)
+			h.start_download("rota", 1)
+			h.state.progress = 0.55
+		if step == "done":
+			h.state.progress = 0.99
+			h.state.downloaded.append("visitors")
+			h.download_finished.emit("visitors")   # saves it to C:\\DOWNLOADS
+			h.state.downloaded.append("rota")
+			h.download_finished.emit("rota")
+			story.risk = 22
+		if step == "login":
+			story.flags["clue_pet_biscuit"] = true
 	for id in str(_args.desktop).split(",", false):
 		if id == "1" or id == "true":
 			continue
 		var a := {}
 		if _args.has("url"):
 			a["url"] = _args.url
+		if _args.has("path"):
+			a["path"] = _args.path
 		desk.open_app(id, a)
 	# --dumpcams=dir : save each CCTV camera's raw picture as PNG
 	if _args.has("dumpcams"):

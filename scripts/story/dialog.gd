@@ -67,6 +67,9 @@ static func validate(tree: Dictionary) -> Array:
 		var n: Dictionary = nodes[nid]
 		if n.has("next") and str(n.next) != "" and not nodes.has(n.next):
 			errs.append("%s/%s: next '%s' doesn't exist" % [id, nid, n.next])
+		for e in n.get("effects", []):
+			if not (e.has("flag") or e.has("coins") or e.has("risk") or e.has("note")):
+				errs.append("%s/%s: unknown effect %s" % [id, nid, str(e)])
 		if not n.has("options"):
 			continue
 		var opts: Array = n.options
@@ -110,6 +113,10 @@ func run(tree: Dictionary, p_owner: int) -> Dictionary:
 		var n: Dictionary = nodes[current]
 		if str(n.get("text", "")) != "":
 			await say_fn.call(n.get("speaker", ""), n.text, false, false)
+		# Effects on a line itself apply once it has been said (what the player learns by hearing it).
+		for e in n.get("effects", []):
+			result.effects.append(e)
+			effect_fn.call(e)
 		if not n.has("options"):
 			current = str(n.get("next", ""))
 			continue

@@ -112,6 +112,9 @@ const NightTwo := preload("res://scripts/story/night_two.gd")
 ## The previous operator's margin notes (the logbook on the desk, night two on).
 const LOGBOOK_PAGE := "Mon   Quiet. Rain. Out of milk again.\n\nTue   Access road under water. Dale rang three times to ask if I was awake.\n\nWed   ROW C. Grey saloon. Been there since the flood. Nobody got out. Nobody got in. Bonnet was cold.\n\nThu   Still there. Counted the bays twice. Don't tell Dale.\n\nFri   It moved. Not far. Closer to the barrier. Light's on in the car, but nobody's in it.\n\n[i]... don't look at it for too long.[/i]"
 const Dialog := preload("res://scripts/story/dialog.gd")
+const Hack := preload("res://scripts/story/hack.gd")
+const Samples := preload("res://scripts/story/dialogs/samples.gd")
+var hack: Node                ## the hospital side hustle (night three on)
 ## Selectable dialog (night three on). Shared state: in co-op it is the HOST's copy that counts.
 var dialog: Node
 var flags := {}               ## story flags set by dialog effects (clues learned, favours owed...)
@@ -149,6 +152,8 @@ func setup(p_world, p_hud, p_inspect) -> void:
 		world.props.logbook_interact.prompt = "Read the logbook"
 	world.props.phone_interact.activated.connect(_on_phone.bind(local_player_id))
 	_setup_dialog()
+	if night >= 3:
+		_setup_hack()
 	if world.props.notepad_interact:
 		world.props.notepad_interact.activated.connect(open_notes)
 	world.props.logbook_interact.activated.connect(_on_logbook)
@@ -276,6 +281,9 @@ func start() -> void:
 		hud.add_objective("ids", "Check each visitor's ID against tonight's list")
 		hud.add_objective("log", "Log the plate of every car you let in")
 		hud.add_objective("shift", "Stay at your post until 07:00")
+	if night >= 3:
+		hud.add_objective("hack", "Side hustle: find the hospital's address on the PC and get in")
+		_watch_hack()
 	_watch_wet()
 	await _wait(2.0)
 	hud.notify("Cars arrive at the side window. Click  <  on the left, or the window itself.", 6.0)
@@ -296,6 +304,14 @@ func start() -> void:
 	night_flow_done = true   # every car and call is done: all that's left is waiting for 07:00
 	await _shift_over()
 	_summary()
+
+
+func _watch_hack() -> void:
+	while not _shift_done:
+		if hack and hack.state.logged_in:
+			hud.complete_objective("hack")
+			return
+		await _wait(1.0)
 
 
 ## A hint (once) when rain is blowing in through the open side window.
@@ -478,6 +494,44 @@ func _wait(sec: float) -> void:
 			left -= get_process_delta_time()
 
 
+# ------------------------------------------------------------------ the hospital side hustle
+func _setup_hack() -> void:
+	hack = Hack.new()
+	hack.name = "Hack"
+	add_child(hack)
+	hack.setup(self)
+	# Placeholder until night three's real conversations are written: Kevin Platt's window chat
+	# (his dog's name is the hospital gateway's password).
+	for p in arrivals:
+		if p.name == "Kevin Platt":
+			p["convo"] = Samples.window()
+	# Whoever started using the PC first owns it until they stop (co-op rule): sitting back or shutting
+	# down frees it. Everyone else can watch the screen but not act.
+	var desk = world.props.desktop
+	desk.away_changed.connect(func(away: bool): _set_pc_owner(0 if away else local_player_id))
+	desk.state_changed.connect(func(on: bool):
+		if not on:
+			_set_pc_owner(0))
+	hack.download_finished.connect(func(id: String):
+		desk.vfs.make_dir("C:\\DOWNLOADS")
+		desk.vfs.write("C:\\DOWNLOADS\\" + Hack.FILES[id].name, hack.file_text(id))
+		hud.notify("Download finished: " + Hack.FILES[id].name, 4.0)
+		flags["got_" + id] = true)
+
+
+func _set_pc_owner(id: int) -> void:
+	if hack and (id == 0 or hack.pc_owner == 0):
+		hack.pc_owner = id
+
+
+## The risk of being caught goes up with each hacking action (0-100). At 100 the session is cut.
+func add_risk(n: int) -> void:
+	risk = clampi(risk + n, 0, 100)
+	if risk >= 100 and hack and not hack.state.dead:
+		hack.caught()
+		hud.notify("SECURITY ALERT: the hospital has cut your session.", 6.0)
+
+
 # ------------------------------------------------------------------ selectable dialog
 func _setup_dialog() -> void:
 	dialog = Dialog.new()
@@ -521,7 +575,7 @@ func _apply_effect(e: Dictionary) -> void:
 	if e.has("coins"):
 		dialog_coins += int(e.coins)
 	if e.has("risk"):
-		risk = clampi(risk + int(e.risk), 0, 100)
+		add_risk(int(e.risk))
 	if e.has("note"):
 		notes += ("\n" if notes != "" else "") + str(e.note)
 		list_changed.emit()

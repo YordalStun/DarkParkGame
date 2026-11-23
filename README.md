@@ -131,9 +131,14 @@ tools/playtest.sh /path/to/godot                 # nights 1 and 2, three play st
 godot --headless --path . -- --autoplay --night=2 --speed=30
 ```
 
-Styles: `--autoplay` (perfect), `=sloppy` (lets everyone in, logs nothing), `=notes_early` (writes
+Styles: `--autoplay` (perfect; on night 3 it also takes the dog question, then dials the hospital, logs in and downloads), `=timeout` (lets every dialog timer run out), `=sloppy` (lets everyone in, logs nothing), `=notes_early` (writes
 the ward's changes down during the call). `--speed=N` runs the game N times faster and
 `--night=N` starts on that night. Both write a save slot, so use a throwaway `HOME` (the script does).
+
+Other testing flags (add after `--`): `--carstyle=sports` (a car with its driver at the window),
+`--wet=0.9` (wet sill), `--logbook`, `--car=0 --idcard` (the ID card), `--dialog=window|phone|patrol`,
+`--desktop=remote --hackstep=dial|login|wrong|files|done --night=3` (the hospital connect tool),
+`--desktop=notepad --path=C:\DOWNLOADS\VISITORS.DAT`, `--time=6.5`, `--weather=storm`, `--cam=x,y,z,yaw,pitch`.
 
 ## Building the game
 

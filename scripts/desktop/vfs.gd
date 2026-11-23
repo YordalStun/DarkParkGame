@@ -215,6 +215,10 @@ func _build() -> void:
 	_file("C:\\MY DOCUMENTS\\PATROL.TXT", PATROL)
 	_file("C:\\MY DOCUMENTS\\TO DO.TXT", "- buy batteries for the torch\n- ring mum back (Sunday)\n- ask Dale about the side door\n- stop looking at row C on the monitor\n")
 
+	# Night three on: somebody left a hospital IT memo in the temp folder (the leaked IP address).
+	if SaveGame.night() >= 3:
+		_file("C:\\WINDOWS\\TEMP\\ITMEMO.TXT", IT_MEMO)
+
 	# The floppy a previous operator left behind.
 	_file("A:\\KESSLER.TXT", KESSLER)
 	_file("A:\\LOT_C.BMP", "", 76854)
@@ -225,6 +229,26 @@ func _build() -> void:
 	_file("C:\\RECYCLED\\ROW C.WAV", "", 884210)
 	_file("C:\\RECYCLED\\DO NOT OPEN.TXT", "I told you.\n")
 
+
+const IT_MEMO := """ASHFORD GENERAL HOSPITAL  -  I.T. DEPARTMENT
+INTERNAL MEMO  (DO NOT FORWARD, DO NOT LEAVE ON THE SHARED DRIVE)
+=====================================================================
+
+The remote clinic gateway is now live for out-of-hours staff.
+
+   Host address:   10.113.7.20      (modem pool, answers 24 hours)
+   User ID:        first initial, a dot, then surname.  e.g.  S.PIKE
+   Password:       as issued by Personnel
+
+Until the new system arrives, passwords stay as originally chosen.
+Several staff told us that "something personal" is easiest to remember,
+and we have decided that is fine for now.
+
+Please do not write your password down.
+
+Regards,
+Keith, I.T. (ext. 3318)
+"""
 
 const README := """NIGHTWIN 95  -  NIGHTWATCH WORKSTATION EDITION
 ================================================

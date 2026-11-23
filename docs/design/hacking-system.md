@@ -40,6 +40,25 @@ detailed enough for a build session to work from without this chat.
 - If caught mid-download: the connection is cut and the hospital calls the
   player shortly after.
 
+## Built so far (23 Nov 2026)
+
+- **The leak:** `C:\WINDOWS\TEMP\ITMEMO.TXT` (night three on) holds the gateway address `10.113.7.20`, the
+  user id format (first initial, dot, surname) and a line saying staff passwords are "something personal".
+  The Gazette hacker article (nights 2 and 3) mentions a memo "left lying around in a temp folder".
+- **Connect:** the NightLink desktop icon / Start menu entry (night three on) opens NightLink Remote Connect:
+  dial the IP, log in, list files, download, hang up. A wrong IP gets "No answer".
+- **Password:** user `K.PLATT`, password `BISCUIT` (Kevin Platt's dog). The clue comes from Kevin's window
+  conversation (a placeholder: `scripts/story/dialogs/samples.gd`, attached on night three), which sets the
+  flag `clue_pet_biscuit` and writes a line in the player's notepad. Three wrong tries lock the account
+  for 60 s. Not case sensitive.
+- **Files:** `ROTA.TXT` (25 s), `VISITORS.DAT` (45 s, built from tonight's real arrivals) and `PATIENTS.DB`
+  (110 s). Saved to `C:\DOWNLOADS`. One transfer at a time.
+- **Risk:** a meter in the app (0-100): +2 per dial, +3 per login, +6 per wrong password, +4/+8/+15 per
+  download. At 100 the session is cut and the gateway stays shut for the night (the proper consequence is
+  still to decide).
+- **Co-op:** runs on the host; every action takes a player id; only the PC's owner (first to use it, until
+  they sit back or shut down) can act. `tools/hack_test.gd` checks it; the autoplay bot plays it on night 3.
+
 ## Open questions
 
 - What happens when Dave is caught.

@@ -34,6 +34,7 @@ const APPS := {
 	"snake": {"title": "NightSnake", "icon": "snake", "size": Vector2(330, 322), "max": false, "resize": false},
 	"camlink": {"title": "CamLink CCTV v1.3", "icon": "cam", "size": Vector2(420, 330), "min_size": Vector2(300, 240)},
 	"gatectl": {"title": "Gate Control", "icon": "gate", "size": Vector2(300, 190), "max": false, "resize": false},
+	"remote": {"title": "NightLink Remote Connect", "icon": "dos", "size": Vector2(380, 340), "max": false, "resize": false},
 	"gatelog": {"title": "GateLog - Vehicle Entry", "icon": "doc", "size": Vector2(470, 370), "min_size": Vector2(380, 300)},
 	"help": {"title": "NightWin Help", "icon": "help", "size": Vector2(420, 300)},
 	"find": {"title": "Find: All Files", "icon": "find", "size": Vector2(380, 280)},
@@ -351,6 +352,8 @@ func _build_icons() -> void:
 		["Solitaire", "cards", func(): open_app("solitaire")],
 		["NightSnake", "snake", func(): open_app("snake")],
 	]
+	if SaveGame.night() >= 3:   # the side hustle's dial-up tool (night three on)
+		defs.append(["NightLink", "dos", func(): open_app("remote")])
 	var i := 0
 	for d in defs:
 		var ic: Control = DesktopIcon.new()
@@ -795,7 +798,7 @@ func _start_items() -> Array:
 			{"text": "CamLink CCTV", "icon": _ico("cam"), "act": app.call("camlink")},
 			{"text": "Gate Control", "icon": _ico("gate"), "act": app.call("gatectl")},
 			{"text": "GateLog", "icon": _ico("doc"), "act": app.call("gatelog")},
-		]},
+		] + ([{"text": "NightLink Remote", "icon": _ico("dos"), "act": app.call("remote")}] if SaveGame.night() >= 3 else [])},
 		{"sep": true},
 		{"text": "MS-DOS Prompt", "icon": _ico("dos"), "act": app.call("dos")},
 		{"text": "NightNet Explorer", "icon": _ico("globe"), "act": app.call("browser")},

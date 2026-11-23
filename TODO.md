@@ -28,24 +28,24 @@ Running list for the game. Tick items off as they are done, and add new ones at 
 
 ## Night 2
 
-- [ ] Wet sill from an open window: leaving the side window open lets rain in. The sill and the floor by the window get wet, the puddle grows the longer it stays open, and it dries after the window is shut. Dale can notice it.
+- [x] Wet sill from an open window: leaving the side window open lets rain in. The sill and the floor by the window get wet, the puddle grows the longer it stays open, and it dries after the window is shut. Dale can notice it.
 
 ## Cars
 
-- [ ] Cars: the car interiors need to make sense. Some cars clip through the models of the people pulling up (the drivers), so check each car's seats and interior against where the driver sits.
+- [x] Cars: the car interiors need to make sense. Some cars clip through the models of the people pulling up (the drivers), so check each car's seats and interior against where the driver sits.
 
 ## Desk
 
-- [ ] Mug: the inside of the mug is not modelled yet. Model the hollow inside so the mug looks right when looked into.
+- [x] Mug: the inside of the mug is not modelled yet. Model the hollow inside so the mug looks right when looked into.
 
 ## Side hustle: hack the hospital (PC)
 
 - [x] Night 3: selectable dialog. Lines show 2-4 numbered options under the speaker (click or keys 1-4). System built; night three's real conversations still to write (docs/design/coop-notes.md)
-- [ ] Find the hospital's IP in a leaked file or web page, then connect to it from the PC
-- [ ] Hospital login needs a password. Clues come from the NPCs (e.g. a pet's name), learned as they arrive in the car park
+- [x] Find the hospital's IP in a leaked file or web page, then connect to it from the PC
+- [x] Hospital login needs a password. Clues come from the NPCs (e.g. a pet's name), learned as they arrive in the car park
 - [ ] Once in, see the data of the people letting in (visitor details)
 - [ ] Bribe visitors, or use the stolen data some other way (payoff details still to decide)
-- [ ] Overnight file transfers that run while the shift goes on, finishing before 07:00
+- [ ] Overnight file transfers that run while the shift goes on, finishing before 07:00 (basic downloads exist: three files, 25-110 s each, saved to C:\DOWNLOADS; the overnight/background version is still to do)
 - [ ] Risk of getting caught grows with each action (what happens when caught is still to decide)
 - [ ] Decide what happens when caught (fired, game over, or a fine)
 - [ ] Decide the exact payoff: coins from bribes, story info, or both
@@ -69,19 +69,19 @@ Running list for the game. Tick items off as they are done, and add new ones at 
 
 ## Bugs
 
-- [ ] Bug: the radio's aerial goes through the window sill. The radio sits against the front window (`scripts/world/desk_props.gd` `_build_radio`, position z -0.93), and the aerial passes through the sill board at about y 0.95. Fix by moving the radio back from the sill or leaning the aerial back
+- [x] Bug: the radio's aerial goes through the window sill. The radio sits against the front window (`scripts/world/desk_props.gd` `_build_radio`, position z -0.93), and the aerial passes through the sill board at about y 0.95. Fix by moving the radio back from the sill or leaning the aerial back
 
 ## Web and story hints
 
-- [ ] Web: news article about a hacker earning millions from stolen data (a little hint of the hacking side hustle). Show it on night 2/3 only, on the Ashford Gazette site, and add it to the site search index
+- [x] Web: news article about a hacker earning millions from stolen data (a little hint of the hacking side hustle). Show it on night 2/3 only, on the Ashford Gazette site, and add it to the site search index
 
 ## Ideas (not committed)
 
-- [ ] Night 2 ambience: rain-soaked paperwork (ID cards or the list) is smudged and harder to read, as a small hint the player can use or ignore.
-- [ ] Night 2 ambience: the coffee on the desk goes cold over the night, with a visible change in the steam.
-- [ ] Night 2 ambience: the radio crackles more in heavy rain, and the station fades in and out, as a small hint the rain is heavy.
-- [ ] Night 2 ambience: a previous operator's doodles and notes in the logbook margins, including a mention of the car in row C that hasn't left.
-- [ ] Night 2 ambience: the wall clock ticks a little louder at 02:00.
+- [x] Night 2 ambience: rain-soaked paperwork (ID cards or the list) is smudged and harder to read, as a small hint the player can use or ignore.
+- [x] Night 2 ambience: the coffee on the desk goes cold over the night, with a visible change in the steam.
+- [x] Night 2 ambience: the radio crackles more in heavy rain, and the station fades in and out, as a small hint the rain is heavy.
+- [x] Night 2 ambience: a previous operator's doodles and notes in the logbook margins, including a mention of the car in row C that hasn't left.
+- [x] Night 2 ambience: the wall clock ticks a little louder at 02:00.
 
 ## Done
 

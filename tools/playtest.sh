@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 # Plays whole nights with the autoplay bot (no window, 30x speed) and reports PASS or STUCK.
-#   tools/playtest.sh /path/to/godot            # nights 1 and 2, three play styles each
+#   tools/playtest.sh /path/to/godot            # nights 1-3, three play styles each
 #   tools/playtest.sh /path/to/godot 2 perfect  # one night, one style
 # It uses a throwaway HOME so your real save slots are never touched.
 set -u
 godot=${1:?usage: tools/playtest.sh /path/to/godot [night] [style]}
-nights=${2:-"1 2"}
-styles=${3:-"perfect sloppy notes_early"}
+nights=${2:-"1 2 3"}
+styles=${3:-"perfect sloppy notes_early timeout"}
 export HOME=$(mktemp -d)
 fail=0
 for n in $nights; do

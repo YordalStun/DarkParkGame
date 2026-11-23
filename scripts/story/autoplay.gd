@@ -6,6 +6,7 @@ extends Node
 ##   godot --path . -- --autoplay                 # perfect play: right decision, plate logged
 ##   godot --path . -- --autoplay=sloppy          # lets everyone in, logs nothing
 ##   godot --path . -- --autoplay=notes_early     # writes the ward's changes down DURING the call
+##   godot --path . -- --autoplay=timeout         # lets every dialog timer run out (the safe option is picked)
 ##   add --speed=20 to run 20x faster, and --night=2 to start on that night
 ##   (--headless works too). It prints "BOT ..." lines, then "BOT RESULT: PASS" (exit 0) when the
 ##   night's end screen shows, or "BOT RESULT: STUCK ..." (exit 2) with a dump of the state.
@@ -59,11 +60,23 @@ func _act() -> void:
 	# Phone.
 	if story._phone_ringing and not story._phone_answered:
 		story._on_phone()
+	# Dialog choices: "perfect" asks the dog question (option 2) to get the password clue; "timeout" lets
+	# the timer run out (the safe option is picked); the others take option 1.
+	if story.dialog != null and story.dialog._awaiting and mode != "timeout":
+		var pick := 1 if mode == "perfect" and story.dialog._entries.size() > 1 else 0
+		if _once("dlg%d" % story.dialog.get_instance_id() + story.dialog.node_id + str(story.dialog.time_left > 0.0) + str(Time.get_ticks_msec() / 2000)):
+			print("BOT %s: dialog choice %d (%s)" % [NightClock.time_text(), pick + 1, story.dialog._entries[pick].text])
+			story.dialog.submit_choice(pick, story.local_player_id)
+	if story.hack != null and mode == "perfect":
+		_hack()
 	# The notepad: normally after the ward's call; "notes_early" does it while the call is still playing.
 	if mode == "notes_early" and hud.waiting_click and story.notes == "" and not _typing and story.night >= 2:
 		_type_notes("Janet Lowe OFF tonight. Kevin Platt ON - B908 RWD.")
 	elif _objective_pending("notes") and not _typing and _once("notes_after_call"):
 		_type_notes("Janet Lowe OFF tonight. Kevin Platt ON - B908 RWD.")
+	# Shut the side window when nobody is at it (rain blows in otherwise).
+	if world.booth.side_is_open and (story.current == null or not is_instance_valid(story.current) or story.current.state != "waiting"):
+		world.booth.set_side_window(false)
 	# A car at the side window.
 	var car = story.current
 	if car != null and is_instance_valid(car) and car.state == "waiting" and not story.results.is_empty():
@@ -100,6 +113,25 @@ func _serve(car) -> void:
 		if mode != "sloppy":
 			story.log_entry(p.reg, "PIKE, Sandra")
 		story._on_raise()
+
+
+## Night three: connect, log in with the password learned from Kevin, download two files.
+func _hack() -> void:
+	var h = story.hack
+	if h.state.dead:
+		return
+	if story.flags.get("clue_pet_biscuit", false) and not h.state.connected and _once("hconnect"):
+		print("BOT %s: dialling the hospital" % NightClock.time_text())
+		h.connect_to(h.GATEWAY_IP, story.local_player_id)
+	elif h.state.connected and not h.state.logged_in and _once("hlogin"):
+		print("BOT %s: logging in" % NightClock.time_text())
+		h.login(h.USER_ID, h.PASSWORD, story.local_player_id)
+	elif h.state.logged_in and h.state.downloading == "":
+		for id in ["rota", "visitors"]:
+			if not (id in h.state.downloaded) and _once("hdl_" + id):
+				print("BOT %s: downloading %s" % [NightClock.time_text(), id])
+				h.start_download(id, story.local_player_id)
+				break
 
 
 func _type_notes(text: String) -> void:
@@ -193,7 +225,10 @@ func _finish(ok: bool, why: String) -> void:
 	_finished = true
 	if ok:
 		var ev: Dictionary = story.evaluate()
-		print("BOT RESULT: PASS (%s) coins=%d success=%s wrong=%d" % [why, ev.total, ev.success, ev.wrong.size()])
+		var extra := ""
+		if story.hack != null:
+			extra = " hack(logged_in=%s downloads=%d risk=%d)" % [story.hack.state.logged_in, story.hack.state.downloaded.size(), story.risk]
+		print("BOT RESULT: PASS (%s) coins=%d success=%s wrong=%d%s" % [why, ev.total, ev.success, ev.wrong.size(), extra])
 		for w in ev.wrong:
 			print("BOT   wrong: ", w)
 	else:
