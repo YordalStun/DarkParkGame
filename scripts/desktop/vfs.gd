@@ -235,6 +235,8 @@ INTERNAL MEMO  (DO NOT FORWARD, DO NOT LEAVE ON THE SHARED DRIVE)
 =====================================================================
 
 The remote clinic gateway is now live for out-of-hours staff.
+To connect you need the MediCare Remote client. Download it from the
+hospital site (www.ashfordgeneral.org, "Staff / Remote access") and run it.
 
    Host address:   10.113.7.20      (modem pool, answers 24 hours)
    User ID:        first initial, a dot, then surname.  e.g.  S.PIKE

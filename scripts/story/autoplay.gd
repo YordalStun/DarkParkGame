@@ -120,7 +120,10 @@ func _hack() -> void:
 	var h = story.hack
 	if h.state.dead:
 		return
-	if story.flags.get("clue_pet_biscuit", false) and not h.state.connected and _once("hconnect"):
+	if story.flags.get("clue_pet_biscuit", false) and not h.installed and _once("hinstall"):
+		print("BOT %s: installing MediCare Remote" % NightClock.time_text())
+		h.install(story.local_player_id)
+	if story.flags.get("clue_pet_biscuit", false) and h.installed and not h.state.connected and _once("hconnect"):
 		print("BOT %s: dialling the hospital" % NightClock.time_text())
 		h.connect_to(h.GATEWAY_IP, story.local_player_id)
 	elif h.state.connected and not h.state.logged_in and _once("hlogin"):

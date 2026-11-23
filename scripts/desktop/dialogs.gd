@@ -124,6 +124,84 @@ static func run_command(os: Node, t: String) -> void:
 
 
 ## Open a file from the VFS with whatever program suits it.
+## A slim progress bar for the dialogs below. Set the value with c.set_meta("v", 0..1) and queue_redraw().
+static func _bar(pos: Vector2, size: Vector2, color: Color) -> Control:
+	var c := Control.new()
+	c.position = pos
+	c.size = size
+	c.custom_minimum_size = size
+	c.set_meta("v", 0.0)
+	c.draw.connect(func():
+		c.draw_rect(Rect2(Vector2.ZERO, c.size), Color(1, 1, 1))
+		c.draw_rect(Rect2(Vector2(1, 1), c.size - Vector2(2, 2)), Color(0.78, 0.78, 0.78))
+		c.draw_rect(Rect2(Vector2(1, 1), Vector2((c.size.x - 2) * clampf(c.get_meta("v"), 0.0, 1.0), c.size.y - 2)), color)
+		c.draw_rect(Rect2(Vector2.ZERO, c.size), Color(0.35, 0.35, 0.35), false, 1.0))
+	return c
+
+
+## "File Download": saves `file_name` to C:\DOWNLOADS over a while (a modem is slow, but not that slow).
+## You can keep using the computer while it runs.
+static func download(os: Node, file_name: String, kb: int, host: String) -> void:
+	var secs := clampf(kb / 30.0, 6.0, 60.0)
+	var win := make(os, "File Download", "globe", Vector2(340, 150))
+	var c: Control = win.client
+	c.add_child(_label("Saving %s\nfrom %s" % [file_name, host], Vector2(14, 12)))
+	var bar := _bar(Vector2(14, 58), Vector2(290, 14), Color(0.05, 0.1, 0.55))
+	c.add_child(bar)
+	var eta := _label("Estimated time left: %d sec" % int(secs), Vector2(14, 80))
+	c.add_child(eta)
+	var cancel: Button = os.button("Cancel", Vector2(75, 23))
+	cancel.position = Vector2(130, 106)
+	c.add_child(cancel)
+	var tw: Tween = os.create_tween()
+	tw.tween_method(func(v: float):
+		bar.set_meta("v", v)
+		bar.queue_redraw()
+		eta.text = "Estimated time left: %d sec" % int(ceil(secs * (1.0 - v))), 0.0, 1.0, secs)
+	tw.finished.connect(func():
+		os.close_dialog(win)
+		os.vfs.make_dir("C:\\DOWNLOADS")
+		os.vfs._file("C:\\DOWNLOADS\\" + file_name, "MZ", kb * 1024)
+		os.play("ding", -12.0)
+		msgbox(os, "Download complete", "%s has been saved to C:\\DOWNLOADS.\n\nDouble-click it in My Computer to run it." % file_name, "info"))
+	cancel.pressed.connect(func():
+		tw.kill()
+		os.close_dialog(win))
+	os.show_dialog(win, false)
+
+
+## MCARE95.EXE: the MediCare Remote setup. When it finishes, NightLink is added to the desktop.
+static func install_medicare(os: Node) -> void:
+	var story = os.world.story if os.world != null and "story" in os.world else null
+	if story == null or story.get("hack") == null:
+		msgbox(os, "MCARE95.EXE", "MediCare Remote cannot run on this machine.", "error")
+		return
+	if story.hack.installed:
+		msgbox(os, "MediCare Remote Setup", "MediCare Remote is already installed.", "info")
+		return
+	var win := make(os, "MediCare Remote Setup", "dos", Vector2(340, 140))
+	var c: Control = win.client
+	c.add_child(_label("Installing MediCare Remote Client v1.2...\nCopying files to C:\\PROGRAM FILES\\MEDICARE", Vector2(14, 12)))
+	var bar := _bar(Vector2(14, 62), Vector2(290, 14), Color(0.05, 0.1, 0.55))
+	c.add_child(bar)
+	var tw: Tween = os.create_tween()
+	tw.tween_method(func(v: float):
+		bar.set_meta("v", v)
+		bar.queue_redraw(), 0.0, 1.0, 6.0)
+	tw.finished.connect(func():
+		os.close_dialog(win)
+		var r: Dictionary = story.hack.install(story.local_player_id)
+		if r.ok:
+			os.vfs._dir("C:\\PROGRAM FILES\\MEDICARE")
+			os.vfs._file("C:\\PROGRAM FILES\\MEDICARE\\NIGHTLNK.EXE", "MZ", 233000)
+			os.refresh_hack_icon()
+			os.play("ding", -12.0)
+			msgbox(os, "MediCare Remote Setup", "Setup is complete.\n\nNightLink has been added to your desktop and the Start menu.", "info")
+		else:
+			msgbox(os, "MediCare Remote Setup", r.msg, "warn"))
+	os.show_dialog(win)
+
+
 static func open_file(os: Node, path: String) -> void:
 	var n: Variant = os.vfs.get_node(path)
 	if n == null:
@@ -132,6 +210,9 @@ static func open_file(os: Node, path: String) -> void:
 		os.open_app("explorer", {"path": path})
 		return
 	var up: String = n.name.to_upper()
+	if up == "MCARE95.EXE":
+		install_medicare(os)
+		return
 	if os.vfs.EXE_APPS.has(up):
 		os.open_app(os.vfs.EXE_APPS[up])
 		return

@@ -514,6 +514,8 @@ func _setup_hack() -> void:
 	hack.name = "Hack"
 	add_child(hack)
 	hack.setup(self)
+	hack.persist = true
+	hack.installed = SaveGame.has_upgrade("medicare")   # installed on an earlier night
 	# Placeholder until night three's real conversations are written: Kevin Platt's window chat
 	# (his dog's name is the hospital gateway's password).
 	for p in arrivals:
@@ -526,6 +528,7 @@ func _setup_hack() -> void:
 	desk.state_changed.connect(func(on: bool):
 		if not on:
 			_set_pc_owner(0))
+	hack.installed_changed.connect(desk.refresh_hack_icon)
 	hack.download_finished.connect(func(id: String):
 		desk.vfs.make_dir("C:\\DOWNLOADS")
 		desk.vfs.write("C:\\DOWNLOADS\\" + Hack.FILES[id].name, hack.file_text(id))

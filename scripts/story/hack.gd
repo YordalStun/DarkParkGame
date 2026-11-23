@@ -12,6 +12,7 @@ extends Node
 
 signal changed                      ## anything in `state` changed (the app redraws)
 signal download_finished(file_id: String)
+signal installed_changed             ## the install state changed (the desktop shows or hides NightLink)
 
 const GATEWAY_IP := "10.113.7.20"
 const USER_ID := "K.PLATT"          ## the porter whose account is easy to guess
@@ -37,6 +38,25 @@ var state := {
 	"downloading": "", "progress": 0.0, "downloaded": [], "log": [],
 }
 var pc_owner := 0                   ## the player using the PC (0 = nobody); set by the story
+var persist := false                ## save the install to the player's save slot (off in tests)
+var installed := false              ## the MediCare Remote client has been downloaded and installed
+
+
+## Runs the MediCare setup. Like every action it takes the id of the player who did it and only the
+## PC's owner may do it. Installed for good: it carries over to later nights in the save slot.
+func install(player_id: int) -> Dictionary:
+	var why := _allowed(player_id)
+	if why != "":
+		return {"ok": false, "msg": why}
+	if installed:
+		return {"ok": true, "msg": "MediCare Remote is already installed."}
+	installed = true
+	if persist:
+		SaveGame.add_upgrade("medicare")
+		SaveGame._write()
+	_log("MEDICARE REMOTE INSTALLED")
+	installed_changed.emit()
+	return {"ok": true, "msg": "MediCare Remote installed."}
 
 
 func setup(p_story) -> void:

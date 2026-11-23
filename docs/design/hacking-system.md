@@ -45,7 +45,8 @@ detailed enough for a build session to work from without this chat.
 - **The leak:** `C:\WINDOWS\TEMP\ITMEMO.TXT` (night three on) holds the gateway address `10.113.7.20`, the
   user id format (first initial, dot, surname) and a line saying staff passwords are "something personal".
   The Gazette hacker article (nights 2 and 3) mentions a memo "left lying around in a temp folder".
-- **Connect:** the NightLink desktop icon / Start menu entry (night three on) opens NightLink Remote Connect:
+- **Install first:** NightLink is not on the computer at the start of night three. The leaked memo points to the hospital's website (`www.ashfordgeneral.org`, nights 3+), whose MediCare Remote page offers MCARE95.EXE (1.2 MB). Clicking it opens a File Download window (about 40 s, you can keep working) and saves it to `C:\\DOWNLOADS`; running it opens MediCare Remote Setup (6 s), and then NightLink appears on the desktop and Start menu. Installed for good (stored in the save slot).
+- **Connect:** the NightLink icon opens NightLink Remote Connect:
   dial the IP, log in, list files, download, hang up. A wrong IP gets "No answer".
 - **Password:** user `K.PLATT`, password `BISCUIT` (Kevin Platt's dog). The clue comes from Kevin's window
   conversation (a placeholder: `scripts/story/dialogs/samples.gd`, attached on night three), which sets the

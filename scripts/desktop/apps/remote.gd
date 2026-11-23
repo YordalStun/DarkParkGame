@@ -121,27 +121,27 @@ func _build() -> void:
 	var y := 56
 	for id in hack.FILES:
 		var f: Dictionary = hack.FILES[id]
-		var n := _label("%-12s %s" % [f.name, f.what.substr(0, 22)], Vector2(14, y), _files)
+		var n := _label("%-12s %s" % [f.name, f.what.substr(0, 26)], Vector2(14, y), _files)
 		n.add_theme_font_override("font", W95.font("mono"))
-		var bar := _bar(Vector2(14, y + 18), Vector2(250, 10), Color(0.05, 0.1, 0.55))
+		var bar := _bar(Vector2(14, y + 18), Vector2(296, 10), Color(0.05, 0.1, 0.55))
 		_files.add_child(bar)
 		var b: Button = os.button("Download", Vector2(86, 24))
-		b.position = Vector2(274, y + 4)
+		b.position = Vector2(322, y + 4)
 		b.pressed.connect(_on_download.bind(id))
 		_files.add_child(b)
 		_rows[id] = {"name": n, "btn": b, "bar": bar}
 		y += 50
 	var hb: Button = os.button("Hang up", Vector2(80, 24))
-	hb.position = Vector2(14, y + 4)
+	hb.position = Vector2(14, y + 6)
 	hb.pressed.connect(func(): hack.hang_up("HUNG UP"))
 	_files.add_child(hb)
 
 	# ---- always visible: status line, risk meter, call log
-	_msg = _label("", Vector2(14, 218), self, true)
-	_risk_lbl = _label("Risk of being caught:", Vector2(14, 244), self)
-	_risk = _bar(Vector2(160, 248), Vector2(190, 10), Color(0.75, 0.1, 0.1))
+	_msg = _label("", Vector2(14, 248), self, true)
+	_risk_lbl = _label("Risk of being caught:", Vector2(14, 272), self)
+	_risk = _bar(Vector2(170, 276), Vector2(240, 10), Color(0.75, 0.1, 0.1))
 	add_child(_risk)
-	_log = _label("", Vector2(14, 266), self)
+	_log = _label("", Vector2(14, 296), self)
 	_log.add_theme_font_override("font", W95.font("mono"))
 	_log.add_theme_font_size_override("font_size", 11)
 

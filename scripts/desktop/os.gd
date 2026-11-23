@@ -34,7 +34,7 @@ const APPS := {
 	"snake": {"title": "NightSnake", "icon": "snake", "size": Vector2(330, 322), "max": false, "resize": false},
 	"camlink": {"title": "CamLink CCTV v1.3", "icon": "cam", "size": Vector2(420, 330), "min_size": Vector2(300, 240)},
 	"gatectl": {"title": "Gate Control", "icon": "gate", "size": Vector2(300, 190), "max": false, "resize": false},
-	"remote": {"title": "NightLink Remote Connect", "icon": "dos", "size": Vector2(380, 340), "max": false, "resize": false},
+	"remote": {"title": "NightLink Remote Connect", "icon": "dos", "size": Vector2(440, 400), "max": false, "resize": false},
 	"gatelog": {"title": "GateLog - Vehicle Entry", "icon": "doc", "size": Vector2(470, 370), "min_size": Vector2(380, 300)},
 	"help": {"title": "NightWin Help", "icon": "help", "size": Vector2(420, 300)},
 	"find": {"title": "Find: All Files", "icon": "find", "size": Vector2(380, 280)},
@@ -352,25 +352,44 @@ func _build_icons() -> void:
 		["Solitaire", "cards", func(): open_app("solitaire")],
 		["NightSnake", "snake", func(): open_app("snake")],
 	]
-	if SaveGame.night() >= 3:   # the side hustle's dial-up tool (night three on)
-		defs.append(["NightLink", "dos", func(): open_app("remote")])
-	var i := 0
 	for d in defs:
-		var ic: Control = DesktopIcon.new()
-		ic.setup(d[0], d[1], d[2])
-		var col := i / 6
-		var row := i % 6
-		ic.position = Vector2(6 + col * 78, 6 + row * 74)
-		ic.picked.connect(_icon_picked)
-		ic.opened.connect(func(c): c.action.call())
-		ic.context.connect(func(c, pos): open_menu([
-			{"text": "Open", "bold": true, "act": c.action},
-			{"sep": true},
-			{"text": "Properties", "dis": true},
-		], pos))
-		icon_layer.add_child(ic)
-		_icons.append(ic)
-		i += 1
+		_add_icon(d[0], d[1], d[2])
+	refresh_hack_icon()
+
+
+func _add_icon(label: String, icon_id: String, action: Callable) -> Control:
+	var i := _icons.size()
+	var ic: Control = DesktopIcon.new()
+	ic.setup(label, icon_id, action)
+	var col := i / 6
+	var row := i % 6
+	ic.position = Vector2(6 + col * 78, 6 + row * 74)
+	ic.picked.connect(_icon_picked)
+	ic.opened.connect(func(c): c.action.call())
+	ic.context.connect(func(c, pos): open_menu([
+		{"text": "Open", "bold": true, "act": c.action},
+		{"sep": true},
+		{"text": "Properties", "dis": true},
+	], pos))
+	icon_layer.add_child(ic)
+	_icons.append(ic)
+	return ic
+
+
+## NightLink (the hospital dial-up tool) is only on the computer once the MediCare Remote client has been
+## downloaded from the hospital's website and installed.
+func hack_installed() -> bool:
+	var st = world.story if world != null and "story" in world else null
+	return st != null and st.get("hack") != null and st.hack.installed
+
+
+func refresh_hack_icon() -> void:
+	if not hack_installed():
+		return
+	for ic in _icons:
+		if ic.caption == "NightLink":
+			return
+	_add_icon("NightLink", "dos", func(): open_app("remote"))
 
 
 func _icon_picked(ic: Control) -> void:
@@ -590,6 +609,9 @@ func _task_clicked(w: Control) -> void:
 func open_app(id: String, args := {}) -> Control:
 	if not APPS.has(id):
 		return null
+	if id == "remote" and not hack_installed():
+		Dialogs.msgbox(self, "NightLink", "NightLink is not installed.", "error")
+		return null
 	var def: Dictionary = APPS[id]
 	close_menus()
 	var win: Control = WindowScript.new()
@@ -800,7 +822,7 @@ func _start_items() -> Array:
 			{"text": "CamLink CCTV", "icon": _ico("cam"), "act": app.call("camlink")},
 			{"text": "Gate Control", "icon": _ico("gate"), "act": app.call("gatectl")},
 			{"text": "GateLog", "icon": _ico("doc"), "act": app.call("gatelog")},
-		] + ([{"text": "NightLink Remote", "icon": _ico("dos"), "act": app.call("remote")}] if SaveGame.night() >= 3 else [])},
+		] + ([{"text": "NightLink Remote", "icon": _ico("dos"), "act": app.call("remote")}] if hack_installed() else [])},
 		{"sep": true},
 		{"text": "MS-DOS Prompt", "icon": _ico("dos"), "act": app.call("dos")},
 		{"text": "NightNet Explorer", "icon": _ico("globe"), "act": app.call("browser")},

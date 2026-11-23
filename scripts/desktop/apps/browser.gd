@@ -270,6 +270,11 @@ func _normalize(text: String) -> String:
 
 func navigate(text: String, push := true) -> void:
 	var url := _normalize(text)
+	var dl := Pages.download_info(url)
+	if not dl.is_empty():   # a file, not a page: show the download window and stay on this page
+		os.play("click2", -14.0)
+		Dialogs.download(os, dl.name, dl.kb, HtmlView.split_url(url).host)
+		return
 	if push:
 		if hist_i >= 0 and history[hist_i] == url:
 			push = false
