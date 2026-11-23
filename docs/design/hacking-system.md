@@ -60,11 +60,16 @@ detailed enough for a build session to work from without this chat.
 - **Co-op:** runs on the host; every action takes a player id; only the PC's owner (first to use it, until
   they sit back or shut down) can act. `tools/hack_test.gd` checks it; the autoplay bot plays it on night 3.
 
+- The printed sheet gives both the printer IP and a website address. The
+  website address is included on the sheet alongside the printer footer
+  (the exact address is still to pick).
+
 ## Open questions
 
 - What happens when Dave is caught.
 - The dark web contact's name, and what they want from Dave: UNKNOWN for now (the user doesn't know yet). Keep the contact anonymous until this is decided.
 - The download's name and where it is found on the internet.
+- The website address printed on the sheet, and what it links to.
 - Punishment choices: which detection ideas to use and the suspicion thresholds.
 - Shift rule when a download is still running at 07:00 (confirm: shift ends, download continues).
 - The exact payoff: coins from bribes, story info, or both.

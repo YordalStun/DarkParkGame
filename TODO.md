@@ -67,6 +67,7 @@ Running list for the game. Tick items off as they are done, and add new ones at 
 - [ ] Dialog options for every night three conversation, with the safe option and the 2-4 numbered choices.
 - [ ] Hacking clue: one night three person has a dog. Their dog's name is the password clue (ties in with the hospital login).
 - [ ] Hacking clue: the printed paper with the hospital's IP is handed to the guard by an old, friendly staff member (ties in with the IP plot point).
+- [ ] Printed sheet from the elderly staff member: give both the printer IP (footer) and a website address on it. Pick the website address and what it links to.
 
 ## UI
 
