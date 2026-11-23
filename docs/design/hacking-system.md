@@ -19,9 +19,22 @@ detailed enough for a build session to work from without this chat.
 - Night three has selectable dialog: lines show 2-4 numbered options under the
   speaker (click, or keys 1-4).
 
+## Decisions (from questions)
+
+- Overnight PC: the PC can stay on overnight. The shift still ends at 07:00 and
+  Dave clocks out as normal. Downloads keep running in the background.
+- Download time: a download only moves forward while the PC is on. Leaving the
+  PC off stalls it.
+- First warning sign: a call from Dale asking about the PC.
+- Data buyer: a specific character (name not decided yet).
+
 ## Open questions
 
 - What happens when Dave is caught.
+- Who the specific data buyer is, and what they want.
+- Which program the hospital wants (name), and what the download is called.
+- Punishment choices: which detection ideas to use and the suspicion thresholds.
+- Shift rule when a download is still running at 07:00 (confirm: shift ends, download continues).
 - The exact payoff: coins from bribes, story info, or both.
 
 ## Plot points
