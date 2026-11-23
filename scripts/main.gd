@@ -41,6 +41,13 @@ var _desk_last := Vector2.ZERO
 
 func _ready() -> void:
 	_parse_args()
+	if _args.has("speed"):   # testing: --speed=20 runs the whole game 20x faster
+		Engine.time_scale = float(_args.speed)
+	if _args.has("night") or _args.has("autoplay"):   # testing: --night=2 starts on that night (no title screen)
+		_args["notitle"] = true
+		SaveGame.ensure_slot()
+		if _args.has("night"):
+			SaveGame.set_progress(SaveGame.coins(), int(_args.night))
 
 	# Title screen (save slots) first, unless going straight on to the next night or testing.
 	if not SaveGame.skip_title and _shot_path == "" and not _args.has("notitle"):
@@ -158,6 +165,11 @@ func _ready() -> void:
 		story.debug_report()
 	elif not quick or _args.has("story"):
 		story.start()
+	if _args.has("autoplay"):
+		var bot = load("res://scripts/story/autoplay.gd").new()
+		bot.name = "Autoplay"
+		add_child(bot)
+		bot.setup(story, world, hud, inspect, str(_args.autoplay))
 	if _args.has("pause"):
 		hud.set_paused(true)
 	if _args.has("walker"):
