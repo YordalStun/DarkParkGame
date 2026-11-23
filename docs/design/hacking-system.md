@@ -43,7 +43,7 @@ detailed enough for a build session to work from without this chat.
 ## Open questions
 
 - What happens when Dave is caught.
-- The dark web contact's name, and what they want from Dave.
+- The dark web contact's name, and what they want from Dave: UNKNOWN for now (the user doesn't know yet). Keep the contact anonymous until this is decided.
 - The download's name and where it is found on the internet.
 - Punishment choices: which detection ideas to use and the suspicion thresholds.
 - Shift rule when a download is still running at 07:00 (confirm: shift ends, download continues).
