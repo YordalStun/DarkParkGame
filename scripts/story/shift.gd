@@ -293,6 +293,20 @@ func start() -> void:
 	_summary()
 
 
+## Testing (--carstyle=<style>): a car of that style at the side window with its driver, window open.
+func debug_car(style: String) -> void:
+	started = true
+	var p: Dictionary = arrivals[0].duplicate(true)
+	p["style"] = style
+	_debug_skip = true
+	world.booth.set_side_window(true)
+	camera.zoom_to(world.booth.side_view)
+	_visitor(p)
+	await _wait(0.8)
+	if current:
+		current.offer_card()
+
+
 ## Testing (--dialog=window|phone|patrol): plays a sample conversation right now.
 func debug_dialog(which: String) -> void:
 	started = true

@@ -157,7 +157,9 @@ func _ready() -> void:
 			await get_tree().create_timer(1.0).timeout
 			print("TEST ", id)
 			_on_test(id)
-	if _args.has("dialog"):
+	if _args.has("carstyle"):   # testing: --carstyle=sports (any CarModel.STYLES) at the window with its driver
+		story.debug_car(str(_args.carstyle))
+	elif _args.has("dialog"):
 		story.debug_dialog(str(_args.dialog) if str(_args.dialog) != "true" else "window")
 	elif _args.has("leave_booth"):
 		story.debug_leave()

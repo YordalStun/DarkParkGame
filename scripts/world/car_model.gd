@@ -14,11 +14,11 @@ const STYLES := ["saloon", "hatch", "supermini", "estate", "coupe", "exec", "4x4
 ## Every number is in metres, local space. top = bonnet/waist/boot line; roof = glasshouse
 ## roof line from g0 (back of the glass) to g1 (base of the windscreen).
 const SPECS := {
-	"saloon": {"r": -2.2, "f": 2.22, "w": 0.86, "axles": [-1.36, 1.33], "belt": 0.96, "c1": -0.86,
+	"saloon": {"seat_drop": 0.03, "r": -2.2, "f": 2.22, "w": 0.86, "axles": [-1.36, 1.33], "belt": 0.96, "c1": -0.86,
 		"top": [[-2.2, 0.78], [-2.14, 0.92], [-1.95, 0.95], [-1.3, 0.96], [0.55, 0.96], [1.95, 0.86], [2.15, 0.8], [2.22, 0.7]],
 		"g0": -1.3, "g1": 0.62, "roof": [[-1.3, 0.97], [-0.92, 1.32], [-0.78, 1.37], [-0.6, 1.38], [0.05, 1.38], [0.62, 0.97]], "roof_w": 0.65,
 		"lamps": "rect"},
-	"hatch": {"r": -2.06, "f": 2.12, "w": 0.84, "axles": [-1.3, 1.28], "belt": 0.95, "c1": -1.28,
+	"hatch": {"seat_drop": 0.03, "r": -2.06, "f": 2.12, "w": 0.84, "axles": [-1.3, 1.28], "belt": 0.95, "c1": -1.28,
 		"top": [[-2.06, 0.74], [-2.0, 0.93], [-1.7, 0.95], [0.55, 0.95], [1.85, 0.85], [2.05, 0.79], [2.12, 0.68]],
 		"g0": -2.0, "g1": 0.6, "roof": [[-2.0, 0.94], [-1.75, 1.2], [-1.3, 1.36], [-1.0, 1.38], [0.05, 1.38], [0.6, 0.96]], "roof_w": 0.64,
 		"lamps": "rect"},
@@ -30,11 +30,11 @@ const SPECS := {
 		"top": [[-2.4, 0.78], [-2.36, 0.97], [-2.2, 0.98], [0.7, 0.98], [2.05, 0.88], [2.32, 0.82], [2.4, 0.7]],
 		"g0": -2.36, "g1": 0.75, "roof": [[-2.36, 0.98], [-2.31, 1.42], [-2.2, 1.44], [0.15, 1.44], [0.75, 0.99]], "roof_w": 0.7,
 		"lamps": "square", "tail": "vertical", "rails": true},
-	"coupe": {"r": -2.15, "f": 2.22, "w": 0.84, "axles": [-1.3, 1.27], "belt": 0.9, "c1": -1.05, "door": 1.22,
+	"coupe": {"seat_drop": 0.11, "r": -2.15, "f": 2.22, "w": 0.84, "axles": [-1.3, 1.27], "belt": 0.9, "c1": -1.05, "door": 1.22,
 		"top": [[-2.15, 0.76], [-2.1, 0.89], [-1.85, 0.91], [0.3, 0.9], [2.0, 0.8], [2.17, 0.74], [2.22, 0.64]],
 		"g0": -1.85, "g1": 0.32, "roof": [[-1.85, 0.91], [-1.0, 1.2], [-0.72, 1.27], [-0.2, 1.28], [0.32, 0.91]], "roof_w": 0.62,
 		"lamps": "round4", "stripe": true},
-	"exec": {"r": -2.42, "f": 2.46, "w": 0.9, "axles": [-1.46, 1.46], "wr": 0.31, "belt": 0.97, "c1": -0.97, "door": 1.1,
+	"exec": {"seat_drop": 0.03, "r": -2.42, "f": 2.46, "w": 0.9, "axles": [-1.46, 1.46], "wr": 0.31, "belt": 0.97, "c1": -0.97, "door": 1.1,
 		"top": [[-2.42, 0.8], [-2.36, 0.94], [-2.1, 0.97], [-1.4, 0.97], [0.66, 0.97], [2.2, 0.86], [2.39, 0.8], [2.46, 0.7]],
 		"g0": -1.4, "g1": 0.72, "roof": [[-1.4, 0.98], [-1.0, 1.33], [-0.85, 1.39], [-0.65, 1.4], [0.12, 1.4], [0.72, 0.98]], "roof_w": 0.68,
 		"lamps": "round4", "chrome": true, "alloys": true},
@@ -46,7 +46,7 @@ const SPECS := {
 		"top": [[-2.32, 0.92], [-2.3, 1.09], [1.0, 1.1], [1.9, 1.02], [2.25, 0.96], [2.3, 0.82]],
 		"g0": -2.3, "g1": 1.0, "roof": [[-2.3, 1.1], [-2.29, 2.0], [-2.2, 2.02], [0.55, 2.02], [1.0, 1.12]], "roof_w": 0.9,
 		"lamps": "square", "tail": "vertical", "lamp_y": 0.86, "bumper_y": 0.5, "no_rear_windows": true},
-	"sports": {"r": -2.0, "f": 2.05, "w": 0.84, "axles": [-1.2, 1.25], "wr": 0.29, "sill": 0.22, "belt": 0.86, "c1": -1.0, "door": 1.05,
+	"sports": {"seat_drop": 0.16, "r": -2.0, "f": 2.05, "w": 0.84, "axles": [-1.2, 1.25], "wr": 0.29, "sill": 0.22, "belt": 0.86, "c1": -1.0, "door": 1.05,
 		"top": [[-2.0, 0.74], [-1.96, 0.86], [-1.6, 0.88], [0.05, 0.86], [1.9, 0.62], [2.05, 0.52]],
 		"g0": -1.6, "g1": 0.05, "roof": [[-1.6, 0.88], [-1.05, 1.15], [-0.8, 1.19], [-0.45, 1.19], [0.05, 0.87]], "roof_w": 0.6,
 		"lamps": "popup", "lamp_y": 0.5, "bumper_y": 0.36, "alloys": true, "spoiler": true},
@@ -90,7 +90,8 @@ func build() -> Node3D:
 	half_width = S.w
 	var door: float = S.get("door", 1.04)
 	window_hole = Vector2(S.g1 - door, S.g1)
-	seat = Vector3(-S.w * 0.43, S.belt - 0.96, window_hole.x + 0.2)
+	# Low cars seat the driver lower (seat_drop) so their head stays under the roof.
+	seat = Vector3(-S.w * 0.43, S.belt - 0.96 - S.get("seat_drop", 0.0), window_hole.x + 0.2)
 	_materials()
 	_lower_body()
 	_glasshouse()
@@ -541,7 +542,7 @@ func _interior() -> void:
 	if seat.z - 0.8 > S.g0 + 0.2:
 		MK.box(self, Vector3(w * 1.75, 0.5, 0.5), Vector3(0, 0.62 + lift, seat.z - 0.78), fabric)
 	MK.box(self, Vector3(w * 1.75, 0.3, 0.9), Vector3(0, 0.45 + lift, seat.z + 0.2), dark)
-	var wheel := MK.cyl(self, 0.19, 0.19, 0.025, Vector3(seat.x, S.belt + 0.02, seat.z + 0.44), dark, 14, Vector3(65, 0, 0))
+	var wheel := MK.cyl(self, 0.19, 0.19, 0.025, Vector3(seat.x, S.belt + 0.02 - S.get("seat_drop", 0.0) * 0.6, seat.z + 0.44), dark, 14, Vector3(65, 0, 0))
 	wheel.name = "SteeringWheel"
 	var span := _roof_span()
 	MK.box(self, Vector3(S.roof_w * 1.8, 0.02, maxf(0.2, span.y - span.x - 0.2)), Vector3(0, _roof_peak() - 0.04, (span.x + span.y) * 0.5), dark)
