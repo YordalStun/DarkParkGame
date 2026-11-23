@@ -23,12 +23,11 @@ every rule here must work with 1-4 players. See docs/design/coop-notes.md for th
 ## Proposed design (for agreement)
 
 ### Leaving the hut
-- From night three the guard can walk out of the booth through the door, but only
-  when the booth is not needed (see "cars waiting" below).
+- From night three the guard can walk out of the booth through the door at any time.
 - Outside, the guard walks the lot in first person, on the same WASD and mouse
   controls as the booth. The lot is a new walkable area (gate, Row A-C, payphone).
-- Leaving the booth empty: the window and the desk phone are not answered while the
-  guard is out. A car at the window waits and sounds its horn.
+- Dave can leave whenever he likes. While he is out, cars at the window wait and
+  sound their horn, and each waiting car adds risk.
 
 ### Patrols
 - Patrols are scheduled checkpoints from PATROL.TXT. Each checkpoint has a time window
@@ -38,20 +37,27 @@ every rule here must work with 1-4 players. See docs/design/coop-notes.md for th
   on patrol: the PC can't be used until the guard is back in the booth.
 
 ### Boot checks
-- A boot check is a short scene at the barrier: a car stops, the guard walks round it
-  and looks in the boot, then ticks the form. Not decided: which cars get checked and
-  what the check finds (contraband, a sign the visitor is not who the card says).
+- A boot check is a short scene at the barrier: a random car stops, the guard walks
+  round it and looks in the boot, then ticks the form. Finds are rare. What a find
+  means is not decided yet.
 
 ### Second guard (co-op)
-- Night three allows a second guard to join. The second guard covers the booth while
-  the first patrols (or the other way round). Both guards are in the same world.
+- Night three allows a second guard to join. Both guards can be in the lot at the
+  same time. The booth can be empty, so cars need someone at the window.
 - Dialog for patrols uses the same format; whoever walked up to the NPC answers
   (coop-notes.md, decision "Who answers").
 
-## Open questions (answer these and the design is complete)
+## Decisions (answered)
 
-1. Can Dave leave the booth whenever he likes on night three, or only at set times?
-2. What happens to a car at the window while Dave is out on patrol?
-3. What does a boot check involve: which cars, and what does it find?
-4. Does a missed patrol checkpoint have a consequence beyond risk (a logbook entry, Dale rings)?
-5. In co-op, can the two guards be in the lot at the same time?
+1. Leaving the booth: any time, but cars wait. Dave can walk out whenever he likes.
+   Cars at the window honk and wait, and each waiting car adds risk.
+2. Boot checks: some cars at the barrier. A random car stops, Dave walks round,
+   looks in the boot and ticks the form. Finds are rare (a small risk and reward).
+3. Co-op: both guards can patrol the lot at the same time. The booth can be empty,
+   so cars need someone at the window.
+4. Missed patrol checkpoint: a logbook entry, and Dale rings.
+
+## Open questions
+
+- What a boot-check find is (contraband, a sign the visitor is not who the card says).
+- How much risk a waiting car adds, and how long a car waits before it leaves.
