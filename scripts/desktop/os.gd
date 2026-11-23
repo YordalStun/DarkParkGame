@@ -520,6 +520,8 @@ func set_modem_icon(on: bool) -> void:
 
 
 func _update_clock() -> void:
+	if not is_inside_tree():
+		return   # the scene was replaced; the autoload's signal still points here
 	var clock := get_node_or_null("/root/NightClock")
 	var h := 23
 	var m := 4

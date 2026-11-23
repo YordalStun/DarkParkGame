@@ -482,7 +482,7 @@ func say(speaker: String, text: String, seconds := -1.0, click_through := false)
 	_speak(speaker, text)
 	var left := seconds
 	while left > 0.0 and not _sub_skip and id == _sub_id:
-		await get_tree().process_frame
+		await _frame()
 		if not get_tree().paused:
 			left -= get_process_delta_time()
 	if id == _sub_id:
@@ -492,6 +492,24 @@ func say(speaker: String, text: String, seconds := -1.0, click_through := false)
 
 
 ## Click while a line is showing: move on to the next one.
+signal _never   ## never emitted: a coroutine waiting on it is parked for good
+
+
+## Frame and timer waits that park (instead of spinning) if the HUD has left the scene tree.
+func _frame() -> void:
+	if is_inside_tree():
+		await get_tree().process_frame
+	if not is_inside_tree():
+		await _never
+
+
+func _sleep(sec: float) -> void:
+	if is_inside_tree():
+		await get_tree().create_timer(sec).timeout
+	if not is_inside_tree():
+		await _never
+
+
 func skip_line() -> bool:
 	if _sub_box.visible:
 		_sub_skip = true
@@ -522,7 +540,7 @@ func notify(text: String, seconds := 4.0) -> void:
 	var id := _note_id
 	var tw := create_tween()
 	tw.tween_property(_note, "modulate:a", 1.0, 0.3)
-	await get_tree().create_timer(seconds).timeout
+	await _sleep(seconds)
 	if id == _note_id:
 		create_tween().tween_property(_note, "modulate:a", 0.0, 0.8)
 
@@ -823,7 +841,7 @@ func say_player(label: String, text: String, auto: bool) -> void:
 	_voice.stop()
 	var left := 3.2 if not auto else 4.5
 	while left > 0.0 and not _sub_skip and id == _sub_id:
-		await get_tree().process_frame
+		await _frame()
 		if not get_tree().paused:
 			left -= get_process_delta_time()
 	if id == _sub_id:
@@ -909,7 +927,7 @@ func _next_tip() -> void:
 	_tip_label.text = t[0]
 	_tip_box.visible = true
 	_tip_box.modulate.a = 0.0
-	await get_tree().process_frame
+	await _frame()
 	var h := _tip_box.get_combined_minimum_size().y
 	_tip_box.size = Vector2(452, h)
 	_tip_box.position = Vector2(18, get_viewport().get_visible_rect().size.y - 70 - h)

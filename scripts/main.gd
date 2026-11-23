@@ -152,6 +152,8 @@ func _ready() -> void:
 	await _loading.finish(0.01 if quick else 0.6)
 	_loaded = true
 	world.ambience.fade_in(0.01 if quick else 4.0)
+	if _args.has("jumptest") and SaveGame.night() != int(_args.jumptest):   # testing: --jumptest=3 presses "Night 3" 12 s into the shift
+		get_tree().create_timer(12.0).timeout.connect(func(): _on_test("night_%s" % _args.jumptest))
 	if _args.has("test"):   # testing: --test=id,id (testing-menu buttons, one a second)
 		for id in str(_args.test).split(","):
 			await get_tree().create_timer(1.0).timeout

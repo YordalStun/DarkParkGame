@@ -131,8 +131,8 @@ func show_id(person: Dictionary, staff_list: Array, date_text: String, car_reg :
 	_list.visible = true
 	_plate.visible = car_reg != ""
 	_show_notes_box(notes)
-	_set_smudges(_card, smudge, hash(str(person.get("name", ""))), 340, 216, 0.55)
-	_set_smudges(_list, smudge, 7, 250, 310, 0.5)
+	_set_smudges(_card, smudge, hash(str(person.get("name", ""))), 340, 216, 0.16)
+	_set_smudges(_list, smudge, 7, 250, 310, 0.14)
 	_layout()
 	_button("HAND IT BACK - OK", Color(0.3, 0.8, 0.35), "ok")
 	_button("HOLD ON TO IT", Color(0.75, 0.75, 0.7), "hold")
@@ -549,10 +549,10 @@ func _stain_texture(w: int, h: int, seed_v: int, coverage: float) -> ImageTextur
 			# Damp, slightly dark edges of the paper.
 			var edge_d := float(mini(mini(x, y), mini(w - 1 - x, h - 1 - y)))
 			var damp := exp(-edge_d / 9.0) * smoothstep(-0.2, 0.2, v) * 0.5
-			var a_stain := inside * (0.1 + 0.08 * fine.get_noise_2d(x * 0.6, y * 0.6))
-			var a_tide := clampf(tide, 0.0, 1.0) * 0.38
-			var a_fade := fade * 0.42
-			var a_damp := damp * 0.3
+			var a_stain := inside * (0.05 + 0.04 * fine.get_noise_2d(x * 0.6, y * 0.6))
+			var a_tide := clampf(tide, 0.0, 1.0) * 0.22
+			var a_fade := fade * 0.2
+			var a_damp := damp * 0.15
 			# Composite: damp edge and stain (grey-brown), then the tide line (darker), then the fade (pale).
 			var col := Color(0.36, 0.35, 0.33)
 			var a := clampf(a_stain + a_damp, 0.0, 0.6)
@@ -562,7 +562,7 @@ func _stain_texture(w: int, h: int, seed_v: int, coverage: float) -> ImageTextur
 			a = clampf(a + a_fade * (1.0 - a), 0.0, 0.75)
 			img.set_pixel(x, y, Color(col.r, col.g, col.b, a))
 	# Ink that has run: faint blue-grey streaks trickling down from inside the stains.
-	for i in int(7 + coverage * 14):
+	for i in int(2 + coverage * 8):
 		var sx := rng.randi_range(4, w - 5)
 		var sy := rng.randi_range(4, h - 30)
 		if body[sy * w + sx] < 0.6:
@@ -579,12 +579,12 @@ func _stain_texture(w: int, h: int, seed_v: int, coverage: float) -> ImageTextur
 					var c := img.get_pixel(px + dx, py)
 					img.set_pixel(px + dx, py, Color(0.18, 0.2, 0.36, clampf(c.a + fa, 0.0, 0.8)).lerp(c, 0.25))
 	# Beads of water: a pale centre with a bright highlight and a dark ring, scattered over the stains.
-	for i in int(14 + coverage * 40):
+	for i in int(3 + coverage * 24):
 		var cx := rng.randi_range(8, w - 9)
 		var cy := rng.randi_range(8, h - 9)
-		if body[cy * w + cx] < 0.25 and rng.randf() > 0.2:
+		if body[cy * w + cx] < 0.25:
 			continue
-		var r := rng.randf_range(2.0, 5.5)
+		var r := rng.randf_range(1.8, 3.6)
 		for dy in range(-int(r) - 2, int(r) + 3):
 			for dx in range(-int(r) - 2, int(r) + 3):
 				var px := cx + dx

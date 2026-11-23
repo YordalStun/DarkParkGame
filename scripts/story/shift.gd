@@ -354,8 +354,8 @@ func debug_walker(idx := 0, x := -52.0) -> void:
 	var car = VisitorCar.new()
 	car.setup(world, p, Vector3(-9.0, -0.15, -11.9))
 	world.add_child(car)
-	await get_tree().process_frame
-	await get_tree().process_frame
+	await _frame()
+	await _frame()
 	car._start_walk()
 	car._walker.global_position = Vector3(x, -0.15, -7.4)
 	car._walk_path.pop_front()   # skip the leg from the car to the aisle
@@ -482,11 +482,24 @@ func debug_visitor(i: int, offer := true) -> void:
 			current.offer_card()
 
 
+signal _never   ## never emitted: a coroutine waiting on it is parked for good
+
+
+## Waits one frame. If this node has left the scene tree (the night was restarted or the scene reloaded)
+## the coroutine is parked for good instead of spinning: calling get_tree() on a node outside the tree
+## fails instantly, which turned every wait loop into an endless busy loop and hung the game.
+func _frame() -> void:
+	if is_inside_tree():
+		await get_tree().process_frame
+	if not is_inside_tree():
+		await _never
+
+
 func _wait(sec: float) -> void:
 	var left := sec
 	_skip = false
 	while left > 0.0:
-		await get_tree().process_frame
+		await _frame()
 		if _skip:
 			_skip = false
 			return
@@ -585,7 +598,7 @@ func _apply_effect(e: Dictionary) -> void:
 ## Waits for 07:00, then tells the player to turn off the PC and clock out (sign the logbook).
 func _shift_over() -> void:
 	while not NightClock.shift_over:
-		await get_tree().process_frame
+		await _frame()
 	_shift_done = true
 	hud.complete_objective("ids")
 	hud.complete_objective("log")
@@ -599,7 +612,7 @@ func _shift_over() -> void:
 	hud.say("", "(07:00. The shift is over. Turn off the PC, then clock out in the logbook.)", 6.0)
 	var desk = world.props.desktop
 	while desk.is_on():
-		await get_tree().process_frame
+		await _frame()
 	_pc_off = true
 	hud.complete_objective("pc")
 	hud.notify("PC off. Now clock out in the logbook.", 5.0)
@@ -708,7 +721,7 @@ func _phone_call(lines: Array) -> void:
 	_ring.play()
 	hud.notify("The phone is ringing.", 4.0)
 	while not _phone_answered:
-		await get_tree().process_frame
+		await _frame()
 	_ring.stop()
 	world.ambience.play_ui("handset", -8.0)
 	_lift_handset(true)
@@ -767,7 +780,7 @@ func _visitor(p: Dictionary) -> void:
 	var waited := 0.0
 	var knocked := 0
 	while not world.booth.side_is_open and car.state == "waiting":
-		await get_tree().process_frame
+		await _frame()
 		waited += get_process_delta_time()
 		if waited > 14.0 + knocked * 16.0 and knocked < 3:
 			knocked += 1
@@ -787,7 +800,7 @@ func _visitor(p: Dictionary) -> void:
 			car.offer_card()
 	# Until it drives in or reverses away.
 	while car.state in ["waiting", "approach"]:
-		await get_tree().process_frame
+		await _frame()
 	if car.state == "entering":
 		if p.get("ghost", false):
 			await _ghost_parks(car)
@@ -900,7 +913,7 @@ func _on_lower() -> void:
 ## The induction loop drops the barrier once the car is through.
 func _auto_close(car) -> void:
 	while is_instance_valid(car) and not car.is_past_barrier():
-		await get_tree().process_frame
+		await _frame()
 	await _wait(1.5)
 	if world.lot.gate.is_open:
 		world.lot.gate.close()
