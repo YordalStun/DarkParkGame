@@ -65,6 +65,7 @@ Running list for the game. Tick items off as they are done, and add new ones at 
 
 ## UI
 
+- [ ] Bug: NightLink shows up on the desktop and Start menu from night three with no download. It should only appear after the MediCare download is finished and installed (see docs/design/hacking-system.md). The icon is added in `scripts/desktop/os.gd` when `SaveGame.night() >= 3`.
 - [ ] Bug: the NightLink UI overlaps other UI. Fix the layout so it does not overlap.
 
 ## Night 3
