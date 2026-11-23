@@ -28,7 +28,7 @@ Running list for the game. Tick items off as they are done, and add new ones at 
 
 ## Side hustle: hack the hospital (PC)
 
-- [ ] Night 3: selectable dialog. Lines show 2-4 numbered options under the speaker (click or keys 1-4)
+- [x] Night 3: selectable dialog. Lines show 2-4 numbered options under the speaker (click or keys 1-4). System built; night three's real conversations still to write (docs/design/coop-notes.md)
 - [ ] Find the hospital's IP in a leaked file or web page, then connect to it from the PC
 - [ ] Hospital login needs a password. Clues come from the NPCs (e.g. a pet's name), learned as they arrive in the car park
 - [ ] Once in, see the data of the people letting in (visitor details)
@@ -37,6 +37,12 @@ Running list for the game. Tick items off as they are done, and add new ones at 
 - [ ] Risk of getting caught grows with each action (what happens when caught is still to decide)
 - [ ] Decide what happens when caught (fired, game over, or a fine)
 - [ ] Decide the exact payoff: coins from bribes, story info, or both
+
+## Co-op (from night three; design log in docs/design/coop-notes.md)
+
+- [ ] Build co-op: host + join by code/IP, host runs the story, up to 4 guards (player models exist)
+- [ ] Settle the open questions at the bottom of docs/design/coop-notes.md before building it
+- [ ] Every new night-three feature goes through one function that takes a player id (see the rules in coop-notes.md)
 
 ## Ideas (not committed)
 
