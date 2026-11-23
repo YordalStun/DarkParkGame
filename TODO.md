@@ -54,7 +54,12 @@ Running list for the game. Tick items off as they are done, and add new ones at 
 
 ## Ideas (not committed)
 
-- [ ] (add ideas here)
+- [ ] Night 2 ambience: leaving the side window open lets rain in. The sill and the floor by the window get wet, the puddle grows the longer it stays open, and it dries after the window is shut. Dale can notice it.
+- [ ] Night 2 ambience: rain-soaked paperwork (ID cards or the list) is smudged and harder to read, as a small hint the player can use or ignore.
+- [ ] Night 2 ambience: the coffee on the desk goes cold over the night, with a visible change in the steam.
+- [ ] Night 2 ambience: the radio crackles more in heavy rain, and the station fades in and out.
+- [ ] Night 2 ambience: a previous operator's doodles and notes in the logbook margins (e.g. "row C again").
+- [ ] Night 2 ambience: the wall clock ticks a little louder at 02:00.
 
 ## Done
 
