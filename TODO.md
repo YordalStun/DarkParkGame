@@ -26,6 +26,15 @@ Running list for the game. Tick items off as they are done, and add new ones at 
 - [ ] Confirm the Windows export still runs (`DarkPark.exe` plus the Chromium files)
 - [ ] Update the README "Status" section when a milestone is reached
 
+## Night 2
+
+- [ ] Wet sill from an open window: leaving the side window open lets rain in. The sill and the floor by the window get wet, the puddle grows the longer it stays open, and it dries after the window is shut. Dale can notice it.
+
+## Desk
+
+- [ ] Mug: the inside of the mug is not modelled yet. Model the hollow inside so the mug looks right when looked into.
+- [ ] Mug: a hole in the mug (coffee leaks out or the mug is cracked). Applies all night, not just night two.
+
 ## Side hustle: hack the hospital (PC)
 
 - [x] Night 3: selectable dialog. Lines show 2-4 numbered options under the speaker (click or keys 1-4). System built; night three's real conversations still to write (docs/design/coop-notes.md)
@@ -65,13 +74,11 @@ Running list for the game. Tick items off as they are done, and add new ones at 
 
 ## Ideas (not committed)
 
-- [ ] Night 2 ambience: leaving the side window open lets rain in. The sill and the floor by the window get wet, the puddle grows the longer it stays open, and it dries after the window is shut. Dale can notice it.
 - [ ] Night 2 ambience: rain-soaked paperwork (ID cards or the list) is smudged and harder to read, as a small hint the player can use or ignore.
 - [ ] Night 2 ambience: the coffee on the desk goes cold over the night, with a visible change in the steam.
 - [ ] Night 2 ambience: the radio crackles more in heavy rain, and the station fades in and out, as a small hint the rain is heavy.
 - [ ] Night 2 ambience: a previous operator's doodles and notes in the logbook margins, including a mention of the car in row C that hasn't left.
 - [ ] Night 2 ambience: the wall clock ticks a little louder at 02:00.
-- [ ] Desk prop: a hole in the mug on the desk (coffee leaks out or the mug is cracked). Applies all night, not just night two.
 
 ## Done
 
