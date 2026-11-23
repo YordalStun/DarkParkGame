@@ -44,6 +44,10 @@ Running list for the game. Tick items off as they are done, and add new ones at 
 - [ ] Settle the open questions at the bottom of docs/design/coop-notes.md before building it
 - [ ] Every new night-three feature goes through one function that takes a player id (see the rules in coop-notes.md)
 
+## Web and story hints
+
+- [ ] Web: news article about a hacker earning millions from stolen data (a little hint of the hacking side hustle). Show it on night 2/3 only, on the Ashford Gazette site, and add it to the site search index
+
 ## Ideas (not committed)
 
 - [ ] (add ideas here)
