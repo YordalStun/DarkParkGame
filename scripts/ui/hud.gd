@@ -14,6 +14,15 @@ var _sub_box: PanelContainer
 var _sub: RichTextLabel
 var _sub_id := 0
 var _sub_skip := false
+signal choice_picked(entry_index: int)   ## the player clicked or pressed 1-4 on a dialog option
+var _choice_box: PanelContainer
+var _choice_rows: Array = []              ## the option buttons
+var _choice_head: Label
+var _choice_bar: ProgressBar
+var _choice_open := false
+var _choice_can_answer := false
+var _choice_count := 0
+var _sub_rest_top := -190.0
 var waiting_click := false   ## a click-through line is up: any click moves it on
 var _note: Label
 var _note_id := 0
@@ -680,6 +689,146 @@ func set_crosshair(on: bool) -> void:
 
 
 ## A big button at the bottom of the screen (e.g. "GET UP"). Returns when it's pressed.
+# ============================================================ dialog choices
+
+
+func _build_choices() -> void:
+	_choice_box = PanelContainer.new()
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = Color(0, 0, 0, 0.7)
+	sb.content_margin_left = 16
+	sb.content_margin_right = 16
+	sb.content_margin_top = 8
+	sb.content_margin_bottom = 10
+	sb.set_corner_radius_all(4)
+	_choice_box.add_theme_stylebox_override("panel", sb)
+	_choice_box.set_anchors_and_offsets_preset(Control.PRESET_CENTER_BOTTOM)
+	_choice_box.offset_left = -430
+	_choice_box.offset_right = 430
+	_choice_box.grow_vertical = Control.GROW_DIRECTION_BEGIN   # sizes to its rows and grows upward
+	_choice_box.offset_top = -30
+	_choice_box.offset_bottom = -30
+	_choice_box.visible = false
+	add_child(_choice_box)
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", 4)
+	_choice_box.add_child(v)
+	_choice_head = Label.new()
+	_choice_head.add_theme_font_override("font", _font)
+	_choice_head.add_theme_font_size_override("font_size", 22)
+	_choice_head.add_theme_color_override("font_color", Color(0.75, 0.75, 0.7))
+	v.add_child(_choice_head)
+	for i in 4:
+		var b := Button.new()
+		b.focus_mode = Control.FOCUS_NONE
+		b.alignment = HORIZONTAL_ALIGNMENT_LEFT
+		b.add_theme_font_override("font", _font)
+		b.add_theme_font_size_override("font_size", 28)
+		for st in ["normal", "hover", "pressed", "disabled"]:
+			var f := StyleBoxFlat.new()
+			f.bg_color = Color(1, 1, 1, 0.0) if st == "normal" else (Color(0.91, 0.75, 0.44, 0.28) if st != "disabled" else Color(1, 1, 1, 0.0))
+			f.content_margin_left = 8
+			f.content_margin_right = 8
+			f.content_margin_top = 2
+			f.content_margin_bottom = 2
+			f.set_corner_radius_all(3)
+			b.add_theme_stylebox_override(st, f)
+		b.add_theme_color_override("font_color", Color(0.92, 0.92, 0.88))
+		b.add_theme_color_override("font_hover_color", Color(1, 0.92, 0.6))
+		b.add_theme_color_override("font_disabled_color", Color(0.55, 0.55, 0.52))
+		b.pressed.connect(_pick_choice.bind(i))
+		b.visible = false
+		v.add_child(b)
+		_choice_rows.append(b)
+	_choice_bar = ProgressBar.new()
+	_choice_bar.show_percentage = false
+	_choice_bar.custom_minimum_size = Vector2(0, 8)
+	_choice_bar.max_value = 1.0
+	var bg := StyleBoxFlat.new()
+	bg.bg_color = Color(1, 1, 1, 0.12)
+	var fg := StyleBoxFlat.new()
+	fg.bg_color = Color(0.91, 0.75, 0.44)
+	_choice_bar.add_theme_stylebox_override("background", bg)
+	_choice_bar.add_theme_stylebox_override("fill", fg)
+	v.add_child(_choice_bar)
+
+
+## Show the numbered options under the speaker. `entries` = [{text, safe, ...}] from the dialog runner.
+## `can_answer` is false for players who are only watching someone else answer.
+func show_choices(entries: Array, seconds: float, can_answer: bool, owner_label: String) -> void:
+	_choice_open = true
+	_choice_can_answer = can_answer
+	_choice_count = entries.size()
+	for i in _choice_rows.size():
+		var b: Button = _choice_rows[i]
+		b.visible = i < entries.size()
+		if i < entries.size():
+			b.text = "%d   %s" % [i + 1, entries[i].text]
+			b.disabled = not can_answer
+	_choice_head.text = "Choose a reply  (click, or press 1-%d)" % entries.size() if can_answer else "%s is choosing a reply..." % owner_label
+	_choice_bar.visible = seconds > 0.0
+	_choice_bar.value = 1.0
+	_choice_box.visible = true
+	_prompt.visible = false
+	_hint.visible = false
+	# The speaker's last line stays up above the options.
+	var shift := 70.0 + 42.0 * entries.size()
+	_sub_box.visible = true
+	_sub_box.offset_top = _sub_rest_top - shift
+	_sub_box.offset_bottom = _sub_rest_top + 90.0 - shift
+
+
+func hide_choices() -> void:
+	_choice_open = false
+	_choice_box.visible = false
+	_prompt.visible = true
+	_hint.visible = true
+	_sub_box.visible = false
+	_sub_box.offset_top = _sub_rest_top
+	_sub_box.offset_bottom = _sub_rest_top + 90.0
+
+
+func update_choice_time(left: float, total: float) -> void:
+	_choice_bar.value = left / total if total > 0.0 else 1.0
+	if total > 0.0 and left < total * 0.25:
+		_choice_head.text = "Choose a reply  -  %d seconds left" % int(ceil(left)) if _choice_can_answer else _choice_head.text
+
+
+func _pick_choice(i: int) -> void:
+	if _choice_open and _choice_can_answer and i < _choice_count:
+		choice_picked.emit(i)
+
+
+func _input(event: InputEvent) -> void:
+	if not _choice_open or not _choice_can_answer or paused:
+		return
+	if event is InputEventKey and event.pressed and not event.echo:
+		var k: int = event.keycode
+		if k >= KEY_1 and k <= KEY_4 and k - KEY_1 < _choice_count:
+			get_viewport().set_input_as_handled()
+			_pick_choice(k - KEY_1)
+
+
+## What the player said. If the timer ran out and the safe option was picked for them, say so.
+func say_player(label: String, text: String, auto: bool) -> void:
+	var t := "[color=#7fc8ff]%s:[/color]  %s" % [label, text]
+	if auto:
+		t += "\n[color=#ff9060][i]No answer - the safe option was chosen for you.[/i][/color]"
+	_sub_id += 1
+	var id := _sub_id
+	_sub.text = t
+	_sub_box.visible = true
+	_sub_skip = false
+	_voice.stop()
+	var left := 3.2 if not auto else 4.5
+	while left > 0.0 and not _sub_skip and id == _sub_id:
+		await get_tree().process_frame
+		if not get_tree().paused:
+			left -= get_process_delta_time()
+	if id == _sub_id:
+		_sub_box.visible = false
+
+
 func big_button(text: String) -> void:
 	var b := Button.new()
 	b.text = text
@@ -816,6 +965,7 @@ func _build_story_ui() -> void:
 	_note.offset_right = 400
 	_note.modulate.a = 0.0
 
+	_build_choices()
 	look_left_btn = _edge_button("<", true)
 	look_back_btn = _edge_button(">", false)
 

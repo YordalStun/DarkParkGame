@@ -17,7 +17,9 @@ detailed enough for a build session to work from without this chat.
 - Overnight file transfers run while the shift goes on and must finish before 07:00.
 - Each action raises the risk of getting caught.
 - Night three has selectable dialog: lines show 2-4 numbered options under the
-  speaker (click, or keys 1-4).
+  speaker (click, or keys 1-4). BUILT (scripts/story/dialog.gd): 20 second timer on every choice, the
+  safe option is picked and clearly announced if it runs out, same options for all players, shared
+  results. See docs/design/coop-notes.md.
 
 ## Open questions
 

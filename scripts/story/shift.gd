@@ -109,6 +109,15 @@ var _bays: Array = []
 var _leavers: Array = []
 var _kessler_res: Dictionary = {}
 const NightTwo := preload("res://scripts/story/night_two.gd")
+const Dialog := preload("res://scripts/story/dialog.gd")
+## Selectable dialog (night three on). Shared state: in co-op it is the HOST's copy that counts.
+var dialog: Node
+var flags := {}               ## story flags set by dialog effects (clues learned, favours owed...)
+var dialog_coins := 0         ## coins won or lost in conversations (part of the shared team result)
+var risk := 0                 ## the hacking side hustle's "getting caught" meter (0-100)
+var local_player_id := 1      ## this machine's player (the host is always 1)
+var player_ids := [1]         ## everyone in the booth; co-op will fill this in
+var _phone_owner := 1         ## who answered the phone (they answer the replies in that call)
 ## Tonight's data (night one's constants, or night two's from night_two.gd).
 var arrivals: Array = []     ## who turns up
 var list_now: Array = []     ## the printed list you check IDs against
@@ -134,7 +143,8 @@ func setup(p_world, p_hud, p_inspect) -> void:
 		arrivals = ARRIVALS.duplicate(true)
 		list_now = LIST.duplicate(true)
 	log_list = list_now.duplicate(true)
-	world.props.phone_interact.activated.connect(_on_phone)
+	world.props.phone_interact.activated.connect(_on_phone.bind(local_player_id))
+	_setup_dialog()
 	if world.props.notepad_interact:
 		world.props.notepad_interact.activated.connect(open_notes)
 	world.props.logbook_interact.activated.connect(_on_logbook)
@@ -281,6 +291,15 @@ func start() -> void:
 	night_flow_done = true   # every car and call is done: all that's left is waiting for 07:00
 	await _shift_over()
 	_summary()
+
+
+## Testing (--dialog=window|phone|patrol): plays a sample conversation right now.
+func debug_dialog(which: String) -> void:
+	started = true
+	var S := load("res://scripts/story/dialogs/samples.gd")
+	var tree: Dictionary = S.call(which)
+	var res := await talk(tree)
+	print("DIALOG RESULT ", res)
 
 
 ## Testing (--walker): someone has just got out of their car and is walking to the hospital,
@@ -431,6 +450,55 @@ func _wait(sec: float) -> void:
 			left -= get_process_delta_time()
 
 
+# ------------------------------------------------------------------ selectable dialog
+func _setup_dialog() -> void:
+	dialog = Dialog.new()
+	dialog.name = "Dialog"
+	dialog.say_fn = _dialog_say
+	dialog.effect_fn = _apply_effect
+	dialog.flag_fn = func(f: String) -> bool: return bool(flags.get(f, false))
+	add_child(dialog)
+	dialog.options_ready.connect(func(_nid, entries, owner_id, seconds):
+		hud.show_choices(entries, seconds, owner_id == local_player_id, _player_label(owner_id)))
+	dialog.tick.connect(hud.update_choice_time)
+	dialog.chosen.connect(func(_nid, _i, _o, _auto): hud.hide_choices())
+	hud.choice_picked.connect(func(i): dialog.submit_choice(i, local_player_id))
+
+
+func _player_label(id: int) -> String:
+	return "YOU" if id == local_player_id else "P%d" % id
+
+
+## Plays a conversation (see dialog.gd). `owner_id` is whoever is talking: the player who opened the
+## window or took the ID, answered the phone, or walked up to the NPC. Returns the result dictionary.
+func talk(tree: Dictionary, owner_id := -1) -> Dictionary:
+	if owner_id < 0:
+		owner_id = local_player_id
+	var t := tree.duplicate()
+	t["player"] = _player_label(owner_id)
+	return await dialog.run(t, owner_id)
+
+
+func _dialog_say(speaker: String, text: String, auto: bool, is_player: bool) -> void:
+	if is_player:
+		await hud.say_player(speaker, text, auto)
+	else:
+		await hud.say(speaker, text)
+
+
+## Applies one dialog effect. Runs on the host only; the result is what everyone shares.
+func _apply_effect(e: Dictionary) -> void:
+	if e.has("flag"):
+		flags[e.flag] = e.get("value", true)
+	if e.has("coins"):
+		dialog_coins += int(e.coins)
+	if e.has("risk"):
+		risk = clampi(risk + int(e.risk), 0, 100)
+	if e.has("note"):
+		notes += ("\n" if notes != "" else "") + str(e.note)
+		list_changed.emit()
+
+
 # ------------------------------------------------------------------ end of the shift
 ## Waits for 07:00, then tells the player to turn off the PC and clock out (sign the logbook).
 func _shift_over() -> void:
@@ -559,13 +627,17 @@ func _phone_call(lines: Array) -> void:
 	world.ambience.play_ui("handset", -8.0)
 	_lift_handset(true)
 	for l in lines:
-		await hud.say(l[0], l[1], -1.0, true)
+		if l is Dictionary:   # a conversation with replies: the person who answered the phone answers
+			await talk(l, _phone_owner)
+		else:
+			await hud.say(l[0], l[1], -1.0, true)
 	world.ambience.play_ui("handset", -8.0)
 	_lift_handset(false)
 
 
-func _on_phone() -> void:
+func _on_phone(from_player := 1) -> void:
 	if _phone_ringing and not _phone_answered:
+		_phone_owner = from_player
 		_phone_ringing = false
 		_phone_answered = true
 
@@ -615,12 +687,16 @@ func _visitor(p: Dictionary) -> void:
 			knocked += 1
 			world.ambience.play_at("knock", world.booth.side_pane.global_position + Vector3(-0.05, 0, 0), -6.0)
 			hud.say("", "(Knock knock on the side window.)", 2.5)
+	_claim_talker(car, local_player_id)   # TODO(coop): the id of whoever opened the window
 	if car.state == "waiting":
 		await _wait(0.6)
 		for l in p.greet:
 			if car.state != "waiting":
 				break
 			await hud.say(_short(p), l)
+		# Night three on: some visitors have a conversation with replies instead of fixed lines.
+		if car.state == "waiting" and p.has("convo"):
+			await talk(p.convo, _talker_of(car))
 		if car.state == "waiting" and not res.checked:
 			car.offer_card()
 	# Until it drives in or reverses away.
@@ -641,9 +717,20 @@ func _short(p: Dictionary) -> String:
 	return n.split(" ")[0] if not n.begins_with("Dr") else n
 
 
+## Whoever opens the window or takes the ID first owns the conversation with that visitor.
+func _claim_talker(car, player_id: int) -> void:
+	if not car.has_meta("talker"):
+		car.set_meta("talker", player_id)
+
+
+func _talker_of(car) -> int:
+	return int(car.get_meta("talker", local_player_id))
+
+
 func _on_card(car, p: Dictionary, res: Dictionary) -> void:
 	if car.state != "waiting" or inspect.is_open:
 		return
+	_claim_talker(car, local_player_id)   # TODO(coop): the id of the player who clicked
 	car.take_card()
 	world.ambience.play_ui("click2", -16.0)
 	res.checked = true
@@ -800,6 +887,9 @@ func evaluate() -> Dictionary:
 	for e in entries:
 		if not real.has(e.key):
 			wrong.append("[color=#ffb060]You logged the plate '%s', which didn't match any car that came.[/color]" % e.reg)
+	if dialog_coins != 0:
+		earned += dialog_coins
+		rows.append({"name": "Conversations", "delta": dialog_coins, "verdict": "coins from what you said"})
 	var bonus := BONUS_PLATES if admitted > 0 and plates_ok == admitted else 0
 	var total := start_money + earned + bonus
 	return {"rows": rows, "wrong": wrong, "earned": earned, "bonus": bonus, "total": total,

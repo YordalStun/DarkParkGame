@@ -157,7 +157,9 @@ func _ready() -> void:
 			await get_tree().create_timer(1.0).timeout
 			print("TEST ", id)
 			_on_test(id)
-	if _args.has("leave_booth"):
+	if _args.has("dialog"):
+		story.debug_dialog(str(_args.dialog) if str(_args.dialog) != "true" else "window")
+	elif _args.has("leave_booth"):
 		story.debug_leave()
 	elif _args.has("shiftend"):
 		story.debug_shift_end()
