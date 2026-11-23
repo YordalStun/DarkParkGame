@@ -44,6 +44,15 @@ Running list for the game. Tick items off as they are done, and add new ones at 
 - [ ] Settle the open questions at the bottom of docs/design/coop-notes.md before building it
 - [ ] Every new night-three feature goes through one function that takes a player id (see the rules in coop-notes.md)
 
+## Night 3
+
+- [ ] Walkable area: take screenshots of the lot from player eye height and check it looks right from every angle.
+- [ ] Walkable area: make sure the player cannot leave the lot (walls, fence and tree line block walking out).
+- [ ] Order a boot wedge from the PC. It is delivered the next day.
+- [ ] Be able to open the boot of any car in the lot.
+- [ ] Opening a boot for no reason: the car's owner gets angry and reports it to Dale.
+- [ ] Dale's reaction to a report: first tells the player to keep an eye out for people, then gets suspicious of the player if it keeps happening.
+
 ## Bugs
 
 - [ ] Bug: the radio's aerial goes through the window sill. The radio sits against the front window (`scripts/world/desk_props.gd` `_build_radio`, position z -0.93), and the aerial passes through the sill board at about y 0.95. Fix by moving the radio back from the sill or leaning the aerial back
