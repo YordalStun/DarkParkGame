@@ -51,16 +51,32 @@ so the multiplayer build session can work from this file without the original ch
   places that need the real player id.
 - `tools/dialog_test.gd` checks the rules; `--dialog=window|phone|patrol` plays a sample in the booth.
 
-## Open questions to settle before building co-op
+## More decisions (agreed 23 Nov 2026, co-op open-questions pass)
 
-- Two players at the window at once: can the second player also click the car / ID card, or only watch?
-- If the talker disconnects mid-conversation, who takes over (host, or the safe option)?
-- Do all four players share one booth, or can they split up on night three's patrols? (Dialog already
-  handles both, but the camera, the CCTV and the PC would need deciding.)
-- One PC: who uses it when two players want it (the hospital hacking side hustle, GateLog)?
-- Who hears the phone and answers it? (Everyone hears it; the first to click answers.)
-- How is the end report shown: the same screen for everyone, who clicks NEXT NIGHT (host only?)
-- Save slots: the host's save only, with clients joining a night in progress?
-- Voices/babble and subtitles: each player hears their own mix; subtitles for everyone.
-- What happens if a player leaves mid-night (their guard walks off, or stays as an NPC)?
-- Difficulty: do arrivals or the risk meter scale with the number of players?
+- **Two players at the window:** anyone can act (inspect the ID card and plate, press the barrier
+  buttons, log plates). Only the **talker** (whoever opened the window / took the ID first) picks dialog
+  options.
+- **Talker disconnects mid-conversation:** the **safe option is chosen automatically, then the
+  conversation is free**: the next player to interact with that visitor becomes the talker.
+- **Splitting up:** on night three the guards are **free to split up**: anyone can leave the hut and walk
+  the lot, others can stay on the PC. Dialog works wherever the talker is.
+- **The one PC:** one user at a time. **Whoever started using it first owns it until they free it up**
+  (sit back / shut down); every other player can see the screen (on the CRT / a spectator view) but not
+  type. Applies to GateLog, the browser and the hospital hacking side hustle.
+- **Phone:** everyone hears it; **the first player to click it answers** and owns the replies in that call.
+- **End of night:** **everyone sees the same report; only the host** presses NEXT NIGHT and buys upgrades.
+- **Saves:** the **host's save only** holds the night, coins and upgrades; friends keep nothing.
+- **A player leaves mid-night:** their **guard disappears**; anything they owned (the PC, a conversation,
+  the phone) is freed.
+- **Difficulty:** **scales with player count**: more arrivals and a faster-rising risk meter, so four
+  players are still busy.
+- **Subtitles and voices:** **everyone sees the subtitles; the voice babble fades with distance** from the
+  speaker. Each player has their own voice volume.
+
+## Still open
+
+- Exactly how arrivals and the risk meter scale per extra player (numbers to be tuned).
+- What the "spectator" view of the PC looks like for players who are not using it (a second screen
+  texture on the CRT, or the player is shown the screen when they look at it).
+- How a late joiner enters a night already in progress (or whether joining is only between nights).
+- The lobby: room code vs IP entry screen, ready checks, host migration (probably none).
