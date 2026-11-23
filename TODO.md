@@ -60,7 +60,7 @@ Running list for the game. Tick items off as they are done, and add new ones at 
 - [ ] Night 2 ambience: the radio crackles more in heavy rain, and the station fades in and out, as a small hint the rain is heavy.
 - [ ] Night 2 ambience: a previous operator's doodles and notes in the logbook margins, including a mention of the car in row C that hasn't left.
 - [ ] Night 2 ambience: the wall clock ticks a little louder at 02:00.
-- [ ] Desk prop: a hole in the mug on the desk (coffee leaks out or the mug is cracked).
+- [ ] Desk prop: a hole in the mug on the desk (coffee leaks out or the mug is cracked). Applies all night, not just night two.
 
 ## Done
 
