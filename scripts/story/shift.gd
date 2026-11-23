@@ -278,6 +278,7 @@ func start() -> void:
 	await _wait(10.0)
 	await _phone_call(_kessler_call())
 	await _wait(3.0)
+	night_flow_done = true   # every car and call is done: all that's left is waiting for 07:00
 	await _shift_over()
 	_summary()
 
@@ -312,22 +313,37 @@ var _skip := false
 ## Night two: the ward rings mid-shift with changes to the list. The printed list doesn't change,
 ## so the player has to remember them, or (better) write them down.
 func _ward_call() -> void:
+	var notes_before_call := notes
+	_notes_opened_since_call = false
 	hud.add_objective("ward", "Answer the phone: the ward is ringing")
 	await _phone_call(NightTwo.ward_call())
 	hud.complete_objective("ward")
 	_call_done = true
 	log_list.append(NightTwo.ADDED.duplicate())   # GateLog can log the new porter
 	list_changed.emit()
-	var before := notes
 	hud.add_objective("notes", "Write down the changes: press N for your notepad")
 	hud.tip("notepad_call", "Changes to the list come by phone. Press N, type what you were told, then close it (Esc or N). It stays beside every ID card you check.")
-	while notes == before:
+	# The night must never wait on this: it's ticked off whenever the notes change or the pad is
+	# opened (even if you'd already written them down during the call), and the next car comes anyway.
+	_watch_notes(notes_before_call)
+
+
+func _watch_notes(before: String) -> void:
+	while not _shift_done:
+		if notes != before or _notes_opened_since_call:
+			hud.complete_objective("notes")
+			return
 		await _wait(0.5)
-	hud.complete_objective("notes")
+
+
+var _notes_opened_since_call := false
+var night_flow_done := false   ## the cars and phone calls are over; only 07:00 is left (used by the autoplay watchdog)
 
 
 ## The notepad (N, or the pad on the desk): type anything; shown beside the ID card.
 func open_notes() -> void:
+	if _call_done:
+		_notes_opened_since_call = true
 	if inspect.is_open:
 		if inspect.mode == "notes":
 			inspect.close("done")
@@ -424,6 +440,7 @@ func _shift_over() -> void:
 	hud.complete_objective("ids")
 	hud.complete_objective("log")
 	hud.complete_objective("shift")
+	hud.complete_objective("notes")
 	hud.add_objective("pc", "Shut down the PC")
 	hud.add_objective("out", "Clock out: sign the logbook")
 	world.ambience.play_ui("chime", -6.0)

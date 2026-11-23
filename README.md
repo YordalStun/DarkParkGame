@@ -120,6 +120,21 @@ Developer keys (for testing the atmosphere):
 2. Open Godot, click **Import**, and pick this folder's `project.godot`.
 3. Press **F5** (Run).
 
+## Testing without playing a whole night
+
+An autoplay bot plays a night through the same entry points a player uses (phone, window, ID card,
+barrier, notepad, logbook, light, door) and reports `BOT RESULT: PASS` or `STUCK` with a dump of the
+state, so soft locks show up straight away.
+
+```
+tools/playtest.sh /path/to/godot                 # nights 1 and 2, three play styles each
+godot --headless --path . -- --autoplay --night=2 --speed=30
+```
+
+Styles: `--autoplay` (perfect), `=sloppy` (lets everyone in, logs nothing), `=notes_early` (writes
+the ward's changes down during the call). `--speed=N` runs the game N times faster and
+`--night=N` starts on that night. Both write a save slot, so use a throwaway `HOME` (the script does).
+
 ## Building the game
 
 ```bash
