@@ -31,10 +31,22 @@ const INDEX := [
 	["http://www.nightwatch-security.com/", "Nightwatch Security Systems", "Somebody is always watching the lot.", "nightwatch security systems cctv gate barrier"],
 	["http://www.worldwire.com/", "WorldWire - 1995 headlines", "National and world news wire: headlines from every month of 1995.", "news world headlines 1995 wire"],
 	["http://www.ashfordgazette.com/", "The Ashford Gazette Online", "Local news for Ashford County.", "ashford gazette news local"],
+	# Only on nights 2 and 3 (a hint of the hacking side hustle): the fifth item lists the nights it shows on.
+	["http://www.ashfordgazette.com/hacker.html", "Hacker \"earned millions\" selling stolen hospital records, court told", "A computer expert broke into three hospital networks from his bedroom, the Crown Court heard.", "hacker hacking hospital records computer password stolen data court millions modem", [2, 3]],
 	["http://home.freeweb.net/~dougk/", "Doug's Place", "Welcome to my homepage. Under construction.", "doug homepage freeweb trains cats"],
 ]
 
 const CANON := ["worldwire.com", "winnight.net", "findit.com", "nightwatch-security.com", "ashfordgazette.com", "ashfordparking.gov", "home.freeweb.net", "bbs.nightowls.net", "cityweather.net"]
+
+
+## The hacker story is only in the Gazette on nights 2 and 3.
+static func hacker_story_shown() -> bool:
+	return SaveGame.night() in [2, 3]
+
+
+const HACKER_TEASER := """<h2><a href="/hacker.html">Hacker "earned millions" selling stolen hospital records, court told</a></h2>
+<p>A computer expert broke into three hospital networks from his bedroom, the Crown Court heard yesterday. "The hardest part," said one detective, "was how easy it was."</p>
+<p><a href="/hacker.html">Read more...</a></p>"""
 
 
 static func canon_host(h: String) -> String:
@@ -57,8 +69,11 @@ static func get_page(url: String, vars: Dictionary) -> String:
 		html = _search_page(u.query)
 	elif host == "worldwire.com":
 		html = _news_page(path, u.query)
+	elif host + path == "ashfordgazette.com/hacker.html" and not hacker_story_shown():
+		html = ""   # not in the paper yet (or any more)
 	else:
 		html = _SITES.get(host + path, "")
+	html = html.replace("{{HACKER_HEAD}}", HACKER_TEASER if hacker_story_shown() else "")
 	if html == "":
 		html = NOT_FOUND.replace("{{URL}}", url)
 	for k in vars:
@@ -231,6 +246,8 @@ static func _search_page(query: String) -> String:
 	var words := q.to_lower().split(" ", false)
 	var hits: Array = []
 	for e in INDEX:
+		if e.size() > 4 and not (SaveGame.night() in e[4]):
+			continue   # a page that only exists on some nights
 		var hay: String = (e[1] + " " + e[2] + " " + e[3]).to_lower()
 		var score := 0
 		for w in words:
@@ -386,6 +403,7 @@ const _SITES := {
 <hr>
 <table width=100% border=0 cellpadding=6><tr>
 <td valign=top width=62%>
+{{HACKER_HEAD}}
 <h2><a href="/lotc.html">Lot C to close early, says Parking Authority</a></h2>
 <p>Ashford's busiest night car park will close its barrier at 23:00 from the 20th. The Authority says the change is "for operational reasons" and refused to be drawn on rumours.</p>
 <p><a href="/lotc.html">Read more...</a></p>
@@ -401,6 +419,22 @@ const _SITES := {
 </td></tr></table>
 <hr><font size=2>(c) The Ashford Gazette. Reproduction without permission is prohibited.</font>
 </body></html>""",
+
+"ashfordgazette.com/hacker.html": """<html><head><title>Hacker "earned millions" selling stolen hospital records</title></head>
+<body bgcolor=#f4f0e4 text=#111111 link=#003366>
+<center><img src="masthead.png"></center><hr>
+<h1>Hacker "earned millions" selling stolen hospital records, court told</h1>
+<p><i>By our crime reporter</i></p>
+<p>A computer expert from Wolverton made "well over three million pounds" in two years by breaking into hospital computers and selling what he found, Ashford Crown Court heard yesterday.</p>
+<p>The prosecution said the man, who cannot be named for legal reasons, never left his bedroom. Using a home computer and a modem, he is alleged to have dialled in to the networks of three hospitals and copied patient records, staff rotas and, most valuably, <b>visitor lists</b>: who came in, when, and in whose car.</p>
+<p>"The hardest part was how easy it was," said Detective Inspector Marsh. "Most of these systems were guarded by nothing more than a password. And the passwords were the names of the staff's pets. The dog. The cat. A tortoise, in one case."</p>
+<p>The court heard that his customers included private investigators, debt collectors and "at least one gentleman who simply wished to know when a certain doctor's car was not at home".</p>
+<blockquote>"He sold the information the way a greengrocer sells potatoes," the prosecutor told jurors. "Nobody was ever very interested in where it came from."</blockquote>
+<p>A hospital spokesman said all staff had been reminded to change their passwords. "We would like to be clear," he said, "that the name of your dog is not a password."</p>
+<p>Files taken in the raids included an internal memo giving the address of one hospital's remote gateway, which the court was told had been "left lying around in a temp folder".</p>
+<p>The trial continues.</p>
+<hr><font size=2>Related: <a href="http://www.findit.com/search?q=hospital+password">search for hospital password</a></font>
+<p><a href="/">Back to front page</a></p></body></html>""",
 
 "ashfordgazette.com/lotc.html": """<html><head><title>Lot C to close early</title></head>
 <body bgcolor=#f4f0e4 text=#111111 link=#003366>
