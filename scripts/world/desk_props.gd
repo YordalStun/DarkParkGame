@@ -147,7 +147,7 @@ func _build_phone() -> void:
 func _build_radio() -> void:
 	var radio := Node3D.new()
 	radio.name = "Radio"
-	radio.position = Vector3(-1.0, DESK_Y, -0.93)
+	radio.position = Vector3(-1.0, DESK_Y, -0.80)   # clear of the window sill (the aerial used to pass through it)
 	radio.rotation_degrees = Vector3(0, 10, 0)
 	add_child(radio)
 	var black := MK.mat(Color(0.08, 0.08, 0.08), "metal", 0.5, 0.3)
@@ -156,7 +156,7 @@ func _build_radio() -> void:
 	var dial := MK.mat(Color(0.75, 0.6, 0.3), "", 0.4).duplicate() as StandardMaterial3D
 	MK.box(radio, Vector3(0.08, 0.025, 0.004), Vector3(0.06, 0.09, 0.036), dial)  # tuning dial window
 	MK.cyl(radio, 0.012, 0.012, 0.012, Vector3(0.06, 0.045, 0.04), MK.mat(Color(0.7, 0.7, 0.68), "", 0.3, 1.0, 0.8), 8, Vector3(90, 0, 0))
-	MK.cyl(radio, 0.002, 0.003, 0.45, Vector3(0.1, 0.33, -0.02), MK.mat(Color(0.75, 0.75, 0.72), "", 0.2, 1.0, 1.0), 4, Vector3(0, 0, -14))
+	MK.cyl(radio, 0.002, 0.003, 0.45, Vector3(0.1, 0.33, -0.02), MK.mat(Color(0.75, 0.75, 0.72), "", 0.2, 1.0, 1.0), 4, Vector3(8, 0, -14))   # leans back towards the player
 	radio_interact = Interactable.new()
 	radio_interact.prompt = "Radio"
 	radio_interact.add_box(Vector3(0.26, 0.15, 0.09), Vector3(0, 0.07, 0))
@@ -210,8 +210,29 @@ func _build_mug() -> void:
 	mug.position = Vector3(-0.18, DESK_Y, -0.52)
 	add_child(mug)
 	var cer := MK.mat(Color(0.75, 0.2, 0.15), "", 0.35)
-	MK.cyl(mug, 0.04, 0.038, 0.095, Vector3(0, 0.0475, 0), cer, 10)
-	MK.cyl(mug, 0.035, 0.035, 0.002, Vector3(0, 0.085, 0), MK.mat(Color(0.08, 0.04, 0.02), "", 0.05), 10)
+	# A hollow mug: an outer wall open at the top, an inner wall seen from inside, a rim and a floor,
+	# with the coffee a little below the rim.
+	var outer := MK.cyl(mug, 0.04, 0.038, 0.095, Vector3(0, 0.0475, 0), cer, 10)
+	(outer.mesh as CylinderMesh).cap_top = false
+	var inner_m := (cer.duplicate() as StandardMaterial3D)
+	inner_m.cull_mode = BaseMaterial3D.CULL_DISABLED
+	inner_m.albedo_color = Color(0.88, 0.84, 0.78)   # glazed white inside
+	var inner := MK.cyl(mug, 0.0345, 0.0325, 0.088, Vector3(0, 0.052, 0), inner_m, 10)
+	(inner.mesh as CylinderMesh).cap_top = false
+	(inner.mesh as CylinderMesh).cap_bottom = false
+	MK.cyl(mug, 0.0325, 0.0325, 0.004, Vector3(0, 0.01, 0), inner_m, 10)       # the floor
+	var rim := MeshInstance3D.new()
+	var tm := TorusMesh.new()
+	tm.inner_radius = 0.0345
+	tm.outer_radius = 0.0405
+	tm.rings = 10
+	tm.ring_segments = 4
+	rim.mesh = tm
+	rim.material_override = cer
+	rim.position = Vector3(0, 0.095, 0)
+	rim.scale = Vector3(1, 0.35, 1)
+	mug.add_child(rim)
+	MK.cyl(mug, 0.0335, 0.0335, 0.002, Vector3(0, 0.068, 0), MK.mat(Color(0.08, 0.04, 0.02), "", 0.05), 10)   # the coffee, below the rim
 	MK.box(mug, Vector3(0.012, 0.06, 0.03), Vector3(0.05, 0.05, 0), cer)
 	MK.box(mug, Vector3(0.02, 0.012, 0.03), Vector3(0.042, 0.075, 0), cer)
 	MK.box(mug, Vector3(0.02, 0.012, 0.03), Vector3(0.042, 0.025, 0), cer)
