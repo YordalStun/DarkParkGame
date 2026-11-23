@@ -35,6 +35,8 @@ var _log_reg: LineEdit
 var _log_name: Label
 var _log_status: Label
 var _log_list: Label
+var smudge := false          ## rain-soaked paperwork: water stains over the ID card and the list (night two on)
+var _page: Control           ## the logbook page (previous operator's notes and doodles)
 var _log_pick := ""
 var _log_cb: Callable        ## func(reg, name)
 var _log_entries: Callable   ## func() -> Array of {time, reg, name}
@@ -129,6 +131,8 @@ func show_id(person: Dictionary, staff_list: Array, date_text: String, car_reg :
 	_list.visible = true
 	_plate.visible = car_reg != ""
 	_show_notes_box(notes)
+	_set_smudges(_card, smudge, hash(str(person.get("name", ""))), 340, 216, 0.55)
+	_set_smudges(_list, smudge, 7, 250, 310, 0.5)
 	_layout()
 	_button("HAND IT BACK - OK", Color(0.3, 0.8, 0.35), "ok")
 	_button("HOLD ON TO IT", Color(0.75, 0.75, 0.7), "hold")
@@ -404,6 +408,8 @@ func _show_notes_box(text: String) -> void:
 
 
 func _open(caption: String) -> void:
+	if _page:
+		_page.visible = false
 	if _notes:
 		_notes.visible = false
 	if _notes_box:
@@ -469,6 +475,10 @@ func _layout() -> void:
 		var ns := s * 0.95
 		_notes.scale = Vector2(ns, ns)
 		_notes.position = (vs - _notes.size * ns) * 0.5 + Vector2(0, 10 * s)
+	if _page and _page.visible:
+		var ps := s * 0.95
+		_page.scale = Vector2(ps, ps)
+		_page.position = (vs - _page.size * ps) * 0.5
 	if _log and _log.visible:
 		# Clipboard under a smaller plate close-up.
 		var ls := s * 0.95
@@ -483,6 +493,203 @@ func _layout() -> void:
 	_card.queue_redraw()
 	_list.queue_redraw()
 	_plate.queue_redraw()
+
+
+# ------------------------------------------------------------------ water stains
+## Rain-soaked paper: water damage drawn as a texture over `parent` (the ID card or the list):
+## irregular tide-marked stains, faded ink patches, ink that has run in streaks, beads of water
+## and damp edges. The same seed always gives the same damage.
+func _set_smudges(parent: Control, on: bool, seed_v: int, w: int, h: int, coverage: float) -> void:
+	var old := parent.get_node_or_null("Smudge")
+	if old:
+		old.queue_free()
+	if not on:
+		return
+	var tr := TextureRect.new()
+	tr.name = "Smudge"
+	tr.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	tr.set_anchors_preset(Control.PRESET_FULL_RECT)
+	tr.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	tr.stretch_mode = TextureRect.STRETCH_SCALE
+	tr.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
+	tr.texture = _stain_texture(w, h, seed_v, coverage)
+	parent.add_child(tr)
+
+
+func _stain_texture(w: int, h: int, seed_v: int, coverage: float) -> ImageTexture:
+	var big := FastNoiseLite.new()
+	big.seed = seed_v
+	big.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
+	big.frequency = 0.011
+	big.fractal_octaves = 4
+	var fine := FastNoiseLite.new()
+	fine.seed = seed_v + 11
+	fine.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
+	fine.frequency = 0.09
+	var wash := FastNoiseLite.new()
+	wash.seed = seed_v + 29
+	wash.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
+	wash.frequency = 0.02
+	wash.fractal_octaves = 3
+	var rng := RandomNumberGenerator.new()
+	rng.seed = seed_v
+	var img := Image.create(w, h, false, Image.FORMAT_RGBA8)
+	var body := PackedFloat32Array()      # how stained each pixel is (0..1), kept for the streaks
+	body.resize(w * h)
+	var thr := 0.34 - coverage * 0.5
+	for y in h:
+		for x in w:
+			var v := big.get_noise_2d(x, y) + 0.12 * fine.get_noise_2d(x, y)
+			var inside := smoothstep(thr - 0.05, thr + 0.12, v)
+			body[y * w + x] = inside
+			# The tide line: a thin darker band right at the edge of each stain, broken up by fine noise.
+			var tide := exp(-pow((v - thr) / 0.03, 2.0)) * (0.55 + 0.45 * fine.get_noise_2d(x * 1.7, y * 1.7))
+			# Faded ink: patches where the print has washed out (paler than the paper).
+			var fade := smoothstep(0.18, 0.5, wash.get_noise_2d(x, y)) * inside
+			# Damp, slightly dark edges of the paper.
+			var edge_d := float(mini(mini(x, y), mini(w - 1 - x, h - 1 - y)))
+			var damp := exp(-edge_d / 9.0) * smoothstep(-0.2, 0.2, v) * 0.5
+			var a_stain := inside * (0.1 + 0.08 * fine.get_noise_2d(x * 0.6, y * 0.6))
+			var a_tide := clampf(tide, 0.0, 1.0) * 0.38
+			var a_fade := fade * 0.42
+			var a_damp := damp * 0.3
+			# Composite: damp edge and stain (grey-brown), then the tide line (darker), then the fade (pale).
+			var col := Color(0.36, 0.35, 0.33)
+			var a := clampf(a_stain + a_damp, 0.0, 0.6)
+			col = col.lerp(Color(0.27, 0.22, 0.16), clampf(a_tide / maxf(a + a_tide, 0.001), 0.0, 1.0))
+			a = clampf(a + a_tide * (1.0 - a), 0.0, 0.7)
+			col = col.lerp(Color(0.96, 0.95, 0.9), clampf(a_fade / maxf(a + a_fade, 0.001), 0.0, 1.0))
+			a = clampf(a + a_fade * (1.0 - a), 0.0, 0.75)
+			img.set_pixel(x, y, Color(col.r, col.g, col.b, a))
+	# Ink that has run: faint blue-grey streaks trickling down from inside the stains.
+	for i in int(7 + coverage * 14):
+		var sx := rng.randi_range(4, w - 5)
+		var sy := rng.randi_range(4, h - 30)
+		if body[sy * w + sx] < 0.6:
+			continue
+		var len := rng.randi_range(14, mini(70, h - sy - 2))
+		var wd := rng.randi_range(1, 2)
+		var drift := rng.randf_range(-0.12, 0.12)
+		for t in len:
+			var px := int(sx + t * drift)
+			var py := sy + t
+			var fa := 0.2 * (1.0 - float(t) / len)
+			for dx in wd:
+				if px + dx >= 0 and px + dx < w and py < h:
+					var c := img.get_pixel(px + dx, py)
+					img.set_pixel(px + dx, py, Color(0.18, 0.2, 0.36, clampf(c.a + fa, 0.0, 0.8)).lerp(c, 0.25))
+	# Beads of water: a pale centre with a bright highlight and a dark ring, scattered over the stains.
+	for i in int(14 + coverage * 40):
+		var cx := rng.randi_range(8, w - 9)
+		var cy := rng.randi_range(8, h - 9)
+		if body[cy * w + cx] < 0.25 and rng.randf() > 0.2:
+			continue
+		var r := rng.randf_range(2.0, 5.5)
+		for dy in range(-int(r) - 2, int(r) + 3):
+			for dx in range(-int(r) - 2, int(r) + 3):
+				var px := cx + dx
+				var py := cy + dy
+				if px < 0 or py < 0 or px >= w or py >= h:
+					continue
+				var d := Vector2(dx, dy).length()
+				var c := img.get_pixel(px, py)
+				if d <= r:
+					var lit := clampf(1.0 - (Vector2(dx, dy) - Vector2(-r * 0.35, -r * 0.35)).length() / (r * 0.9), 0.0, 1.0)
+					c = c.lerp(Color(0.97, 0.97, 0.95), 0.14 + 0.5 * lit * lit)
+					c.a = maxf(c.a, 0.3 + 0.35 * lit)
+				elif d <= r + 1.4:
+					c = c.lerp(Color(0.22, 0.2, 0.18), 0.55)
+					c.a = maxf(c.a, 0.45)
+				else:
+					continue
+				img.set_pixel(px, py, c)
+	return ImageTexture.create_from_image(img)
+
+
+# ------------------------------------------------------------------ logbook page
+## A page from the logbook: the previous operator's notes and little drawings, read only.
+func show_page(title: String, body: String, doodles := true) -> void:
+	_id_car = ""
+	_reg = "-"
+	_next_mode = "page"
+	_open("Right click, Esc or DONE to put it down.")
+	mode = "page"
+	_card.visible = false
+	_list.visible = false
+	_plate.visible = false
+	if _page == null:
+		_build_page()
+	(_page.get_node("Title") as Label).text = title
+	(_page.get_node("Body") as RichTextLabel).text = body
+	_page.set_meta("doodles", doodles)
+	_page.visible = true
+	_page.queue_redraw()
+	_button("DONE", Color(0.75, 0.75, 0.7), "done")
+	_layout()
+
+
+func _build_page() -> void:
+	_page = Panel.new()
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = Color(0.9, 0.87, 0.76)
+	sb.border_color = Color(0.4, 0.28, 0.16)
+	sb.set_border_width_all(10)
+	sb.shadow_size = 18
+	sb.shadow_color = Color(0, 0, 0, 0.6)
+	_page.add_theme_stylebox_override("panel", sb)
+	_page.size = Vector2(760, 520)
+	_root.add_child(_page)
+	var t := Label.new()
+	t.name = "Title"
+	t.add_theme_font_override("font", _bold)
+	t.add_theme_font_size_override("font_size", 22)
+	t.add_theme_color_override("font_color", Color(0.15, 0.12, 0.1))
+	t.position = Vector2(34, 20)
+	_page.add_child(t)
+	var b := RichTextLabel.new()
+	b.name = "Body"
+	b.bbcode_enabled = true
+	b.scroll_active = false
+	b.position = Vector2(40, 62)
+	b.size = Vector2(500, 430)
+	for n in ["normal_font", "italics_font", "bold_font"]:
+		b.add_theme_font_override(n, load("res://assets/fonts/LiberationSerif-Italic.ttf"))
+	b.add_theme_font_size_override("normal_font_size", 23)
+	b.add_theme_font_size_override("italics_font_size", 23)
+	b.add_theme_font_size_override("bold_font_size", 23)
+	b.add_theme_color_override("default_color", Color(0.12, 0.14, 0.38))
+	b.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_page.add_child(b)
+	_page.draw.connect(func():
+		# Ruled lines and a margin.
+		for i in 11:
+			_page.draw_line(Vector2(24, 92 + i * 38), Vector2(736, 92 + i * 38), Color(0.55, 0.6, 0.8, 0.35), 1.0)
+		_page.draw_line(Vector2(30, 14), Vector2(30, 506), Color(0.85, 0.3, 0.25, 0.5), 1.0)
+		if not _page.get_meta("doodles", true):
+			return
+		var ink := Color(0.1, 0.12, 0.35, 0.85)
+		# A little car with a question mark over it, in the right margin.
+		_page.draw_rect(Rect2(570, 300, 130, 34), ink, false, 2.0)
+		_page.draw_polyline(PackedVector2Array([Vector2(590, 300), Vector2(606, 276), Vector2(664, 276), Vector2(682, 300)]), ink, 2.0)
+		_page.draw_arc(Vector2(596, 336), 11, 0, TAU, 14, ink, 2.0)
+		_page.draw_arc(Vector2(676, 336), 11, 0, TAU, 14, ink, 2.0)
+		_page.draw_arc(Vector2(636, 236), 16, -PI * 0.9, PI * 0.5, 14, ink, 2.0)   # the "?"
+		_page.draw_line(Vector2(636, 252), Vector2(636, 262), ink, 2.0)
+		_page.draw_circle(Vector2(636, 270), 2.0, ink)
+		# A big letter C ringed twice, with an arrow to the car.
+		_page.draw_arc(Vector2(630, 420), 28, PI * 0.2, PI * 1.8, 18, ink, 3.0)
+		_page.draw_arc(Vector2(630, 420), 44, 0.0, TAU, 24, Color(ink, 0.6), 1.5)
+		_page.draw_line(Vector2(630, 372), Vector2(634, 346), ink, 2.0)
+		_page.draw_line(Vector2(634, 346), Vector2(626, 354), ink, 2.0)
+		_page.draw_line(Vector2(634, 346), Vector2(640, 355), ink, 2.0)
+		# Stars and a rain cloud.
+		for sp in [Vector2(580, 476), Vector2(700, 470), Vector2(560, 150), Vector2(716, 120)]:
+			_page.draw_line(sp + Vector2(-7, 0), sp + Vector2(7, 0), ink, 1.5)
+			_page.draw_line(sp + Vector2(0, -7), sp + Vector2(0, 7), ink, 1.5)
+		_page.draw_arc(Vector2(640, 190), 18, PI, TAU, 10, ink, 2.0)
+		_page.draw_arc(Vector2(666, 192), 14, PI, TAU, 10, ink, 2.0)
+		for rx in [624, 640, 656, 672]:
+			_page.draw_line(Vector2(rx, 206), Vector2(rx - 4, 222), ink, 1.5))
 
 
 # ------------------------------------------------------------------ drawing

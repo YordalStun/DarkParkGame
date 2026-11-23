@@ -109,6 +109,8 @@ var _bays: Array = []
 var _leavers: Array = []
 var _kessler_res: Dictionary = {}
 const NightTwo := preload("res://scripts/story/night_two.gd")
+## The previous operator's margin notes (the logbook on the desk, night two on).
+const LOGBOOK_PAGE := "Mon   Quiet. Rain. Out of milk again.\n\nTue   Access road under water. Dale rang three times to ask if I was awake.\n\nWed   ROW C. Grey saloon. Been there since the flood. Nobody got out. Nobody got in. Bonnet was cold.\n\nThu   Still there. Counted the bays twice. Don't tell Dale.\n\nFri   It moved. Not far. Closer to the barrier. Light's on in the car, but nobody's in it.\n\n[i]... don't look at it for too long.[/i]"
 const Dialog := preload("res://scripts/story/dialog.gd")
 ## Selectable dialog (night three on). Shared state: in co-op it is the HOST's copy that counts.
 var dialog: Node
@@ -143,6 +145,8 @@ func setup(p_world, p_hud, p_inspect) -> void:
 		arrivals = ARRIVALS.duplicate(true)
 		list_now = LIST.duplicate(true)
 	log_list = list_now.duplicate(true)
+	if night >= 2:
+		world.props.logbook_interact.prompt = "Read the logbook"
 	world.props.phone_interact.activated.connect(_on_phone.bind(local_player_id))
 	_setup_dialog()
 	if world.props.notepad_interact:
@@ -600,7 +604,11 @@ func _leave_booth() -> void:
 
 func _on_logbook() -> void:
 	if not _shift_done:
-		hud.notify("Your shift isn't over yet.", 3.0)
+		if night >= 2 and not inspect.is_open:
+			world.ambience.play_ui("click2", -16.0)
+			inspect.show_page("LOGBOOK  -  BOOTH 2  -  the last operator's notes", LOGBOOK_PAGE)
+		else:
+			hud.notify("Your shift isn't over yet.", 3.0)
 	elif not _pc_off:
 		hud.notify("Shut down the PC before you clock out.", 4.0)
 	else:
@@ -758,6 +766,7 @@ func _on_card(car, p: Dictionary, res: Dictionary) -> void:
 	car.take_card()
 	world.ambience.play_ui("click2", -16.0)
 	res.checked = true
+	inspect.smudge = night >= 2 and Weather.rain > 0.3   # rain-soaked paperwork
 	inspect.show_id(p, list_now, date_text, p.reg if night >= 2 else "", notes)
 	var choice: String = await inspect.closed
 	if car.state != "waiting":

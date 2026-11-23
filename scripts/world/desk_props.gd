@@ -204,6 +204,9 @@ func _build_notepad() -> void:
 	pad.add_child(notepad_interact)
 
 
+var _steam: GPUParticles3D
+
+
 func _build_mug() -> void:
 	var mug := Node3D.new()
 	mug.name = "Mug"
@@ -238,6 +241,7 @@ func _build_mug() -> void:
 	MK.box(mug, Vector3(0.02, 0.012, 0.03), Vector3(0.042, 0.025, 0), cer)
 
 	var steam := GPUParticles3D.new()
+	_steam = steam
 	steam.name = "Steam"
 	steam.position = Vector3(0, 0.1, 0)
 	steam.amount = 10
@@ -299,6 +303,12 @@ func _process(delta: float) -> void:
 	_t += delta
 	# Screen glow breathes very slightly with the CRT's flicker.
 	crt_light.light_energy = 0.12 + 0.006 * sin(_t * 59.0) + 0.008 * sin(_t * 7.3)
+	# The coffee goes cold over the night: plenty of steam at 23:00, a thin wisp by 02:00, none by 03:30.
+	if _steam:
+		var hours_in := fposmod(NightClock.hours_f() - 23.0, 24.0)
+		var warm := clampf(1.0 - hours_in / 3.5, 0.0, 1.0)
+		_steam.emitting = warm > 0.04
+		_steam.amount_ratio = maxf(warm, 0.1)
 
 
 ## The desktop (or terminal) took over the CRT: swap what the screen shows.

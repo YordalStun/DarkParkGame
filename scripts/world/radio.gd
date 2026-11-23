@@ -21,6 +21,10 @@ var _hiss: AudioStreamPlayer3D
 var _glow: OmniLight3D
 var _order: Array = []
 var _index := 0
+var _t := 0.0
+var _fade_db := 0.0        ## the station drifting in and out in heavy rain
+var _hiss_boost_db := 0.0  ## more crackle in heavy rain
+var _crackle_timer := 6.0
 
 
 func _ready() -> void:
@@ -100,10 +104,27 @@ func set_on(on: bool) -> void:
 	switched.emit(on)
 
 
+## Heavy rain interferes: the hiss comes up, the station fades in and out, and now and then it pops.
+func _process(delta: float) -> void:
+	if not is_on:
+		return
+	_t += delta
+	var heavy := smoothstep(0.45, 0.95, Weather.rain)
+	var wob := 0.5 + 0.5 * sin(_t * 0.37) * sin(_t * 0.113 + 1.7)
+	var fade := 1.0 - heavy * 0.75 * wob
+	_fade_db = linear_to_db(maxf(fade, 0.06))
+	_hiss_boost_db = heavy * (7.0 + 6.0 * (1.0 - fade))
+	_apply()
+	_crackle_timer -= delta
+	if heavy > 0.15 and _crackle_timer <= 0.0:
+		_one_shot("radio_static", -24.0 + heavy * 8.0 + Settings.mix_db("music"))
+		_crackle_timer = randf_range(4.0, 14.0) / (0.4 + heavy)
+
+
 func _apply() -> void:
 	var mix := Settings.mix_db("music")
-	_music.volume_db = MUSIC_DB + mix if is_on else -80.0
-	_hiss.volume_db = HISS_DB + mix if is_on else -80.0
+	_music.volume_db = MUSIC_DB + mix + _fade_db if is_on else -80.0
+	_hiss.volume_db = HISS_DB + mix + _hiss_boost_db if is_on else -80.0
 	_glow.visible = is_on
 	if dial_mat:
 		dial_mat.emission_enabled = is_on

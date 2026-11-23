@@ -178,7 +178,7 @@ func _process(delta: float) -> void:
 	if _tick_timer <= 0.0:
 		_tick_timer += 1.0
 		_tick_alt = not _tick_alt
-		_one_shot_3d("clock_tick", Vector3(0.55, 2.35, -1.03), -10.0 + Settings.mix_db("ambience"), 1.0 if _tick_alt else 0.9, "Interior", 1.0)
+		_one_shot_3d("clock_tick", Vector3(0.55, 2.35, -1.03), -10.0 + _tick_boost_db() + Settings.mix_db("ambience"), 1.0 if _tick_alt else 0.9, "Interior", 1.0)
 
 	# Trees creaking in strong wind.
 	_creak_timer -= delta
@@ -187,6 +187,13 @@ func _process(delta: float) -> void:
 		if ws > 0.3 and not world.lot.trees.is_empty():
 			var t: Node3D = world.lot.trees[randi() % mini(9, world.lot.trees.size())]
 			_one_shot_3d("tree_creak", t.global_position + Vector3(0, 4, 0), -2.0 + Settings.mix_db("weather"), randf_range(0.8, 1.1), "Outside", 10.0)
+
+
+## The wall clock ticks a little louder at 02:00 (about +7 dB, easing back over the next quarter hour).
+func _tick_boost_db() -> float:
+	if NightClock.hour() != 2 or NightClock.minute() >= 15:
+		return 0.0
+	return 7.0 * (1.0 - NightClock.minute() / 15.0)
 
 
 func _on_lightning(strength: float, distance: float) -> void:
