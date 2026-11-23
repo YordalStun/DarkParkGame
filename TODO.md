@@ -68,7 +68,7 @@ Running list for the game. Tick items off as they are done, and add new ones at 
 - [ ] Hut access: walk to the second hut across the lot. Breaking in needs a tool or a lock to pick (exact method still to decide).
 - [ ] Link between the huts: radio link. It is weaker in heavy rain, so the link can get worse in storms.
 - [ ] Link parts: two radios and an aerial each (one set for each hut). The parts are stolen from a car, so they tie in with the car boot theft.
-- [ ] Installing the link: look up at the right point on each hut and click it. The prompt says "Install radio mask". The screen fades to black and comes back with the radio installed on the side of the hut. Do this for both huts.
+- [ ] Installing the link: look up at the right point on each hut and click it. The prompt says "Install radio mast". The screen fades to black and comes back with the radio mast installed on the side of the hut. Do this for both huts.
 - [ ] After both radios are installed, the PC gets new software. The player uses it to connect the two PCs.
 - [ ] Setup takes a few minutes in game.
 - [ ] Visibility: the main hut's PC logs each connection and file transfer, so the main player can see what the second hut is doing.
