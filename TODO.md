@@ -67,7 +67,10 @@ Running list for the game. Tick items off as they are done, and add new ones at 
 - [ ] Second PC starts with no internet and no connection to the main hut. Once connected, it can download files, surf the web and log things. Nothing else in the new hut.
 - [ ] Hut access: walk to the second hut across the lot. Breaking in needs a tool or a lock to pick (exact method still to decide).
 - [ ] Link between the huts: radio link. It is weaker in heavy rain, so the link can get worse in storms.
-- [ ] Link parts: two radios and an aerial each (one set for each hut). The parts are stolen from a car, so they tie in with the car boot theft.
+- [ ] Link parts: two radios and an aerial each (one set for each hut). Too expensive for Dave to buy new, so there are two ways to get them without stealing:
+  - Buy them from the weird guy who buys stolen goods (he also has a shop). Ties in with the stolen-goods buyer.
+  - Buy second-hand from an online shop on the PC (a fallback for players who don't want the shop option). Cheaper than new, but it still costs coins and takes a day to deliver, like the boot wedge.
+  - Stealing them from a car is still possible as a riskier option.
 - [ ] Installing the link: look up at the right point on each hut and click it. The prompt says "Install radio mast". The screen fades to black and comes back with the radio mast installed on the side of the hut. Do this for both huts.
 - [ ] After both radios are installed, the PC gets new software. The player uses it to connect the two PCs.
 - [ ] Setup takes a few minutes in game.
