@@ -66,10 +66,12 @@ Running list for the game. Tick items off as they are done, and add new ones at 
 - [ ] Write night three's people, each with their own dialog (side window, desk phone and out on patrol), using the dialog format in `scripts/story/dialogs/`.
 - [ ] Dialog options for every night three conversation, with the safe option and the 2-4 numbered choices.
 - [ ] Hacking clue: one night three person has a dog. Their dog's name is the password clue (ties in with the hospital login).
-- [ ] Hacking clue: the printed paper with the hospital's IP is handed to the guard by an old, friendly staff member (ties in with the IP plot point).
-- [ ] Printed sheet from the elderly staff member: give both the printer IP (footer) and a website address on it. Pick the website address and what it links to.
+- [x] Hacking clue: the printed paper with the hospital's IP is handed to the guard by an old, friendly staff member: Doris Fenn (64, Ward 7 clerk), a new night-three arrival, hands over the staff newsletter (scripts/story/dialogs/doris.gd).
+- [x] Printed sheet from the elderly staff member: the printer footer carries the hospital address (10.113.7.20, the same one the leaked memo gives, so either route works) and the newsletter gives the staff noticeboard, www.ashfordgeneral.org/staff (a new intranet page with the MediCare Remote download link, not linked from anywhere else).
 
 ## UI
+
+- [x] Show which night it is: "NIGHT 3" beside the coins all night, and a "NIGHT THREE" title as each night starts
 
 - [ ] Bug: clicking a car's plate to check it fills too much of the screen. The plate view (`inspect.show_plate` in `scripts/ui/inspect.gd`) should be smaller. Also stop it opening when the player doesn't want to check the plate (only open it on a deliberate click on the plate).
 - [x] Bug: NightLink shows up on the desktop and Start menu from night three with no download. It should only appear after the MediCare download is finished and installed (see docs/design/hacking-system.md). The icon is added in `scripts/desktop/os.gd` when `SaveGame.night() >= 3`.

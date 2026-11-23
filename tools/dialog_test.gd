@@ -40,7 +40,8 @@ func _new_runner() -> Node:
 
 func _run() -> void:
 	# 1. Every sample conversation is valid.
-	var samples := {"window": Samples.window(), "phone": Samples.phone(), "patrol": Samples.patrol()}
+	var samples := {"window": Samples.window(), "phone": Samples.phone(), "patrol": Samples.patrol(),
+		"doris": load("res://scripts/story/dialogs/doris.gd").window()}
 	for name in samples:
 		var errs: Array = Dialog.validate(samples[name])
 		_check("sample '%s' is valid" % name, errs.is_empty(), errs)

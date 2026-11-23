@@ -60,16 +60,23 @@ detailed enough for a build session to work from without this chat.
 - **Co-op:** runs on the host; every action takes a player id; only the PC's owner (first to use it, until
   they sit back or shut down) can act. `tools/hack_test.gd` checks it; the autoplay bot plays it on night 3.
 
-- The printed sheet gives both the printer IP and a website address. The
-  website address is included on the sheet alongside the printer footer
-  (the exact address is still to pick).
+- **The printed sheet (built 23 Nov 2026):** on night three Doris Fenn (64, Ward 7's clerk, retiring at
+  Christmas) arrives at the side window, chats, and hands over the hospital's **staff newsletter** ("I
+  printed two by mistake"). It lands on the desk; click it to read it. She has no idea what's on it:
+  - the ward printer's footer: `Printed via ASHGEN-GW 10.113.7.20 (WARD7-PRN) 15/10/89 22:41`, the same
+    address the leaked memo gives (both routes work);
+  - a notice about working from home, giving the **staff noticeboard**: `www.ashfordgeneral.org/staff`.
+    That intranet page (not linked from anywhere else) links to the MediCare Remote download, repeats
+    the user id format, and says the dial-in address is printed at the bottom of anything printed on the
+    ward printers. Keith in I.T. recommends "the name of a pet".
+  - She's on tonight's list (FENN, Doris, 40021, B377 OWF), card in date: let her in. If she's never
+    served at the window, the memo is still there.
 
 ## Open questions
 
 - What happens when Dave is caught.
 - The dark web contact's name, and what they want from Dave: UNKNOWN for now (the user doesn't know yet). Keep the contact anonymous until this is decided.
 - The download's name and where it is found on the internet.
-- The website address printed on the sheet, and what it links to.
 - Punishment choices: which detection ideas to use and the suspicion thresholds.
 - Shift rule when a download is still running at 07:00 (confirm: shift ends, download continues).
 - The exact payoff: coins from bribes, story info, or both.
@@ -101,8 +108,7 @@ Proposed details (for the build session; the exact choices are still open):
 - Risk: none for reading the sheet. Connecting from the PC later is where the
   risk starts.
 
-Open: which staff member gives the sheet, and whether the sheet is the ward
-handover or something else.
+Decided: Doris Fenn gives it, and it's the staff newsletter (see "The printed sheet" above).
 
 ### PP2: connecting and getting in
 

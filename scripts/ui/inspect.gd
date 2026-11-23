@@ -37,6 +37,7 @@ var _log_status: Label
 var _log_list: Label
 var smudge := false          ## rain-soaked paperwork: water stains over the ID card and the list (night two on)
 var _page: Control           ## the logbook page (previous operator's notes and doodles)
+var _print: Control          ## a printed sheet (night three's staff newsletter), with the printer's footer
 var _log_pick := ""
 var _log_cb: Callable        ## func(reg, name)
 var _log_entries: Callable   ## func() -> Array of {time, reg, name}
@@ -410,6 +411,8 @@ func _show_notes_box(text: String) -> void:
 func _open(caption: String) -> void:
 	if _page:
 		_page.visible = false
+	if _print:
+		_print.visible = false
 	if _notes:
 		_notes.visible = false
 	if _notes_box:
@@ -479,6 +482,10 @@ func _layout() -> void:
 		var ps := s * 0.95
 		_page.scale = Vector2(ps, ps)
 		_page.position = (vs - _page.size * ps) * 0.5
+	if _print and _print.visible:
+		var pp := minf(s * 0.95, vs.y * 0.78 / _print.size.y)
+		_print.scale = Vector2(pp, pp)
+		_print.position = (vs - _print.size * pp) * 0.5 - Vector2(0, vs.y * 0.035)   # clear of the DONE button
 	if _log and _log.visible:
 		# Clipboard under a smaller plate close-up.
 		var ls := s * 0.95
@@ -626,6 +633,76 @@ func show_page(title: String, body: String, doodles := true) -> void:
 	_page.queue_redraw()
 	_button("DONE", Color(0.75, 0.75, 0.7), "done")
 	_layout()
+
+
+## A printed sheet: a heading, the body (BBCode) and the small grey footer the printer adds.
+func show_print(title: String, body: String, footer: String) -> void:
+	_id_car = ""
+	_reg = "-"
+	_next_mode = "print"
+	_open("Right click, Esc or DONE to put it down.")
+	mode = "print"
+	_card.visible = false
+	_list.visible = false
+	_plate.visible = false
+	if _print == null:
+		_build_print()
+	(_print.get_node("Title") as Label).text = title
+	(_print.get_node("Body") as RichTextLabel).text = body
+	(_print.get_node("Footer") as Label).text = footer
+	_print.visible = true
+	_button("DONE", Color(0.75, 0.75, 0.7), "done")
+	_layout()
+
+
+func _build_print() -> void:
+	_print = Panel.new()
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = Color(0.95, 0.94, 0.9)
+	sb.border_color = Color(0.7, 0.68, 0.62)
+	sb.set_border_width_all(2)
+	sb.shadow_size = 18
+	sb.shadow_color = Color(0, 0, 0, 0.6)
+	_print.add_theme_stylebox_override("panel", sb)
+	_print.size = Vector2(700, 720)
+	_root.add_child(_print)
+	var t := Label.new()
+	t.name = "Title"
+	t.add_theme_font_override("font", load("res://assets/fonts/LiberationSans-Bold.ttf"))
+	t.add_theme_font_size_override("font_size", 22)
+	t.add_theme_color_override("font_color", Color(0.08, 0.08, 0.1))
+	t.position = Vector2(44, 34)
+	t.size = Vector2(612, 40)
+	t.clip_text = true
+	t.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_print.add_child(t)
+	var b := RichTextLabel.new()
+	b.name = "Body"
+	b.bbcode_enabled = true
+	b.scroll_active = false
+	b.position = Vector2(48, 92)
+	b.size = Vector2(604, 560)
+	b.add_theme_font_override("normal_font", load("res://assets/fonts/LiberationSerif-Regular.ttf"))
+	b.add_theme_font_override("bold_font", load("res://assets/fonts/LiberationSerif-Bold.ttf"))
+	b.add_theme_font_override("italics_font", load("res://assets/fonts/LiberationSerif-Italic.ttf"))
+	for n in ["normal_font_size", "bold_font_size", "italics_font_size"]:
+		b.add_theme_font_size_override(n, 20)
+	b.add_theme_color_override("default_color", Color(0.1, 0.1, 0.12))
+	b.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_print.add_child(b)
+	var f := Label.new()
+	f.name = "Footer"
+	f.add_theme_font_override("font", load("res://assets/fonts/LiberationMono-Regular.ttf"))
+	f.add_theme_font_size_override("font_size", 16)
+	f.add_theme_color_override("font_color", Color(0.36, 0.36, 0.36))
+	f.position = Vector2(44, 676)
+	f.size = Vector2(612, 22)
+	f.clip_text = true
+	_print.add_child(f)
+	_print.draw.connect(func():
+		# A dot-matrix rule under the heading and above the footer.
+		_print.draw_line(Vector2(44, 80), Vector2(656, 80), Color(0.2, 0.2, 0.2), 2.0)
+		_print.draw_line(Vector2(44, 668), Vector2(656, 668), Color(0.6, 0.6, 0.6), 1.0))
 
 
 func _build_page() -> void:

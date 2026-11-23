@@ -94,6 +94,7 @@ static func get_page(url: String, vars: Dictionary) -> String:
 	else:
 		html = _SITES.get(host + path, "")
 	html = html.replace("{{HACKER_HEAD}}", HACKER_TEASER if hacker_story_shown() else "")
+	html = html.replace("{{STAFF}}", STAFF_NOTICEBOARD)
 	if html == "":
 		html = NOT_FOUND.replace("{{URL}}", url)
 	for k in vars:
@@ -449,6 +450,9 @@ For Windows 95. Needs a modem and 8 MB of memory.<br><br>
 <p><font size=2>Unauthorised use of this system is an offence under the Computer Misuse Act.</font></p>
 <p><a href="/">Back</a></p></body></html>""",
 
+"ashfordgeneral.org/staff": """{{STAFF}}""",
+"ashfordgeneral.org/staff/": """{{STAFF}}""",
+
 # ------------------------------------------------------------------ Gazette
 "ashfordgazette.com/": """<html><head><title>The Ashford Gazette Online</title></head>
 <body bgcolor=#f4f0e4 text=#111111 link=#003366>
@@ -666,3 +670,29 @@ You are visitor number <font face="courier" color=#00ff00><b>{{VISITORS}}</b></f
 <p><b>Forecaster's note:</b> Friday the 13th brings a deep area of low pressure from the west. Motorists are advised to avoid low-lying car parks.</p>
 <p><a href="http://www.winnight.net/">NightNet Start</a></p></body></html>""",
 }
+
+
+## The staff noticeboard (night three on). Not linked from anywhere: its address is printed in the staff
+## newsletter Doris hands over at the side window (scripts/story/dialogs/doris.gd).
+const STAFF_NOTICEBOARD := """<html><head><title>Staff Noticeboard - Ashford General</title></head>
+<body bgcolor=#fffff0 text=#000000 link=#00339a>
+<h2>Staff Noticeboard</h2>
+<p><i>Ashford General Hospital - for staff only. Please do not give this address to patients or visitors.</i></p>
+<hr>
+<h3>Work from home: MediCare Remote</h3>
+<p>Out-of-hours staff can now dial in to the hospital computer from home. You will need:</p>
+<ul><li>A modem and a Windows 95 PC.
+<li>The MediCare Remote client: <a href="/mcare.html"><b>download it here</b></a>.
+<li>Your user id: first initial, a dot, then your surname (e.g. D.FENN).
+<li>Your password. Keith says: something you won't forget. The name of a pet works well!</ul>
+<p>The hospital's dial-in address is printed at the bottom of anything you print on the ward printers.</p>
+<hr>
+<h3>Ward 7</h3>
+<p>Handover is at 07:00 sharp. Bed 9: <b>no visitors</b>, whatever they tell you.</p>
+<p>The kettle in the staff room is broken again. Please don't use the one in the sluice.</p>
+<hr>
+<h3>Around the hospital</h3>
+<p>Lot C is open to night staff while our car park is flooded. Show your card at the gatehouse.</p>
+<p>Doris Fenn retires at Christmas after 41 years. Collection in the Ward 7 office.</p>
+<p><a href="/">Hospital home page</a></p>
+</body></html>"""

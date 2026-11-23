@@ -114,6 +114,7 @@ const LOGBOOK_PAGE := "Mon   Quiet. Rain. Out of milk again.\n\nTue   Access roa
 const Dialog := preload("res://scripts/story/dialog.gd")
 const Hack := preload("res://scripts/story/hack.gd")
 const Samples := preload("res://scripts/story/dialogs/samples.gd")
+const Doris := preload("res://scripts/story/dialogs/doris.gd")
 var hack: Node                ## the hospital side hustle (night three on)
 ## Selectable dialog (night three on). Shared state: in co-op it is the HOST's copy that counts.
 var dialog: Node
@@ -161,6 +162,16 @@ func setup(p_world, p_hud, p_inspect) -> void:
 	else:
 		arrivals = ARRIVALS.duplicate(true)
 		list_now = LIST.duplicate(true)
+	if night >= 3:   # night three is the Sunday (it used to borrow night two's date)
+		date_text = "Sunday 15th October 1989  -  23:00 to 07:00"
+		date_short = "SUN 15 OCT 1989"
+	if night >= 3:   # Doris Fenn, Ward 7's clerk, who hands over the staff newsletter (the hospital's address)
+		var d: Dictionary = Doris.ARRIVAL.duplicate(true)
+		d["convo"] = Doris.window()
+		arrivals.append(d)
+		list_now.append(Doris.LIST.duplicate())
+		list_now.sort_custom(func(a, b): return str(a.name) < str(b.name))
+		world.props.newsletter_interact.activated.connect(_read_newsletter)
 	log_list = list_now.duplicate(true)
 	for i in arrivals.size():
 		arrivals[i]["idx"] = i   # the same on every machine, so a car can be named by number
@@ -177,6 +188,7 @@ func setup(p_world, p_hud, p_inspect) -> void:
 		world.props.notepad_interact.activated.connect(open_notes)
 	world.props.logbook_interact.activated.connect(_on_logbook)
 	hud.set_money(money, false)
+	hud.set_night(night, "", false)
 	if guest:
 		world.booth.raise_button.activated.connect(func(): Net.request("raise"))
 		world.booth.lower_button.activated.connect(func(): Net.request("lower"))
@@ -315,6 +327,7 @@ func start() -> void:
 	if started:
 		return
 	started = true
+	hud.set_night(night, date_text.split("  -  ")[0])
 	hud.set_objectives([["phone", "Answer the phone (click it)"] if night >= 2 else ["phone", "Answer the phone"]])
 	await _wait(5.0)
 	await _phone_call(NightTwo.dale_call() if night >= 2 else _dale_call())
@@ -934,6 +947,8 @@ func _visitor(p: Dictionary) -> void:
 		# Night three on: some visitors have a conversation with replies instead of fixed lines.
 		if car.state == "waiting" and p.has("convo"):
 			await talk(p.convo, _talker_of(car))
+		if car.state == "waiting" and p.get("hands", "") == "newsletter":
+			_hand_newsletter(_short(p))
 		if car.state == "waiting" and not res.checked:
 			_car(car, "offer_card")
 	# Until it drives in or reverses away.
@@ -1373,6 +1388,7 @@ func _process(delta: float) -> void:
 ## Guest: the night starts (the host is running it).
 func guest_start() -> void:
 	started = true
+	hud.set_night(night, date_text.split("  -  ")[0])
 
 
 ## Guest: what the host's game says happened.
@@ -1476,6 +1492,8 @@ func guest_event(what: String, a: Array) -> void:
 			_restart()
 		"ended":
 			leave_to_title(str(a[0]))
+		"newsletter":
+			world.props.show_newsletter()
 
 
 func _guest_car(idx: int, bay: Vector3, nm: String) -> void:
@@ -1594,3 +1612,24 @@ func _set_chair(id: int, sit: bool) -> bool:
 	if chair_owner != before:
 		Net.send("chair_owner", [chair_owner])
 	return chair_owner == id if sit else true
+
+
+# ------------------------------------------------------------------ the staff newsletter (night three)
+## Doris hands it through the side window; it lands on the desk for everyone.
+func _hand_newsletter(who: String) -> void:
+	if world.props.newsletter.visible:
+		return
+	world.ambience.play_ui("click2", -14.0)
+	world.props.show_newsletter()
+	Net.send("newsletter")
+	hud.notify("%s hands you a newsletter through the window. It's on the desk." % who, 5.0)
+
+
+func _read_newsletter() -> void:
+	if inspect.is_open:
+		return
+	world.ambience.play_ui("click2", -16.0)
+	var n: Array = Doris.newsletter()
+	inspect.show_print(n[0], n[1], n[2])
+	if not guest:
+		flags["read_newsletter"] = true

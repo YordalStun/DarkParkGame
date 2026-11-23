@@ -671,9 +671,57 @@ func _build_objectives() -> void:
 	_obj_box.add_child(_obj_text)
 
 
+var night := 0   ## the night being played (shown beside the coins); 0 = not shown
+
+
 func _show_money(v: float) -> void:
 	_money_shown = v
-	_money_label.text = "COINS: %d" % int(round(v))
+	_money_label.text = ("NIGHT %d     " % night if night > 0 else "") + "COINS: %d" % int(round(v))
+
+
+const NIGHT_WORDS := ["ONE", "TWO", "THREE", "FOUR", "FIVE", "SIX", "SEVEN", "EIGHT", "NINE", "TEN"]
+
+
+## Which night it is: shown top right all night, and as a title in the middle as the night begins.
+func set_night(n: int, date_text := "", show_title := true) -> void:
+	night = n
+	_show_money(_money_shown)
+	if not show_title:
+		return
+	var box := VBoxContainer.new()
+	box.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
+	box.offset_left = -400
+	box.offset_right = 400
+	box.offset_top = -140
+	box.offset_bottom = -20
+	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(box)
+	var t := Label.new()
+	t.text = "NIGHT " + (NIGHT_WORDS[n - 1] if n >= 1 and n <= NIGHT_WORDS.size() else str(n))
+	t.add_theme_font_override("font", _font)
+	t.add_theme_font_size_override("font_size", 84)
+	t.add_theme_color_override("font_color", Color(0.91, 0.75, 0.44))
+	t.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.8))
+	t.add_theme_constant_override("shadow_offset_x", 3)
+	t.add_theme_constant_override("shadow_offset_y", 3)
+	t.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	box.add_child(t)
+	if date_text != "":
+		var d := Label.new()
+		d.text = date_text
+		d.add_theme_font_override("font", _font)
+		d.add_theme_font_size_override("font_size", 32)
+		d.add_theme_color_override("font_color", Color(0.85, 0.84, 0.78))
+		d.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.8))
+		d.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		box.add_child(d)
+	box.modulate.a = 0.0
+	var tw := create_tween()
+	tw.tween_interval(1.5)
+	tw.tween_property(box, "modulate:a", 1.0, 1.2)
+	tw.tween_interval(3.0)
+	tw.tween_property(box, "modulate:a", 0.0, 1.5)
+	tw.tween_callback(box.queue_free)
 
 
 ## How many coins the player has. It counts there slowly (about a third of a second per coin).

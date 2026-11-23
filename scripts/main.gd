@@ -214,6 +214,9 @@ func _ready() -> void:
 		hud.set_paused(true)
 	if _args.has("roam") and story.roam:   # testing: --roam=up | out[,x,z,yaw_degrees] (night three on)
 		_test_roam(str(_args.roam).split(","))
+	if _args.has("newsletter"):   # testing: night three's staff newsletter, open on screen
+		world.props.show_newsletter()
+		story._read_newsletter()
 	if _args.has("walker"):
 		story.debug_walker(int(_args.walker) if str(_args.walker) != "true" else 0)
 	if _args.has("cctv"):

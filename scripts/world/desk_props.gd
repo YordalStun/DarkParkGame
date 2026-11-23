@@ -23,6 +23,8 @@ var radio_interact: Interactable
 var radio_player: Node3D  ## radio.gd: music on/off, playlist
 var logbook_interact: Interactable
 var notepad_interact: Interactable   ## the yellow pad by the phone (N)
+var newsletter: Node3D                ## night three: the staff newsletter Doris hands over (hidden until then)
+var newsletter_interact: Interactable
 var _t := 0.0
 
 
@@ -35,6 +37,7 @@ func _ready() -> void:
 	_build_notepad()
 	_build_mug()
 	_build_flashlight()
+	_build_newsletter()
 
 
 func _build_crt() -> void:
@@ -285,6 +288,42 @@ func _build_mug() -> void:
 	steam.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	steam.visibility_aabb = AABB(Vector3(-0.3, -0.1, -0.3), Vector3(0.6, 0.8, 0.6))
 	mug.add_child(steam)
+
+
+## The hospital's staff newsletter, folded open on the desk between the mug and the keyboard. Hidden
+## until someone hands it over (night three: Doris Fenn at the side window).
+func _build_newsletter() -> void:
+	newsletter = Node3D.new()
+	newsletter.name = "Newsletter"
+	newsletter.position = Vector3(0.13, DESK_Y, -0.56)
+	newsletter.rotation_degrees = Vector3(0, -11, 0)
+	newsletter.visible = false
+	add_child(newsletter)
+	var paper := MK.mat(Color(0.93, 0.92, 0.88), "", 0.9)
+	MK.box(newsletter, Vector3(0.21, 0.002, 0.29), Vector3(0, 0.001, 0), paper)
+	var ink := MK.mat(Color(0.12, 0.12, 0.14), "", 0.9)
+	var grey := MK.mat(Color(0.45, 0.45, 0.47), "", 0.9)
+	# A bold masthead, then columns of print.
+	MK.box(newsletter, Vector3(0.17, 0.0005, 0.018), Vector3(0, 0.0025, -0.115), ink)
+	for col in [-0.045, 0.045]:
+		for i in 11:
+			MK.box(newsletter, Vector3(0.075, 0.0005, 0.004), Vector3(col, 0.0025, -0.085 + i * 0.016), grey)
+	MK.box(newsletter, Vector3(0.17, 0.0005, 0.003), Vector3(0, 0.0025, 0.13), grey)   # the footer line
+	newsletter_interact = Interactable.new()
+	newsletter_interact.prompt = "Staff newsletter"
+	newsletter_interact.add_box(Vector3(0.22, 0.03, 0.3), Vector3(0, 0.01, 0))
+	newsletter_interact.enabled = false
+	newsletter.add_child(newsletter_interact)
+
+
+## Put the newsletter on the desk (it drops into place).
+func show_newsletter() -> void:
+	if newsletter.visible:
+		return
+	newsletter.visible = true
+	newsletter_interact.enabled = true
+	newsletter.position.y = DESK_Y + 0.06
+	create_tween().tween_property(newsletter, "position:y", DESK_Y, 0.35).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
 
 
 func _build_flashlight() -> void:

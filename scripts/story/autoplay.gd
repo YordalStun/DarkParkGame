@@ -82,6 +82,14 @@ func _act() -> void:
 		_hack()
 	if story.roam != null and mode in ["perfect", "roam_out"]:
 		_roam()
+	# Night three: Doris's newsletter lands on the desk; read it.
+	if story.night >= 3 and world.props.newsletter.visible and not inspect.is_open and _once("newsletter"):
+		story._read_newsletter()
+		var footer: String = (inspect._print.get_node("Footer") as Label).text
+		print("BOT %s: read the newsletter (footer: %s)" % [NightClock.time_text(), footer])
+		if not story.Hack.GATEWAY_IP in footer:
+			_finish(false, "the newsletter's footer doesn't carry the gateway address")
+		inspect.close("done")
 	# The notepad: normally after the ward's call; "notes_early" does it while the call is still playing.
 	if mode == "notes_early" and hud.waiting_click and story.notes == "" and not _typing and story.night >= 2:
 		_type_notes("Janet Lowe OFF tonight. Kevin Platt ON - B908 RWD.")

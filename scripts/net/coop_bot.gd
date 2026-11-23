@@ -141,6 +141,7 @@ func _hack() -> void:
 func _finish() -> void:
 	_finished = true
 	var files: Array = story.world.props.desktop.vfs.list("C:\\DOWNLOADS") if story.world.props.desktop.vfs.has_method("list") else []
+	print("GUEST newsletter on the desk: %s" % world.props.newsletter.visible)
 	print("GUEST RESULT: PASS report received; entries=%d risk=%d hack_logged_in=%s downloaded=%s files=%s events=%s" % [
 		story.entries.size(), story.risk, story.hack.state.logged_in if story.hack else false,
 		str(story.hack.state.downloaded) if story.hack else "[]", str(files), str(_seen)])
