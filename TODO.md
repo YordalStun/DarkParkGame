@@ -65,7 +65,10 @@ Running list for the game. Tick items off as they are done, and add new ones at 
 
 - [ ] Build a second hut for co-op only. It is super basic and has to be broken into. The only thing inside is a second PC.
 - [ ] Second PC starts with no internet and no connection to the main hut. Once connected, it can download files, surf the web and log things. Nothing else in the new hut.
-- [ ] Connect the two huts with a time-accurate 1989 link. Ideas to choose from: a phone line with modems, a serial (null-modem) cable run along the fence, a radio link, or a cable run through the back door. Pick one.
+- [ ] Hut access: walk to the second hut across the lot. Breaking in needs a tool or a lock to pick (exact method still to decide).
+- [ ] Link between the huts: radio link. It is weaker in heavy rain, so the link can get worse in storms.
+- [ ] Visibility: the main hut's PC logs each connection and file transfer, so the main player can see what the second hut is doing.
+- [ ] Second PC uses: download, browse, log, and transfer files from PC to PC between the two huts. The transfer is much faster than the internet but still slow.
 - [ ] Once connected, share the main hut's internet with the second hut. The link can be turned on and off from the main hut.
 - [ ] Shared internet is much slower, so the two huts can do two things at once, but each gets a slower connection.
 - [ ] Downloads are much slower than now. A download runs for the whole shift, or until the PC is left on to the next shift.
