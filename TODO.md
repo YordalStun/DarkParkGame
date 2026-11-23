@@ -70,6 +70,7 @@ Running list for the game. Tick items off as they are done, and add new ones at 
 
 ## UI
 
+- [ ] Bug: clicking a car's plate to check it fills too much of the screen. The plate view (`inspect.show_plate` in `scripts/ui/inspect.gd`) should be smaller. Also stop it opening when the player doesn't want to check the plate (only open it on a deliberate click on the plate).
 - [x] Bug: NightLink shows up on the desktop and Start menu from night three with no download. It should only appear after the MediCare download is finished and installed (see docs/design/hacking-system.md). The icon is added in `scripts/desktop/os.gd` when `SaveGame.night() >= 3`.
 - [x] Bug: the NightLink UI overlaps other UI. Fix the layout so it does not overlap.
 
