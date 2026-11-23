@@ -276,6 +276,9 @@ func _on_test(id: String) -> void:
 		"w_storm": Weather.set_profile("storm", 4.0)
 		"w_fog": Weather.set_profile("fog", 4.0)
 		"w_flash": Weather.strike_lightning(1.0)
+		"night_1", "night_2", "night_3":   # jump straight to that night (keeps your coins, restarts the shift)
+			story._save_progress(story.money, int(id.substr(6)))
+			story._restart()
 		"booth_a", "booth_b":
 			story._save_progress(story.money, 1 if id == "booth_a" else 2)
 			story._restart()
