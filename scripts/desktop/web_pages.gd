@@ -33,10 +33,13 @@ const INDEX := [
 	["http://www.ashfordgazette.com/", "The Ashford Gazette Online", "Local news for Ashford County.", "ashford gazette news local"],
 	# Only on nights 2 and 3 (a hint of the hacking side hustle): the fifth item lists the nights it shows on.
 	["http://www.ashfordgazette.com/hacker.html", "Hacker \"earned millions\" selling stolen hospital records, court told", "A computer expert broke into three hospital networks from his bedroom, the Crown Court heard.", "hacker hacking hospital records computer password stolen data court millions modem", [2, 3]],
+	# Night three on: the hospital's site, with the MediCare Remote client download.
+	["http://www.ashfordgeneral.org/", "Ashford General Hospital", "Visiting hours, departments and staff links.", "ashford general hospital nhs staff visiting wards", [3, 4, 5, 6, 7, 8, 9, 10]],
+	["http://www.ashfordgeneral.org/mcare.html", "MediCare Remote - Staff remote access", "Download the MediCare Remote client for out-of-hours staff.", "medicare remote client download staff hospital gateway modem", [3, 4, 5, 6, 7, 8, 9, 10]],
 	["http://home.freeweb.net/~dougk/", "Doug's Place", "Welcome to my homepage. Under construction.", "doug homepage freeweb trains cats"],
 ]
 
-const CANON := ["worldwire.com", "winnight.net", "findit.com", "nightwatch-security.com", "ashfordgazette.com", "ashfordparking.gov", "home.freeweb.net", "bbs.nightowls.net", "cityweather.net"]
+const CANON := ["worldwire.com", "winnight.net", "findit.com", "nightwatch-security.com", "ashfordgazette.com", "ashfordparking.gov", "home.freeweb.net", "bbs.nightowls.net", "cityweather.net", "ashfordgeneral.org"]
 
 
 ## The hacker story is only in the Gazette on nights 2 and 3.
@@ -47,6 +50,21 @@ static func hacker_story_shown() -> bool:
 const HACKER_TEASER := """<h2><a href="/hacker.html">Hacker "earned millions" selling stolen hospital records, court told</a></h2>
 <p>A computer expert broke into three hospital networks from his bedroom, the Crown Court heard yesterday. "The hardest part," said one detective, "was how easy it was."</p>
 <p><a href="/hacker.html">Read more...</a></p>"""
+
+
+## Files the fictional web lets you download: url (host + path) -> {name, kb}. The browser shows a download
+## window and saves them to C:\\DOWNLOADS. Night three on.
+const DOWNLOADS := {
+	"ashfordgeneral.org/files/mcare95.exe": {"name": "MCARE95.EXE", "kb": 1210},
+}
+
+
+static func download_info(url: String) -> Dictionary:
+	var u := HtmlView.split_url(url)
+	var key: String = canon_host(u.host) + str(u.path).to_lower()
+	if SaveGame.night() >= 3 and DOWNLOADS.has(key):
+		return DOWNLOADS[key]
+	return {}
 
 
 static func canon_host(h: String) -> String:
@@ -69,6 +87,8 @@ static func get_page(url: String, vars: Dictionary) -> String:
 		html = _search_page(u.query)
 	elif host == "worldwire.com":
 		html = _news_page(path, u.query)
+	elif host == "ashfordgeneral.org" and SaveGame.night() < 3:
+		html = ""   # the hospital's site only exists from night three
 	elif host + path == "ashfordgazette.com/hacker.html" and not hacker_story_shown():
 		html = ""   # not in the paper yet (or any more)
 	else:
@@ -393,6 +413,40 @@ const _SITES := {
 <p><b>Night Operator, Lot C (Ashford)</b> - <font color=#ff8080>URGENT</font></p>
 <p>23:00 - 07:00. Quiet work for a calm person. Must be happy working alone. Must be able to ignore things. No previous experience necessary.</p>
 <p>Previous post holder: <i>no longer with us</i>. Please apply to Dale Whitcombe, extension 214.</p>
+<p><a href="/">Back</a></p></body></html>""",
+
+# ------------------------------------------------------------------ Ashford General (night three on)
+"ashfordgeneral.org/": """<html><head><title>Ashford General Hospital</title></head>
+<body bgcolor=#ffffff text=#000000 link=#00339a>
+<h1>Ashford General Hospital</h1>
+<p><i>Caring for Ashford since 1936.</i></p>
+<hr>
+<table width=100% border=0 cellpadding=6><tr><td valign=top width=55%>
+<h3>Visiting hours</h3>
+<p>Wards: 14:00 - 16:00 and 18:30 - 20:00.<br>Ward 7: by arrangement with the ward sister only.</p>
+<h3>Car parking</h3>
+<p>Staff parking is in Lot C (night staff, barrier access). Visitors please use the main car park.</p>
+</td><td valign=top>
+<h3>Staff</h3>
+<ul><li><a href="/mcare.html">Remote access (MediCare)</a><li>Rotas (internal only)<li>Occupational health<li>Canteen menu</ul>
+</td></tr></table>
+<hr><font size=2>Ashford General Hospital NHS Trust. Switchboard 0271 555 0140.</font>
+</body></html>""",
+
+"ashfordgeneral.org/mcare.html": """<html><head><title>MediCare Remote - Staff remote access</title></head>
+<body bgcolor=#ffffff text=#000000 link=#00339a>
+<h2>MediCare Remote</h2>
+<p><b>Remote access for out-of-hours staff</b></p>
+<p>MediCare Remote lets authorised staff dial in to the hospital's clinic gateway from home or from an approved site, to check rotas and ward lists.</p>
+<table border=1 cellpadding=6><tr><td>
+<b>MediCare Remote Client v1.2</b> (includes the NightLink dialler)<br>
+For Windows 95. Needs a modem and 8 MB of memory.<br><br>
+<a href="/files/mcare95.exe"><b>Download MCARE95.EXE</b></a> (1.2 MB)
+</td></tr></table>
+<h3>Installing</h3>
+<ol><li>Click the link above and save the file.<li>Run MCARE95.EXE from your DOWNLOADS folder.<li>NightLink appears on your desktop.</ol>
+<p>Your user id is your first initial, a dot, then your surname. If you have problems, ring I.T. on extension 3318 (ask for Keith).</p>
+<p><font size=2>Unauthorised use of this system is an offence under the Computer Misuse Act.</font></p>
 <p><a href="/">Back</a></p></body></html>""",
 
 # ------------------------------------------------------------------ Gazette

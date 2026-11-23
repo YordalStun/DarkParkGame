@@ -61,6 +61,18 @@ Running list for the game. Tick items off as they are done, and add new ones at 
 - [ ] Co-op: guests' notepads are their own (dialog "note" effects only reach the host's)
 - [ ] Co-op: test over a real LAN / the internet (so far tested with two copies on one machine)
 
+## Night 3 people and dialog
+
+- [ ] Write night three's people, each with their own dialog (side window, desk phone and out on patrol), using the dialog format in `scripts/story/dialogs/`.
+- [ ] Dialog options for every night three conversation, with the safe option and the 2-4 numbered choices.
+- [ ] Hacking clue: one night three person has a dog. Their dog's name is the password clue (ties in with the hospital login).
+- [ ] Hacking clue: the printed paper with the hospital's IP is handed to the guard by an old, friendly staff member (ties in with the IP plot point).
+
+## UI
+
+- [x] Bug: NightLink shows up on the desktop and Start menu from night three with no download. It should only appear after the MediCare download is finished and installed (see docs/design/hacking-system.md). The icon is added in `scripts/desktop/os.gd` when `SaveGame.night() >= 3`.
+- [x] Bug: the NightLink UI overlaps other UI. Fix the layout so it does not overlap.
+
 ## Night 3
 
 - [ ] Walkable area: take screenshots of the lot from player eye height and check it looks right from every angle.

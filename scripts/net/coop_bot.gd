@@ -83,6 +83,11 @@ func _hack() -> void:
 	var h = story.hack
 	if h.state.dead:
 		return
+	if not h.installed:
+		if _once("hinstall"):
+			print("GUEST %s: installing MediCare Remote" % NightClock.time_text())
+			h.install(story.local_player_id)
+		return
 	if not h.state.connected and _once("hconnect"):
 		print("GUEST %s: dialling the hospital" % NightClock.time_text())
 		h.connect_to(h.GATEWAY_IP, story.local_player_id)

@@ -31,6 +31,11 @@ func _initialize() -> void:
 	h.setup(st)
 	st.hack = h
 
+	_check("not installed at first", not h.installed)
+	h.pc_owner = 2
+	_check("another player can't run the installer", not h.install(1).ok and not h.installed)
+	h.pc_owner = 0
+	_check("the installer works and marks it installed", h.install(1).ok and h.installed)
 	_check("wrong IP gets no answer", not h.connect_to("1.2.3.4", 1).ok and not h.state.connected)
 	_check("right IP connects", h.connect_to(Hack.GATEWAY_IP, 1).ok and h.state.connected)
 	_check("can't download before logging in", not h.start_download("rota", 1).ok)

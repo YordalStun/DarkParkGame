@@ -46,6 +46,9 @@ var _desk_last := Vector2.ZERO
 
 func _ready() -> void:
 	_parse_args()
+	if _args.has("hackstep") or _args.has("medicare"):   # testing: pretend MediCare Remote is installed
+		SaveGame.ensure_slot()
+		SaveGame.add_upgrade("medicare")
 	if _args.has("speed"):   # testing: --speed=20 runs the whole game 20x faster
 		Engine.time_scale = float(_args.speed)
 	if _args.has("night") or _args.has("autoplay"):   # testing: --night=2 starts on that night (no title screen)
@@ -137,6 +140,7 @@ func _ready() -> void:
 	world.camera.footstep.connect(func(): world.ambience.play_at("footstep", world.camera.global_position - Vector3(0, 1.5, 0), -10.0 + randf_range(-2, 1), "Interior", 1.0))
 	var desk = world.props.desktop
 	desk.world = world
+	desk.refresh_hack_icon()   # NightLink, if MediCare was installed on an earlier night
 	desk.state_changed.connect(func(on): hud.set_hint("Esc to sit back" if on else "Right click to sit back", on))
 	desk.sound.connect(func(n, db): world.ambience.play_ui(n, db))
 	world.camera.focus_changed.connect(func(f): desk.set_away(f != world.props.crt_interact))
@@ -164,6 +168,8 @@ func _ready() -> void:
 	await _loading.finish(0.01 if quick else 0.6)
 	_loaded = true
 	world.ambience.fade_in(0.01 if quick else 4.0)
+	if _args.has("jumptest") and SaveGame.night() != int(_args.jumptest):   # testing: --jumptest=3 presses "Night 3" 12 s into the shift
+		get_tree().create_timer(12.0).timeout.connect(func(): _on_test("night_%s" % _args.jumptest))
 	if _args.has("test"):   # testing: --test=id,id (testing-menu buttons, one a second)
 		for id in str(_args.test).split(","):
 			await get_tree().create_timer(1.0).timeout
@@ -393,7 +399,9 @@ func _update_desktop_mode(win_size: Vector2) -> void:
 	var confine: bool = want and not hud.paused and focused
 	var mode := Input.MOUSE_MODE_VISIBLE
 	var walking: bool = world.camera.state == world.camera.State.WALK
-	if walking and not hud.paused and focused and _shot_path == "":
+	if story.ending:
+		mode = Input.MOUSE_MODE_VISIBLE   # the end screen: you need the cursor to click NEXT NIGHT
+	elif walking and not hud.paused and focused and _shot_path == "":
 		mode = Input.MOUSE_MODE_CAPTURED
 	elif confine:
 		mode = Input.MOUSE_MODE_CONFINED_HIDDEN if over else Input.MOUSE_MODE_CONFINED
@@ -673,6 +681,11 @@ func _open_desktop_for_test() -> void:
 		desk.toggle_start()
 	if _args.has("volpopup"):
 		desk._volume_popup()
+	# --mcarefile : put MCARE95.EXE in C:\\DOWNLOADS and run it (shows the installer)
+	if _args.has("mcarefile"):
+		desk.vfs.make_dir("C:\\\\DOWNLOADS")
+		desk.vfs._file("C:\\\\DOWNLOADS\\\\MCARE95.EXE", "MZ", 1210 * 1024)
+		load("res://scripts/desktop/dialogs.gd").open_file(desk, "C:\\\\DOWNLOADS\\\\MCARE95.EXE")
 	# --hackstep=dial|login|wrong|files|done : put the hospital hack into that step (night 3, with --desktop=remote)
 	if _args.has("hackstep") and story.hack:
 		var h = story.hack

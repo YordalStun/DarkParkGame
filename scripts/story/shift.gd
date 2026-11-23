@@ -393,8 +393,8 @@ func debug_walker(idx := 0, x := -52.0) -> void:
 	var car = VisitorCar.new()
 	car.setup(world, p, Vector3(-9.0, -0.15, -11.9))
 	world.add_child(car)
-	await get_tree().process_frame
-	await get_tree().process_frame
+	await _frame()
+	await _frame()
 	car._start_walk()
 	car._walker.global_position = Vector3(x, -0.15, -7.4)
 	car._walk_path.pop_front()   # skip the leg from the car to the aisle
@@ -440,6 +440,7 @@ func _watch_notes(before: String) -> void:
 
 
 var _notes_opened_since_call := false
+var ending := false             ## the end-of-night screen is up (the mouse must be free to click it)
 var night_flow_done := false   ## the cars and phone calls are over; only 07:00 is left (used by the autoplay watchdog)
 
 
@@ -522,11 +523,24 @@ func debug_visitor(i: int, offer := true) -> void:
 			_car(current, "offer_card")
 
 
+signal _never   ## never emitted: a coroutine waiting on it is parked for good
+
+
+## Waits one frame. If this node has left the scene tree (the night was restarted or the scene reloaded)
+## the coroutine is parked for good instead of spinning: calling get_tree() on a node outside the tree
+## fails instantly, which turned every wait loop into an endless busy loop and hung the game.
+func _frame() -> void:
+	if is_inside_tree():
+		await get_tree().process_frame
+	if not is_inside_tree():
+		await _never
+
+
 func _wait(sec: float) -> void:
 	var left := sec
 	_skip = false
 	while left > 0.0:
-		await get_tree().process_frame
+		await _frame()
 		if _skip:
 			_skip = false
 			return
@@ -541,6 +555,8 @@ func _setup_hack() -> void:
 	add_child(hack)
 	hack.setup(self)
 	hack.remote = guest
+	hack.persist = not guest   # a guest's install is the host's (only the host's save changes)
+	hack.installed = SaveGame.has_upgrade("medicare")   # installed on an earlier night
 	# Placeholder until night three's real conversations are written: Kevin Platt's window chat
 	# (his dog's name is the hospital gateway's password).
 	for p in arrivals:
@@ -553,6 +569,7 @@ func _setup_hack() -> void:
 	desk.state_changed.connect(func(on: bool):
 		if not on:
 			_pc_use(false))
+	hack.installed_changed.connect(desk.refresh_hack_icon)
 	hack.download_finished.connect(func(id: String):
 		_save_download(id)
 		hud.notify("Download finished: " + Hack.FILES[id].name, 4.0)
@@ -686,7 +703,7 @@ func _apply_effect(e: Dictionary) -> void:
 ## Waits for 07:00, then tells the player to turn off the PC and clock out (sign the logbook).
 func _shift_over() -> void:
 	while not NightClock.shift_over:
-		await get_tree().process_frame
+		await _frame()
 	_shift_done = true
 	hud.complete_objective("ids")
 	hud.complete_objective("log")
@@ -704,7 +721,7 @@ func _shift_over() -> void:
 	hud.say("", "(07:00. The shift is over. Turn off the PC, then clock out in the logbook.)", 6.0)
 	var desk = world.props.desktop
 	while desk.is_on():
-		await get_tree().process_frame
+		await _frame()
 	_pc_off = true
 	hud.complete_objective("pc")
 	hud.notify("PC off. Now clock out in the logbook.", 5.0)
@@ -816,7 +833,7 @@ func _phone_call(lines: Array) -> void:
 	Net.send("ring", [true])
 	hud.notify("The phone is ringing.", 4.0)
 	while not _phone_answered:
-		await get_tree().process_frame
+		await _frame()
 	_ring.stop()
 	Net.send("ring", [false])
 	if Net.active() and _phone_owner != local_player_id:
@@ -883,7 +900,7 @@ func _visitor(p: Dictionary) -> void:
 	var waited := 0.0
 	var knocked := 0
 	while not world.booth.side_is_open and car.state == "waiting":
-		await get_tree().process_frame
+		await _frame()
 		waited += get_process_delta_time()
 		if waited > 14.0 + knocked * 16.0 and knocked < 3:
 			knocked += 1
@@ -903,7 +920,7 @@ func _visitor(p: Dictionary) -> void:
 			_car(car, "offer_card")
 	# Until it drives in or reverses away.
 	while car.state in ["waiting", "approach"]:
-		await get_tree().process_frame
+		await _frame()
 	if car.state == "entering":
 		if p.get("ghost", false):
 			await _ghost_parks(car)
@@ -1056,7 +1073,7 @@ func _on_lower() -> void:
 ## The induction loop drops the barrier once the car is through.
 func _auto_close(car) -> void:
 	while is_instance_valid(car) and not car.is_past_barrier():
-		await get_tree().process_frame
+		await _frame()
 	await _wait(1.5)
 	if world.lot.gate.is_open:
 		world.lot.gate.close()
@@ -1152,6 +1169,7 @@ const NIGHT_WORDS := ["ONE", "TWO", "THREE", "FOUR", "FIVE", "SIX", "SEVEN", "EI
 
 
 func _summary() -> void:
+	ending = true
 	var ev := evaluate()
 	money = ev.total
 	_term("SHIFT REPORT: WAGES %+d" % (ev.earned + ev.bonus))
@@ -1265,6 +1283,8 @@ func remote_action(from: int, what: String, args: Array) -> void:
 					r = hack.login(str(args[1]), str(args[2]), from)
 				"download":
 					r = hack.start_download(str(args[1]), from)
+				"install":
+					r = hack.install(from)
 				"hang_up":
 					if hack.pc_owner == 0 or hack.pc_owner == from:
 						hack.hang_up(str(args[1]))
@@ -1307,8 +1327,8 @@ func _send_hack() -> void:
 	if hack and not guest:
 		_hack_dirty = false
 		_hack_sent = 0.0
-		_hack_last = var_to_str([hack.state, risk])
-		Net.send("hack_state", [hack.state, risk])
+		_hack_last = var_to_str([hack.state, risk, hack.installed])
+		Net.send("hack_state", [hack.state, risk, hack.installed])
 
 
 var _hack_last := ""
@@ -1322,7 +1342,7 @@ func _process(delta: float) -> void:
 	# four times a second, and only when something is different.
 	if _hack_dirty and _hack_sent > 0.25:
 		_hack_dirty = false
-		if var_to_str([hack.state, risk]) != _hack_last:
+		if var_to_str([hack.state, risk, hack.installed]) != _hack_last:
 			_send_hack()
 
 
@@ -1408,6 +1428,9 @@ func guest_event(what: String, a: Array) -> void:
 			if hack:
 				hack.state = a[0]
 				risk = int(a[1])
+				if a.size() > 2 and bool(a[2]) != hack.installed:
+					hack.installed = bool(a[2])
+					hack.installed_changed.emit()
 				hack.changed.emit()
 		"hack_msg":
 			if hack:
@@ -1498,6 +1521,7 @@ func _guest_show_id(nm: String) -> void:
 
 ## Guest: the end-of-night report. Everyone sees the same one; only the host goes on.
 func _guest_report(ev: Dictionary, title: String, date: String, note: String) -> void:
+	ending = true
 	_shift_done = true
 	hud.visible = false
 	var es = EndScreen.new()
