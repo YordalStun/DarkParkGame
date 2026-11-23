@@ -50,7 +50,7 @@ detailed enough for a build session to work from without this chat.
 - **Password:** user `K.PLATT`, password `BISCUIT` (Kevin Platt's dog). The clue comes from Kevin's window
   conversation (a placeholder: `scripts/story/dialogs/samples.gd`, attached on night three), which sets the
   flag `clue_pet_biscuit` and writes a line in the player's notepad. Three wrong tries lock the account
-  for 60 s. Not case sensitive.
+  for 60 s. Not case sensitive. The login screen gives no help: no hints and no clue list. The player has to remember or write down what they learned (the memo gives the user id format).
 - **Files:** `ROTA.TXT` (25 s), `VISITORS.DAT` (45 s, built from tonight's real arrivals) and `PATIENTS.DB`
   (110 s). Saved to `C:\DOWNLOADS`. One transfer at a time.
 - **Risk:** a meter in the app (0-100): +2 per dial, +3 per login, +6 per wrong password, +4/+8/+15 per

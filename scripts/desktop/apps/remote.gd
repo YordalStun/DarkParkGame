@@ -15,7 +15,6 @@ var _ip: LineEdit
 var _user: LineEdit
 var _pass: LineEdit
 var _msg: Label
-var _clues: Label
 var _lock: Label
 var _risk: Control
 var _risk_lbl: Label
@@ -112,8 +111,6 @@ func _build() -> void:
 	lb.pressed.connect(_on_login)
 	_login.add_child(lb)
 	_lock = _label("", Vector2(14, 118), _login, true)
-	_label("What you know:", Vector2(14, 144), _login, true)
-	_clues = _label("", Vector2(14, 162), _login)
 
 	# ---- page 3: files
 	_files = Control.new()
@@ -182,13 +179,7 @@ func _refresh() -> void:
 	_dial.visible = not st.connected
 	_login.visible = st.connected and not st.logged_in
 	_files.visible = st.logged_in
-	# Clues the player has picked up.
-	var text := ""
-	for flag in hack.CLUES:
-		if story.flags.get(flag, false):
-			text += "- " + hack.CLUES[flag] + "\n"
-	_clues.text = text if text != "" else "(nothing yet. Talk to people at the window and write it down.)"
-	_lock.text = ("LOCKED OUT - %d s" % int(ceil(st.lock_left))) if st.lock_left > 0.0 else "User IDs look like K.PLATT (first initial, dot, surname)."
+	_lock.text = ("LOCKED OUT - %d s" % int(ceil(st.lock_left))) if st.lock_left > 0.0 else ""
 	for id in _rows:
 		var r: Dictionary = _rows[id]
 		var done: bool = id in st.downloaded
