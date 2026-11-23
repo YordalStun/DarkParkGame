@@ -127,6 +127,11 @@ var _phone_owner := 1         ## who answered the phone (they answer the replies
 var guest := false            ## this machine is a friend in someone else's game
 var net_cars := {}            ## name -> visitor car (host and guests use the same names)
 var _window_opener := 1       ## who last opened the side window (they talk to the next visitor)
+## Leaving the hut (night three on, scripts/player/roam.gd). One desk chair: who is sitting in it
+## (0 = nobody). The host decides; P1 starts in it.
+const Roam := preload("res://scripts/player/roam.gd")
+var roam: Node
+var chair_owner := 1
 var _choice_tick := 0.0
 ## Tonight's data (night one's constants, or night two's from night_two.gd).
 var arrivals: Array = []     ## who turns up
@@ -193,6 +198,11 @@ func setup(p_world, p_hud, p_inspect) -> void:
 		inspect._log_ready = true
 	if Net.active():
 		camera.zoom_guard = _may_zoom
+	if night >= Roam.FROM_NIGHT:
+		roam = Roam.new()
+		roam.name = "Roam"
+		add_child(roam)
+		roam.setup(self)
 	world.booth.side_window_moved.connect(func(_o): world.ambience.play_at("window_slide", world.booth.side_pane.global_position, -6.0))
 	_ring = AudioStreamPlayer3D.new()
 	var rs := load("res://assets/audio/phone_ring.ogg") as AudioStreamOggVorbis
@@ -725,6 +735,8 @@ func _shift_over() -> void:
 	_pc_off = true
 	hud.complete_objective("pc")
 	hud.notify("PC off. Now clock out in the logbook.", 5.0)
+	if roam and roam.outside:
+		hud.notify_local("You're outside. Go back in through the door to sign the logbook.", 6.0)
 	await clocked_out
 	hud.complete_objective("out")
 	world.ambience.play_ui("click2", -10.0)
@@ -735,14 +747,20 @@ func _shift_over() -> void:
 ## Get up, turn the light off by the door, and walk out. The door's sound plays as the
 ## night fades out (the end-of-shift screen takes over from there).
 func _leave_booth() -> void:
-	hud.add_objective("getup", "Get up from the desk")
+	if roam:
+		roam.finish()   # from here the door is the way home
 	hud.set_look_left(false)
-	await hud.big_button("GET UP")
-	hud.complete_objective("getup")
-	inspect.close()
-	world.booth.push_chair_back()
-	world.ambience.play_at("window_slide", world.booth.chair.global_position + Vector3(0, 0.3, 0), -16.0)
-	await camera.stand_up()
+	if camera.state == camera.State.ZOOMED:
+		camera.unzoom()
+		await camera.zoom_changed
+	if camera.state != camera.State.WALK:   # still at the desk: get up as before
+		hud.add_objective("getup", "Get up from the desk")
+		await hud.big_button("GET UP")
+		hud.complete_objective("getup")
+		inspect.close()
+		world.booth.push_chair_back()
+		world.ambience.play_at("window_slide", world.booth.chair.global_position + Vector3(0, 0.3, 0), -16.0)
+		await camera.stand_up()
 	hud.set_look_left(false)
 	hud.set_look_back(false)
 	hud.set_crosshair(true)
@@ -1272,6 +1290,9 @@ func remote_action(from: int, what: String, args: Array) -> void:
 			log_entry(str(args[0]), str(args[1]))
 		"pc":
 			_set_pc_owner(from if bool(args[0]) else 0, from)
+		"chair":
+			_set_chair(from, bool(args[0]))
+			Net.send_to(from, "chair_answer", [chair_owner])
 		"hack":
 			if hack == null:
 				return
@@ -1309,6 +1330,9 @@ func player_gone(id: int) -> void:
 		Net.send("pc_owner", [0])
 	if _phone_owner == id:
 		_phone_owner = local_player_id
+	if chair_owner == id:
+		chair_owner = 0
+		Net.send("chair_owner", [0])
 	for nm in net_cars:
 		var c = net_cars[nm]
 		if is_instance_valid(c) and int(c.get_meta("talker", 0)) == id:
@@ -1424,6 +1448,12 @@ func guest_event(what: String, a: Array) -> void:
 			guest_pc_owner(int(a[0]))
 		"pc_taken":
 			guest_pc_owner(int(a[0]))
+		"chair_owner":
+			chair_owner = int(a[0])
+		"chair_answer":
+			chair_owner = int(a[0])
+			if roam:
+				roam.chair_answer(chair_owner)
 		"hack_state":
 			if hack:
 				hack.state = a[0]
@@ -1543,3 +1573,24 @@ func leave_to_title(why: String) -> void:
 	Weather.set_profile("rain_mist", 0.0)   # a guest's weather was the host's
 	get_tree().paused = false
 	get_tree().reload_current_scene()
+
+
+# ------------------------------------------------------------------ the desk chair (one guard at a time)
+## This guard sits down (true) or gets up (false). Returns whether they may sit. A guest asks the host.
+func chair_use(sit: bool) -> bool:
+	if guest:
+		Net.request("chair", [sit])
+		return false
+	return _set_chair(local_player_id, sit)
+
+
+## Host: `id` wants to sit (or has got up). The chair is whoever got there first's.
+func _set_chair(id: int, sit: bool) -> bool:
+	var before := chair_owner
+	if sit and (chair_owner == 0 or chair_owner == id):
+		chair_owner = id
+	elif not sit and chair_owner == id:
+		chair_owner = 0
+	if chair_owner != before:
+		Net.send("chair_owner", [chair_owner])
+	return chair_owner == id if sit else true

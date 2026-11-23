@@ -13,6 +13,7 @@ enum State { SEATED, MOVING, ZOOMED, WALK }
 ## Standing up and walking (end of the shift only): first-person mouse look and WASD inside the booth.
 const EYE := 1.5
 const WALK_SPEED := 1.35
+var walk_speed := WALK_SPEED   ## faster out in the car park
 const BODY_R := 0.24
 var walk_blockers: Array = []    ## Rect2 in x/z the player can't walk into (furniture)
 var walk_bounds := Rect2(-1.6, -0.25, 3.2, 1.62)   ## x, z of the walkable floor
@@ -21,6 +22,13 @@ var _wpitch := 0.0
 var _bob := 0.0
 var _step_acc := 0.0
 signal footstep
+## Out in the car park (night three on): only `outdoor` things can be used, and `free_fn` (if set)
+## decides where you can walk instead of walk_bounds / walk_blockers.
+var outside := false
+var free_fn := Callable()
+var back_fn := Callable()        ## standing: right click / Esc asks this first (e.g. sit back down)
+var auto_walk := Vector2.ZERO    ## testing: walk as if these keys were held (x right, y back)
+var floor_y := 0.0               ## the ground under you (the booth floor is 0, the car park -0.15)
 
 const SEAT_POS := Vector3(0.0, 1.2, 0.32)
 var seat_pos := SEAT_POS      ## where this player's eyes rest (co-op: P2-P4 stand at other spots in the booth)
@@ -166,7 +174,8 @@ func _physics_process(_delta: float) -> void:
 		if not hit:
 			break
 		var c = hit.collider
-		if c is Interactable and c.enabled and c != cur_focus and (c.requires_focus == null or c.requires_focus == cur_focus):
+		if c is Interactable and c.enabled and c != cur_focus and (c.requires_focus == null or c.requires_focus == cur_focus) \
+				and (c.outdoor or not outside):
 			it = c
 			break
 		skip.append(hit.rid)
@@ -177,7 +186,8 @@ func _physics_process(_delta: float) -> void:
 
 # ------------------------------------------------------------------ standing up
 ## Get up from the desk: rise and turn round to face the back of the booth, then walk.
-func stand_up() -> void:
+## `at` is where to stand (x, z); the default is beside the desk chair.
+func stand_up(at := Vector2(0.42, 0.42)) -> void:
 	if state == State.WALK:
 		return
 	if state == State.ZOOMED:
@@ -188,11 +198,53 @@ func stand_up() -> void:
 	hover_changed.emit("")
 	_wyaw = PI
 	_wpitch = deg_to_rad(-6.0)
-	var target := Transform3D(Basis.from_euler(Vector3(_wpitch, _wyaw, 0)), Vector3(0.42, EYE, 0.42))
+	var target := Transform3D(Basis.from_euler(Vector3(_wpitch, _wyaw, 0)), Vector3(at.x, EYE, at.y))
 	var tw := create_tween().set_parallel(true)
 	tw.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 	tw.tween_property(self, "global_transform", target, 1.8)
 	tw.tween_property(self, "fov", 70.0, 1.8)
+	await tw.finished
+	state = State.WALK
+
+
+## Co-op: start the night on your feet at a spot in the booth (the chair is someone else's).
+func start_standing(at: Vector2, yaw := 0.0) -> void:
+	state = State.WALK
+	_wyaw = yaw
+	_wpitch = deg_to_rad(-8.0)
+	fov = 70.0
+	position = Vector3(at.x, EYE, at.y)
+	rotation = Vector3(_wpitch, _wyaw, 0)
+
+
+## Back into the desk chair and the seated view.
+func sit_down() -> void:
+	if state != State.WALK:
+		return
+	state = State.MOVING
+	hovered = null
+	hover_changed.emit("")
+	_yaw = 0.0
+	_pitch = BASE_PITCH
+	var rest := Transform3D(Basis.from_euler(Vector3(deg_to_rad(_pitch), 0, 0)), seat_pos)
+	var tw := create_tween().set_parallel(true)
+	tw.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	tw.tween_property(self, "global_transform", rest, 1.2)
+	tw.tween_property(self, "fov", SEATED_FOV, 1.2)
+	await tw.finished
+	state = State.SEATED
+
+
+## Move to a spot while standing (going through the door), facing `yaw`. Returns when there.
+func walk_to(p: Vector3, yaw: float, seconds: float) -> void:
+	state = State.MOVING
+	hovered = null
+	hover_changed.emit("")
+	_wyaw = yaw
+	_wpitch = 0.0
+	var tw := create_tween()
+	tw.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	tw.tween_property(self, "global_transform", Transform3D(Basis.from_euler(Vector3(0, yaw, 0)), p), seconds)
 	await tw.finished
 	state = State.WALK
 
@@ -215,11 +267,12 @@ func _update_walk(delta: float) -> void:
 		dir.x -= 1.0
 	if Input.is_key_pressed(KEY_D) or Input.is_key_pressed(KEY_RIGHT):
 		dir.x += 1.0
+	dir += auto_walk
 	var p := Vector2(position.x, position.z)
 	var moving := dir != Vector2.ZERO and not blocked
 	if moving:
 		dir = dir.normalized().rotated(-_wyaw)
-		var step := dir * WALK_SPEED * delta
+		var step := dir * walk_speed * delta
 		# Slide along walls and furniture: try each axis on its own.
 		var nx := p + Vector2(step.x, 0)
 		if _free(nx):
@@ -236,11 +289,13 @@ func _update_walk(delta: float) -> void:
 		_bob = lerpf(_bob, round(_bob / PI) * PI, 1.0 - exp(-delta * 6.0))
 	var sk := _sway_k()
 	var bob_y := (sin(_bob) * 0.022 if moving else sin(_bob) * 0.01) * sk
-	position = Vector3(p.x, EYE + bob_y + sin(_t * 1.1) * 0.003 * sk, p.y)
+	position = Vector3(p.x, floor_y + EYE + bob_y + sin(_t * 1.1) * 0.003 * sk, p.y)
 	rotation = Vector3(_wpitch, _wyaw, sin(_bob * 0.5) * 0.004 * sk)
 
 
 func _free(p: Vector2) -> bool:
+	if free_fn.is_valid():
+		return bool(free_fn.call(p))
 	var b := walk_bounds.grow(-BODY_R)
 	if not b.has_point(p):
 		return false
@@ -265,13 +320,24 @@ func click() -> void:
 
 ## Right click / Esc. Returns true if it did something.
 func back() -> bool:
+	if state == State.WALK and back_fn.is_valid():
+		return bool(back_fn.call())
 	if state == State.ZOOMED:
 		unzoom()
 		return true
 	return false
 
 
+var _zoom_from_walk := false      ## leaned in while standing: lean back out to where you stood
+var _walk_return := Transform3D()
+
+
 func zoom_to(it: Interactable) -> void:
+	if state == State.WALK:
+		_zoom_from_walk = true
+		_walk_return = global_transform
+	elif state != State.ZOOMED:
+		_zoom_from_walk = false
 	focus = it
 	_zyaw = 0.0
 	_zpitch = 0.0
@@ -293,6 +359,17 @@ func zoom_to(it: Interactable) -> void:
 func unzoom() -> void:
 	state = State.MOVING
 	focus = null
+	if _zoom_from_walk:
+		_zoom_from_walk = false
+		var tw0 := create_tween().set_parallel(true)
+		tw0.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+		tw0.tween_property(self, "global_transform", _walk_return, 0.7)
+		tw0.tween_property(self, "fov", 70.0, 0.7)
+		tw0.chain().tween_callback(func():
+			state = State.WALK
+			zoom_changed.emit(false)
+			focus_changed.emit(null))
+		return
 	var rest := Transform3D(Basis.from_euler(Vector3(deg_to_rad(_pitch), deg_to_rad(_yaw), 0)), seat_pos)
 	var tw := create_tween().set_parallel(true)
 	tw.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)

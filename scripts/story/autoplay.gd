@@ -7,6 +7,9 @@ extends Node
 ##   godot --path . -- --autoplay=sloppy          # lets everyone in, logs nothing
 ##   godot --path . -- --autoplay=notes_early     # writes the ward's changes down DURING the call
 ##   godot --path . -- --autoplay=timeout         # lets every dialog timer run out (the safe option is picked)
+##   godot --path . -- --autoplay=roam_out --night=3  # goes outside and stays out until 07:00, then
+##                                                     comes back in and clocks out on foot
+##   (perfect on night 3 also gets up, walks out into the car park, comes back and sits down)
 ##   godot --path . -- --autoplay=coop_host --host # co-op: the host only clocks out; a guest running
 ##                                                   --autoplay --join=127.0.0.1 (net/coop_bot.gd) does the rest
 ##   add --speed=20 to run 20x faster, and --night=2 to start on that night
@@ -75,8 +78,10 @@ func _act() -> void:
 		if _once("dlg%d" % story.dialog.get_instance_id() + story.dialog.node_id + str(story.dialog.time_left > 0.0) + str(Time.get_ticks_msec() / 2000)):
 			print("BOT %s: dialog choice %d (%s)" % [NightClock.time_text(), pick + 1, story.dialog._entries[pick].text])
 			story.dialog.submit_choice(pick, story.local_player_id)
-	if story.hack != null and mode == "perfect":
+	if story.hack != null and mode in ["perfect", "roam_out"]:
 		_hack()
+	if story.roam != null and mode in ["perfect", "roam_out"]:
+		_roam()
 	# The notepad: normally after the ward's call; "notes_early" does it while the call is still playing.
 	if mode == "notes_early" and hud.waiting_click and story.notes == "" and not _typing and story.night >= 2:
 		_type_notes("Janet Lowe OFF tonight. Kevin Platt ON - B908 RWD.")
@@ -149,6 +154,63 @@ func _hack() -> void:
 				break
 
 
+## Night three on: leave the hut and come back (perfect), or stay out until 07:00 (roam_out).
+var _roam_step := ""
+var _roam_t := 0.0
+func _roam() -> void:
+	var r = story.roam
+	var cam = world.camera
+	if not r.enabled:
+		return
+	var busy_at_window: bool = story.current != null and is_instance_valid(story.current) and story.current.state == "waiting"
+	match _roam_step:
+		"":
+			if story.results.size() >= 1 and not busy_at_window and not inspect.is_open and cam.state == cam.State.SEATED:
+				print("BOT %s: getting up (roam)" % NightClock.time_text())
+				_roam_step = "up"
+				r.get_up()
+		"up":
+			if r.standing():
+				print("BOT %s: going outside" % NightClock.time_text())
+				_roam_step = "out"
+				r._on_door()
+		"out":
+			if r.outside and r.standing():
+				_roam_step = "walk"
+				_roam_t = _t
+				cam.auto_walk = Vector2(0, -1)   # straight on: away from the booth, to the end of the access road
+		"walk":
+			if _t - _roam_t > 8.0 and cam.auto_walk.y < 0.0:
+				var z: float = cam.position.z
+				print("BOT %s: walked out to z=%.2f (the lot ends at %.2f) floor=%.2f" % [NightClock.time_text(), z, r.LOT.end.y, cam.position.y - cam.EYE])
+				if z > r.LOT.end.y:
+					_finish(false, "walked out of the lot (z=%.2f)" % z)
+				cam.auto_walk = Vector2(1, 0)   # sideways along it
+				_roam_t = _t
+			elif _t - _roam_t > 4.0 and cam.auto_walk.x > 0.0:
+				cam.auto_walk = Vector2.ZERO
+				print("BOT %s: outside at x=%.2f z=%.2f" % [NightClock.time_text(), cam.position.x, cam.position.z])
+				_roam_step = "stay" if mode == "roam_out" else "back"
+		"back":
+			print("BOT %s: back inside" % NightClock.time_text())
+			_roam_step = "in"
+			r._on_door()
+		"in":
+			if not r.outside and r.standing():
+				print("BOT %s: sitting back down" % NightClock.time_text())
+				_roam_step = "sit"
+				r.sit_down()
+		"sit":
+			if cam.state == cam.State.SEATED and r.in_chair:
+				print("BOT %s: in the chair again" % NightClock.time_text())
+				_roam_step = "done"
+		"stay":
+			if story._shift_done:
+				print("BOT %s: 07:00, coming back in to clock out" % NightClock.time_text())
+				_roam_step = "home"
+				r._on_door()
+
+
 func _type_notes(text: String) -> void:
 	_typing = true
 	print("BOT %s: writing the changes in the notepad" % NightClock.time_text())
@@ -177,7 +239,7 @@ func _clock_out() -> void:
 		desk.shut_down("shutdown")
 	elif desk.state == "off" and not story._pc_off:
 		pass   # story notices on its own
-	elif story._pc_off and _once("logbook"):
+	elif story._pc_off and (story.roam == null or not story.roam.outside) and world.camera.state != world.camera.State.MOVING and _once("logbook"):
 		print("BOT %s: clocking out" % NightClock.time_text())
 		story._on_logbook()
 	# Standing up, switching the light off, leaving.

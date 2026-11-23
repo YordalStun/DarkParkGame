@@ -19,6 +19,8 @@ var zoom_look := Vector2.ZERO
 var enabled := true
 ## Only usable while the camera is zoomed to this one (e.g. things you reach from the side window).
 var requires_focus: Interactable
+## Can be used from outside the booth (the door, car boots). Everything else only works from inside.
+var outdoor := false
 
 
 func _init() -> void:

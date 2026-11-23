@@ -14,6 +14,9 @@ var _splash: GPUParticles3D
 var _drips: GPUParticles3D
 var _flash_queue: Array = []   # [delay, level] pulses still to play
 var _rain_shader: Shader
+## Out in the car park (night three on): rain falls round this node (the player's camera) as well.
+var follow: Node3D
+var _near: GPUParticles3D
 
 
 func _ready() -> void:
@@ -22,6 +25,8 @@ func _ready() -> void:
 	_add_rain("RainLamp", Vector3(-9.0, G + 6.5, -14.0), Vector3(9.0, 3.5, 9.0), 3200)
 	_add_rain("RainFront", Vector3(0.0, G + 5.0, -4.0), Vector3(6.0, 3.0, 2.7), 1400)
 	_add_rain("RainLeft", Vector3(-5.0, G + 5.0, 1.0), Vector3(3.0, 3.0, 3.0), 700)
+	_add_rain("RainNear", Vector3(0.0, G + 5.0, 0.0), Vector3(5.0, 3.0, 5.0), 1200)
+	_near = _rain_systems[_rain_systems.size() - 1]
 	_add_rain("RainWide", Vector3(0.0, G + 8.0, -22.0), Vector3(40.0, 4.0, 22.0), 4000, 0.3)
 	_build_splashes()
 	_build_drips()
@@ -141,9 +146,12 @@ func _process(delta: float) -> void:
 	var vel := Vector3(wd.x * ws * 3.0, -9.5, wd.y * ws * 3.0)
 	for i in _rain_systems.size():
 		var p := _rain_systems[i]
-		p.emitting = r > 0.02
+		p.emitting = r > 0.02 and (p != _near or follow != null)
 		p.amount_ratio = clampf(r, 0.0, 1.0)
 		_rain_mats[i].direction = vel.normalized()
+	if follow != null and is_instance_valid(follow):
+		var fp := follow.global_position
+		_near.global_position = Vector3(fp.x, G + 5.0, fp.z)
 	_splash.emitting = r > 0.05
 	_splash.amount_ratio = clampf(r * 1.1, 0.0, 1.0)
 	_drips.emitting = Weather.wetness > 0.2

@@ -96,7 +96,9 @@ Up to four guards can share the shift. **MULTIPLAYER** on the title screen:
   ZeroTier). Friends can only join from the lobby, before the night starts.
 
 The host runs the story and their save is the one that changes. Friends play as guests and keep nothing.
-P1 sits at the desk; P2-P4 stand around it. Anyone can open the window, take an ID card or press the
+There is one desk chair: P1 starts in it and P2-P4 start on their feet, but standing you can still use
+everything (phone, side window, barrier, logbook, and the PC one guard at a time). Anyone can get up,
+walk out into the car park and come back, and sit down when the chair is free. Anyone can open the window, take an ID card or press the
 barrier buttons; whoever opened the window (or answered the phone) picks the dialog replies; one guard
 at a time can use the PC. At 07:00 the host clocks out and presses NEXT NIGHT for everyone.
 
@@ -118,7 +120,9 @@ The game is played entirely with the mouse.
 | Keyboard | Typing works while you are using the PC |
 | F11 | Toggle fullscreen |
 | F12 | Testing menu (pause screen) |
-| WASD / arrows + mouse | Walk and look (only when you get up at the end of the shift) |
+| G (or the GET UP button) | Night three on: get up / sit back down in the desk chair |
+| WASD / arrows + mouse | Walk and look while standing (night three on, and at the end of every shift) |
+| E (standing) | Use what's in the middle of the view: the back door takes you out into the car park and back in |
 
 Developer keys (for testing the atmosphere):
 
@@ -155,6 +159,7 @@ the ward's changes down during the call). `--speed=N` runs the game N times fast
 
 Other testing flags (add after `--`): `--carstyle=sports` (a car with its driver at the window),
 `--wet=0.9` (wet sill), `--logbook`, `--car=0 --idcard` (the ID card), `--dialog=window|phone|patrol`,
+`--autoplay=roam_out --night=3` (goes outside and stays out till 07:00), `--roam=up|out[,x,z,yaw]` (stand up / stand in the car park),
 `--desktop=remote --hackstep=dial|login|wrong|files|done --night=3` (the hospital connect tool),
 `--desktop=notepad --path=C:\DOWNLOADS\VISITORS.DAT`, `--time=6.5`, `--weather=storm`, `--cam=x,y,z,yaw,pitch`.
 

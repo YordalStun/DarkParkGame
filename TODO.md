@@ -75,8 +75,12 @@ Running list for the game. Tick items off as they are done, and add new ones at 
 
 ## Night 3
 
-- [ ] Walkable area: take screenshots of the lot from player eye height and check it looks right from every angle.
-- [ ] Walkable area: make sure the player cannot leave the lot (walls, fence and tree line block walking out).
+- [x] Leave the hut (night 3 on, solo and co-op): GET UP / G, walk the booth, the back door takes you out into the car park and back (scripts/player/roam.gd). Torch outside. Clocking out still works (come back in first)
+- [x] One desk chair: only one guard sits at a time; standing guards can still use the phone, window, barrier, logbook and PC
+- [ ] Walkable area: take screenshots of the lot from player eye height and check it looks right from every angle (a few checked: towards the lamp, back at the booth)
+- [x] Walkable area: make sure the player cannot leave the lot (the fence, the tree line, the shop and the end of the access road stop you; cars, the booth, lamp island, payphone and bin are in the way)
+- [ ] Walkable area: the end of the access road behind the booth is an invisible stop; put something there (a gate, bollards or a "NO ENTRY" sign)
+- [ ] Cars don't see you: a car driving in pushes you aside instead of stopping
 - [ ] Order a boot wedge from the PC. It is delivered the next day.
 - [ ] Be able to open the boot of any car in the lot.
 - [ ] Opening a boot for no reason: the car's owner gets angry and reports it to Dale.

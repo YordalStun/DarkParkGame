@@ -134,6 +134,8 @@ func _ready() -> void:
 		coop.name = "Coop"
 		add_child(coop)
 		coop.setup(world, hud, story, inspect)
+		if _args.has("look"):   # testing: turn a standing guest's head (degrees, + = left)
+			world.camera._wyaw = deg_to_rad(float(_args.look))
 	world.camera.hover_changed.connect(hud.set_prompt)
 	world.camera.focus_changed.connect(func(f): hud.set_zoomed(f != null))
 	world.camera.walk_blockers = world.booth.walk_blockers
@@ -145,7 +147,7 @@ func _ready() -> void:
 	desk.sound.connect(func(n, db): world.ambience.play_ui(n, db))
 	world.camera.focus_changed.connect(func(f): desk.set_away(f != world.props.crt_interact))
 	world.camera.focus_changed.connect(func(f):
-		hud.set_look_left(f == null)
+		hud.set_look_left(f == null and world.camera.state == world.camera.State.SEATED)
 		hud.set_look_back(f == world.booth.side_view))
 	world.camera.zoom_changed.connect(func(z): if z: hud.set_look_left(false))
 	hud.look_back_btn.pressed.connect(func():
@@ -155,7 +157,7 @@ func _ready() -> void:
 	hud.look_left_btn.pressed.connect(func():
 		if world.camera.state == world.camera.State.SEATED:
 			world.camera.zoom_to(world.booth.side_view))
-	hud.set_look_left(true)
+	hud.set_look_left(world.camera.state == world.camera.State.SEATED)   # a co-op guest starts on their feet
 
 	_apply_args()
 	_apply_graphics()
@@ -210,6 +212,8 @@ func _ready() -> void:
 		bot.setup(story, world, hud, inspect, str(_args.autoplay))
 	if _args.has("pause"):
 		hud.set_paused(true)
+	if _args.has("roam") and story.roam:   # testing: --roam=up | out[,x,z,yaw_degrees] (night three on)
+		_test_roam(str(_args.roam).split(","))
 	if _args.has("walker"):
 		story.debug_walker(int(_args.walker) if str(_args.walker) != "true" else 0)
 	if _args.has("cctv"):
@@ -219,6 +223,16 @@ func _ready() -> void:
 	var tw := create_tween()
 	tw.tween_interval(0.0 if quick else 0.3)
 	tw.tween_method(func(v): post.set_shader_parameter("fade", v), 0.0, 1.0, 0.01 if quick else 3.5)
+
+
+func _test_roam(a: PackedStringArray) -> void:
+	await story.roam.get_up()
+	if a[0] == "out":
+		await story.roam._on_door()
+		if a.size() >= 3:
+			world.camera.position = Vector3(float(a[1]), world.camera.floor_y + world.camera.EYE, float(a[2]))
+		if a.size() >= 4:
+			world.camera._wyaw = deg_to_rad(float(a[3]))
 
 
 ## --host[=N] / --join=IP: set up a co-op game without the title screen (for testing).
@@ -534,6 +548,9 @@ func _unhandled_input(event: InputEvent) -> void:
 				Settings.set_graphics("fullscreen", not Settings.graphics.fullscreen)
 			KEY_N:
 				story.open_notes()
+			KEY_G:
+				if story.roam:   # night three on: get up / sit back down
+					story.roam.toggle()
 			KEY_E:
 				# Standing: E uses what you're looking at (the door needs it to leave).
 				if world.camera.state == world.camera.State.WALK and world.camera.hovered and not world.camera.blocked:

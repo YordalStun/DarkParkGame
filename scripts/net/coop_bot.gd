@@ -52,6 +52,8 @@ func _process(_delta: float) -> void:
 		world.booth.side_pane_interact.activated.emit()
 	if story.hack != null:
 		_hack()
+	if story.roam != null:
+		_roam()
 	for c in story.get_children():
 		if c.get_script() != null and str(c.get_script().resource_path).ends_with("end_screen.gd"):
 			_finish()
@@ -77,6 +79,43 @@ func _serve(car) -> void:
 	if _done.has(key + "decide") and p.admit and not car.card_with_guard and _once(key + "raise"):
 		story.log_entry(p.reg, p.name)
 		world.booth.raise_button.activated.emit()
+
+
+## Starts on its feet (the host has the chair): walk out, come back, and ask for the chair (refused).
+var _step := ""
+var _t0 := 0
+func _roam() -> void:
+	var r = story.roam
+	var cam = world.camera
+	var now := Time.get_ticks_msec()
+	match _step:
+		"":
+			if r.standing() and not r.in_chair and int(_seen.get("car_new", 0)) >= 1 and story.current == null:
+				print("GUEST %s: standing at my spot (%.2f, %.2f), chair=%s; going outside" % [NightClock.time_text(), cam.position.x, cam.position.z, Net.label(story.chair_owner)])
+				_step = "out"
+				r._on_door()
+		"out":
+			if r.outside and r.standing():
+				_step = "walk"
+				_t0 = now
+				cam.auto_walk = Vector2(0, -1)
+		"walk":
+			if now - _t0 > 1500:
+				cam.auto_walk = Vector2.ZERO
+				print("GUEST %s: outside at (%.2f, %.2f); back in" % [NightClock.time_text(), cam.position.x, cam.position.z])
+				_step = "in"
+				r._on_door()
+		"in":
+			if not r.outside and r.standing():
+				print("GUEST %s: asking for the chair" % NightClock.time_text())
+				_step = "sit"
+				_t0 = now
+				r.sit_down()
+		"sit":
+			if now - _t0 > 1500:
+				print("GUEST %s: chair owner=%s in_chair=%s state=%d" % [NightClock.time_text(), Net.label(story.chair_owner), r.in_chair, cam.state])
+				_seen["chair_refused"] = 0 if r.in_chair else 1
+				_step = "done"
 
 
 func _hack() -> void:

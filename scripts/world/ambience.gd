@@ -148,17 +148,24 @@ func _vol(n: String, linear: float, base_db: float, channel := "ambience") -> vo
 	p.volume_db = base_db + linear_to_db(maxf(linear, 0.0001)) + Settings.mix_db(channel)
 
 
+## 1 while the player is out in the car park (night three on): the outside is loud and clear, the
+## booth's roof and window rain fade away.
+var outdoors := 0.0
+var _out := 0.0
+
+
 func _process(delta: float) -> void:
+	_out = move_toward(_out, outdoors, delta * 1.5)
 	var r := Weather.rain
 	var ws := Weather.gusty_wind()
 	var heavy := smoothstep(0.45, 0.95, r)
 	# The side window: open, the outside is louder and much less muffled.
-	var win: float = world.booth.side_open
-	var out_db := win * 4.0
+	var win: float = maxf(world.booth.side_open, _out)
+	var out_db := win * 4.0 + _out * 3.0
 	_vol("rain_light", smoothstep(0.02, 0.25, r) * (1.0 - heavy * 0.5), -4.0 + out_db, "weather")
 	_vol("rain_heavy", heavy, -3.0 + out_db, "weather")
-	_vol("rain_roof", clampf(r * 1.3, 0.0, 1.0), -7.0, "weather")
-	_vol("rain_window", clampf(r * 1.2, 0.0, 1.0), -6.0, "weather")
+	_vol("rain_roof", clampf(r * 1.3, 0.0, 1.0) * (1.0 - _out * 0.85), -7.0, "weather")
+	_vol("rain_window", clampf(r * 1.2, 0.0, 1.0) * (1.0 - _out), -6.0, "weather")
 	_vol("rain_gutter", Weather.wetness * clampf(0.25 + r, 0.0, 1.0), -8.0 + out_db, "weather")
 	_vol("wind", clampf(0.2 + ws * 0.9, 0.0, 1.3), -8.0 + out_db, "weather")
 	_vol("traffic_distant", 1.0, -16.0 + out_db)
@@ -171,7 +178,7 @@ func _process(delta: float) -> void:
 	_vol("lamp_buzz", lamp_k, 2.0)
 
 	# Heavier rain also muffles the outside a bit less (it is louder against the glass).
-	_outside_lp.cutoff_hz = lerpf(lerpf(2200.0, 3400.0, heavy), 9000.0, win)
+	_outside_lp.cutoff_hz = lerpf(lerpf(lerpf(2200.0, 3400.0, heavy), 9000.0, win), 20000.0, _out)
 
 	# Wall clock.
 	_tick_timer -= delta

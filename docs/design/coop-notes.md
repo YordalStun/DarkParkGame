@@ -85,6 +85,17 @@ so the multiplayer build session can work from this file without the original ch
 - **Late joiners:** **lobby only.** Once the host presses START, new connections are refused.
 - **Host migration:** none. If the host leaves, everyone goes back to the title screen.
 
+## More decisions (agreed 23 Nov 2026, leaving the hut)
+
+- **From night three anyone can leave the hut**, solo and in co-op: get up, walk the booth, go out of the
+  back door into the car park and come back. Nights one and two are unchanged (seated, as before).
+- **One desk chair.** Only one guard sits at a time (whoever got there first; P1 starts in it, the host
+  decides). The others stand, and **standing you can still use everything**: phone, side window, barrier,
+  logbook, and the PC (one guard at a time, as before). Leaning out of the PC or the window puts you back
+  on your feet where you were.
+- **Clocking out still works:** at 07:00 come back in, shut the PC down, sign the logbook, then light off
+  and out of the door (if you're already standing there's no GET UP button).
+
 ## Still open
 
 - Exactly how many more arrivals per extra player (the risk meter already rises 25% faster per extra
@@ -113,5 +124,9 @@ so the multiplayer build session can work from this file without the original ch
   night together.
 - `scripts/story/hack.gd`: on a guest, `remote = true`: actions go to the host's gateway, the state
   comes back, and finished downloads are saved on everyone's PC.
+- `scripts/player/roam.gd` (night three on): getting up and sitting down (the chair is `story.chair_owner`,
+  asked for with `chair_use`), the back door both ways, the car park's edges and what's in the way, the
+  torch, outdoor sound and rain. Other guards see you walk (pose state 0 chair / 1 standing / 2 outside),
+  and the door swings when someone goes through it.
 - Testing: `--autoplay=coop_host --host=2` and `--autoplay --join=127.0.0.1` (`scripts/net/coop_bot.gd`)
   play a whole night where the guest does all the work; both print a RESULT line.

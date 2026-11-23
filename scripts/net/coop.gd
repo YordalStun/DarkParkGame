@@ -8,20 +8,21 @@ extends Node
 ## CLIENT (a guest): the story does not run its own night. This node shows what the host sends and
 ## turns the player's clicks into requests to the host.
 ##
-## Everyone: each guard has a spot in the booth (P1 in the desk chair, the others standing around it)
-## and is drawn where they are for the others, in their colour (PlayerModel).
+## Everyone: there is ONE desk chair (P1 starts in it); the others start on their feet at a spot in the
+## booth and can use everything standing. From night three anyone can walk out into the car park
+## (scripts/player/roam.gd). Each guard is drawn where they are for the others, in their colour.
 
 const PlayerModel := preload("res://scripts/world/player_model.gd")
 const POSE_RATE := 15.0      ## head positions sent per second
 const SYNC_RATE := 1.0       ## clock / weather / car corrections per second (host)
 const READY_TIMEOUT := 60.0  ## host: how long to wait for everyone to finish loading
 
-## Where each guard stands in the booth (camera position, eyes). P1 is in the desk chair.
+## Where each guard starts the night (x, z on the booth floor). P1 is in the desk chair.
 const SPOTS := [
-	Vector3(0.0, 1.2, 0.32),     # P1: the desk chair (DeskCamera.SEAT_POS)
-	Vector3(-0.78, 1.55, 0.62),  # P2: standing behind-left of the chair, by the side window
-	Vector3(0.72, 1.55, 0.58),   # P3: standing behind-right
-	Vector3(0.3, 1.55, 1.12),    # P4: by the door
+	Vector2(0.0, 0.32),    # P1: the desk chair (DeskCamera.SEAT_POS)
+	Vector2(-0.55, 0.55),  # P2: behind-left of the chair, by the side window
+	Vector2(0.55, 0.8),    # P3: behind-right
+	Vector2(-0.1, 1.15),   # P4: by the door
 ]
 
 var world
@@ -50,10 +51,13 @@ func setup(p_world, p_hud, p_story, p_inspect) -> void:
 		Weather.lightning_struck.connect(_on_lightning)
 	else:
 		Net.event.connect(_on_event)
-	# My spot in the booth.
-	var g := Net.guard_of(Net.my_id())
-	camera.seat_pos = SPOTS[g % SPOTS.size()]
-	camera.position = camera.seat_pos
+	# Only one chair: the host sits in it, everyone else starts on their feet at their spot.
+	if not Net.is_host():
+		var g := Net.guard_of(Net.my_id())
+		camera.start_standing(SPOTS[g % SPOTS.size()], 0.0)
+		if story.roam:
+			story.roam.in_chair = false
+			story.roam._refresh()
 	for id in Net.ids():
 		if id != Net.my_id():
 			_add_guard(id)
@@ -79,7 +83,7 @@ func _process(delta: float) -> void:
 	_pose_t += delta
 	if _pose_t >= 1.0 / POSE_RATE:
 		_pose_t = 0.0
-		Net.send_pose(camera.global_transform, 1 if camera.state == camera.State.WALK or camera.seat_pos.y > 1.4 else 0)
+		Net.send_pose(camera.global_transform, _my_state())
 	if Net.is_host():
 		_sync_t += delta
 		if _sync_t >= 1.0 / SYNC_RATE:
@@ -88,18 +92,31 @@ func _process(delta: float) -> void:
 	_update_guards(delta)
 
 
+## 0 = in the chair, 1 = on their feet in the booth, 2 = out in the car park.
+func _my_state() -> int:
+	var r = story.roam
+	if r == null:
+		return 0
+	if r.outside:
+		return 2
+	return 0 if r.in_chair else 1
+
+
 # ------------------------------------------------------------------ the other guards
 func _add_guard(id: int) -> void:
 	if _guards.has(id):
 		return
 	var g := Net.guard_of(id)
-	var model := PlayerModel.build(g, false)
+	var model := PlayerModel.build(g, true)
 	model.name = "Guard_%d" % id
-	model.add_child(PlayerModel.name_tag(g))
+	var tag := PlayerModel.name_tag(g)
+	tag.name = "Tag"
+	model.add_child(tag)
 	world.add_child(model)
-	var spot: Vector3 = SPOTS[g % SPOTS.size()]
-	var xf := Transform3D(Basis(), spot)
-	_guards[id] = {"node": model, "xf": xf, "state": 1 if spot.y > 1.4 else 0, "t": 0.0}
+	var spot: Vector2 = SPOTS[g % SPOTS.size()]
+	var seated := g == 0
+	var xf := Transform3D(Basis(), Vector3(spot.x, 1.2 if seated else 1.5, spot.y))
+	_guards[id] = {"node": model, "xf": xf, "state": 0 if seated else 1, "t": 0.0, "last": Vector3.ZERO}
 	_place_guard(_guards[id], 1.0)
 
 
@@ -116,8 +133,13 @@ func _on_pose(from: int, xf: Transform3D, state: int) -> void:
 		if not Net.players.has(from):
 			return
 		_add_guard(from)
+	var was: int = _guards[from].state
 	_guards[from].xf = xf
 	_guards[from].state = state
+	# Going in or out of the booth: the door swings for everyone.
+	if (was == 2) != (state == 2) and story.roam:
+		story.roam.swing_door()
+		world.ambience.play_at("door_open_close", world.booth.door.global_position + Vector3(-0.4, 1.0, 0), -6.0, "Interior", 3.0)
 
 
 func _update_guards(delta: float) -> void:
@@ -134,7 +156,7 @@ func _place_guard(g: Dictionary, k: float) -> void:
 	var xf: Transform3D = g.xf
 	var eye := xf.origin
 	var seated: bool = g.state == 0
-	var feet := Vector3(eye.x, 0.0 if not seated else -0.42, eye.z)
+	var feet := Vector3(eye.x, -0.42 if seated else (-0.15 if g.state == 2 else 0.0), eye.z)
 	# Behind the eyes a little (the eyes are at the front of the head).
 	var fwd := -xf.basis.z
 	fwd.y = 0.0
@@ -144,14 +166,28 @@ func _place_guard(g: Dictionary, k: float) -> void:
 		var yaw := atan2(fwd.x, fwd.z)
 		n.rotation.y = lerp_angle(n.rotation.y, yaw, k)
 	n.position = n.position.lerp(feet, k) if n.position != Vector3.ZERO else feet
-	var legs := -1.4 if seated else 0.0
-	for leg in ["LegL", "LegR"]:
-		var lg := n.get_node_or_null(leg) as Node3D
-		if lg:
-			lg.rotation.x = legs
+	PlayerModel.set_torch(n, g.state == 2)
+	if seated:
+		for leg in ["LegL", "LegR"]:
+			var lg := n.get_node_or_null(leg) as Node3D
+			if lg:
+				lg.rotation.x = -1.4
+	else:
+		# Walking: swing the legs while they're moving.
+		var moved: float = Vector2(feet.x - g.last.x, feet.z - g.last.z).length()
+		g.last = feet
+		g.t += get_process_delta_time()
+		var model_y := n.position.y
+		PlayerModel.walk(n, g.t, moved > 0.004)
+		n.position.y = model_y
 	# Never draw a guard inside your own head.
 	var me: Vector3 = camera.global_position
-	n.visible = Vector2(n.global_position.x - me.x, n.global_position.z - me.z).length() > 0.35
+	var dist := Vector2(n.global_position.x - me.x, n.global_position.z - me.z).length()
+	n.visible = dist > 0.35
+	# The floating "P2" tag is for spotting someone across the car park; up close it's in the way.
+	var tag := n.get_node_or_null("Tag") as Node3D
+	if tag:
+		tag.visible = dist > 4.0
 
 
 func _on_player_left(id: int) -> void:

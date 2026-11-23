@@ -15,6 +15,7 @@ var _sub: RichTextLabel
 var _sub_id := 0
 var _sub_skip := false
 signal choice_picked(entry_index: int)   ## the player clicked or pressed 1-4 on a dialog option
+signal roam_pressed                       ## the GET UP / SIT DOWN button (night three on; also the G key)
 
 ## Co-op host: shared messages (subtitles, notices, objectives, tips, coins) are also sent to the other
 ## players through this (fn name, args). `relay_paused` keeps a message to this player only.
@@ -1050,3 +1051,35 @@ func _edge_button(text: String, left: bool) -> Button:
 	look_left_btn.visible = false
 	add_child(look_left_btn)
 	return look_left_btn
+
+
+# ============================================================ get up / sit down (night three on)
+var _roam_btn: Button
+
+
+## The small button in the bottom-right corner. "" hides it.
+func set_roam_button(text: String) -> void:
+	if _roam_btn == null:
+		_roam_btn = Button.new()
+		_roam_btn.focus_mode = Control.FOCUS_NONE
+		_roam_btn.add_theme_font_override("font", _font)
+		_roam_btn.add_theme_font_size_override("font_size", 26)
+		for st in ["normal", "hover", "pressed"]:
+			var sb := StyleBoxFlat.new()
+			sb.bg_color = Color(0, 0, 0, 0.45) if st == "normal" else Color(0.91, 0.75, 0.44, 0.3)
+			sb.border_color = Color(0.91, 0.75, 0.44, 0.6)
+			sb.set_border_width_all(1)
+			sb.content_margin_left = 14
+			sb.content_margin_right = 14
+			_roam_btn.add_theme_stylebox_override(st, sb)
+		_roam_btn.add_theme_color_override("font_color", Color(0.85, 0.84, 0.78))
+		_roam_btn.add_theme_color_override("font_hover_color", Color(1, 0.9, 0.6))
+		_roam_btn.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_RIGHT)
+		_roam_btn.offset_left = -230
+		_roam_btn.offset_right = -18
+		_roam_btn.offset_top = -64
+		_roam_btn.offset_bottom = -22
+		_roam_btn.pressed.connect(func(): roam_pressed.emit())
+		add_child(_roam_btn)
+	_roam_btn.text = text
+	_roam_btn.visible = text != ""
