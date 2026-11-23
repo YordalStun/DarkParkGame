@@ -56,6 +56,17 @@ Running list for the game. Tick items off as they are done, and add new ones at 
 - [ ] Settle the open questions at the bottom of docs/design/coop-notes.md before building it
 - [ ] Every new night-three feature goes through one function that takes a player id (see the rules in coop-notes.md)
 
+## Night 3 people and dialog
+
+- [ ] Write night three's people, each with their own dialog (side window, desk phone and out on patrol), using the dialog format in `scripts/story/dialogs/`.
+- [ ] Dialog options for every night three conversation, with the safe option and the 2-4 numbered choices.
+- [ ] Hacking clue: one night three person has a dog. Their dog's name is the password clue (ties in with the hospital login).
+- [ ] Hacking clue: the printed paper with the hospital's IP is handed to the guard by an old, friendly staff member (ties in with the IP plot point).
+
+## UI
+
+- [ ] Bug: the NightLink UI overlaps other UI. Fix the layout so it does not overlap.
+
 ## Night 3
 
 - [ ] Walkable area: take screenshots of the lot from player eye height and check it looks right from every angle.
