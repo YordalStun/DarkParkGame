@@ -45,6 +45,13 @@ var side_pane: Node3D              ## the sliding sash (glass + frame)
 var side_pane_interact: Interactable
 var side_is_open := false
 var side_open := 0.0               ## 0..1 how far open (the ambience reads this)
+var sill_wet := 0.0               ## 0..1 rain blown in through the open side window (sill and floor)
+var peak_wet := 0.0               ## the wettest it got tonight (the end report notices)
+var _wet_sill: MeshInstance3D
+var _wet_floor: MeshInstance3D
+var _wet_floor_mat: ShaderMaterial
+const WET_RATE := 0.012           ## per second at full rain with the window fully open (about 80 s to soak)
+const DRY_RATE := 0.0015          ## per second with the window shut (about 11 minutes to dry)
 var raise_button: Interactable     ## barrier panel on the left sill
 var vehicle_log: Interactable      ## clipboard under the side window: log plates from there
 var lower_button: Interactable
@@ -324,6 +331,43 @@ func _panel_button(parent: Node3D, label: String, pos: Vector3) -> Interactable:
 	return it
 
 
+## Rain coming in through the open side window wets the sill, then a puddle spreads on the floor
+## below it. It dries slowly once the window is shut.
+func _update_wet(delta: float) -> void:
+	var rain := Weather.rain
+	if side_is_open and side_open > 0.3 and rain > 0.12:
+		sill_wet += delta * WET_RATE * rain * (0.6 + Weather.gusty_wind()) * side_open
+	else:
+		sill_wet -= delta * DRY_RATE
+	sill_wet = clampf(sill_wet, 0.0, 1.0)
+	peak_wet = maxf(peak_wet, sill_wet)
+	if _wet_sill == null:
+		_build_wet()
+	var sill_a := clampf(sill_wet * 3.0, 0.0, 1.0)            # the sill darkens quickly
+	_wet_sill.visible = sill_a > 0.01
+	(_wet_sill.material_override as StandardMaterial3D).albedo_color.a = sill_a * 0.75
+	var puddle := clampf((sill_wet - 0.25) / 0.75, 0.0, 1.0)  # the floor only after the sill is soaked
+	_wet_floor.visible = puddle > 0.01
+	_wet_floor.scale = Vector3(0.25 + puddle * 0.75, 1.0, 0.25 + puddle * 0.75)
+	_wet_floor_mat.set_shader_parameter("amount", puddle)
+
+
+func _build_wet() -> void:
+	var m := StandardMaterial3D.new()
+	m.albedo_color = Color(0.04, 0.03, 0.025, 0.0)
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	m.roughness = 0.05
+	m.metallic = 0.3
+	_wet_sill = MK.quad(self, Vector2(0.13, SIDE_SPAN.y - SIDE_SPAN.x), Vector3(-IN_X + 0.065, SILL + 0.0215, (SIDE_SPAN.x + SIDE_SPAN.y) * 0.5), m, Vector3(-90, 0, 0), "WetSill")
+	_wet_sill.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	var sh := Shader.new()
+	sh.code = "shader_type spatial;\nrender_mode blend_mix, depth_draw_never, cull_disabled;\nuniform float amount = 0.0;\nvoid fragment() {\n\tfloat d = length(UV - 0.5) * 2.0;\n\tfloat edge = 1.0 - smoothstep(0.55, 1.0, d + sin(UV.x * 17.0) * 0.04 + sin(UV.y * 13.0) * 0.04);\n\tALBEDO = vec3(0.03, 0.025, 0.02);\n\tALPHA = edge * 0.93 * clamp(amount * 3.0, 0.0, 1.0);\n\tROUGHNESS = 0.02;\n\tMETALLIC = 0.3;\n\tSPECULAR = 0.9;\n}\n"
+	_wet_floor_mat = ShaderMaterial.new()
+	_wet_floor_mat.shader = sh
+	_wet_floor = MK.quad(self, Vector2(2.0, 2.0), Vector3(-IN_X + 1.0, 0.006, (SIDE_SPAN.x + SIDE_SPAN.y) * 0.5), _wet_floor_mat, Vector3(-90, 0, 0), "WetFloor")
+	_wet_floor.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+
+
 func set_side_window(open: bool) -> void:
 	if open == side_is_open:
 		return
@@ -392,6 +436,7 @@ func _build_light() -> void:
 
 func _process(delta: float) -> void:
 	_update_clock()
+	_update_wet(delta)
 	_flicker_timer -= delta
 	if not light_on:
 		_blinks.clear()

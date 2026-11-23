@@ -272,6 +272,7 @@ func start() -> void:
 		hud.add_objective("ids", "Check each visitor's ID against tonight's list")
 		hud.add_objective("log", "Log the plate of every car you let in")
 		hud.add_objective("shift", "Stay at your post until 07:00")
+	_watch_wet()
 	await _wait(2.0)
 	hud.notify("Cars arrive at the side window. Click  <  on the left, or the window itself.", 6.0)
 	_run_leavers()
@@ -291,6 +292,15 @@ func start() -> void:
 	night_flow_done = true   # every car and call is done: all that's left is waiting for 07:00
 	await _shift_over()
 	_summary()
+
+
+## A hint (once) when rain is blowing in through the open side window.
+func _watch_wet() -> void:
+	while not _shift_done:
+		if world.booth.sill_wet > 0.5:
+			hud.notify("Rain is blowing in through the open window. The sill is getting soaked.", 6.0)
+			return
+		await _wait(1.0)
 
 
 ## Testing (--carstyle=<style>): a car of that style at the side window with its driver, window open.
@@ -904,6 +914,8 @@ func evaluate() -> Dictionary:
 	if dialog_coins != 0:
 		earned += dialog_coins
 		rows.append({"name": "Conversations", "delta": dialog_coins, "verdict": "coins from what you said"})
+	if world.booth.peak_wet > 0.75:
+		wrong.append("[color=#ffb060]You left the side window open in the rain. The sill and floor were soaked; Dale noticed the puddle in the morning.[/color]")
 	var bonus := BONUS_PLATES if admitted > 0 and plates_ok == admitted else 0
 	var total := start_money + earned + bonus
 	return {"rows": rows, "wrong": wrong, "earned": earned, "bonus": bonus, "total": total,

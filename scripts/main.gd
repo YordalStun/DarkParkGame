@@ -541,6 +541,10 @@ func _cctv_grid() -> void:
 
 
 func _apply_args() -> void:
+	if _args.has("wet"):   # testing: --wet=0.9 opens the side window with the sill that wet
+		world.booth.set_side_window(true)
+		world.booth.sill_wet = float(_args.wet)
+		world.booth.side_open = 1.0
 	if _args.has("time"):   # e.g. --time=6.25 (hours) for checking the sunrise
 		var th := float(_args.time)
 		NightClock.set_time(int(th), int((th - int(th)) * 60.0))
