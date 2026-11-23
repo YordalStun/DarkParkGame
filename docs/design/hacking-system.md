@@ -26,13 +26,23 @@ detailed enough for a build session to work from without this chat.
 - Download time: a download only moves forward while the PC is on. Leaving the
   PC off stalls it.
 - First warning sign: a call from Dale asking about the PC.
-- Data buyer: a specific character (name not decided yet).
+- Data buyer: a specific character (now decided: unnamed dark web contact).
+
+- Data buyer: an unnamed dark web contact. Late-night, anonymous, fits the
+  NightNet board world.
+- Hospital program: called MediCare (working name).
+- Detection risk: each file has a sensitivity level. Risk goes up with:
+  (a) how sensitive the file is, (b) how many files the player has reached,
+  (c) how often the player logs in each night. Going straight for passwords
+  and then logging into other systems is the highest risk.
+- If caught mid-download: the connection is cut and the hospital calls the
+  player shortly after.
 
 ## Open questions
 
 - What happens when Dave is caught.
-- Who the specific data buyer is, and what they want.
-- Which program the hospital wants (name), and what the download is called.
+- The dark web contact's name, and what they want from Dave.
+- The download's name and where it is found on the internet.
 - Punishment choices: which detection ideas to use and the suspicion thresholds.
 - Shift rule when a download is still running at 07:00 (confirm: shift ends, download continues).
 - The exact payoff: coins from bribes, story info, or both.
