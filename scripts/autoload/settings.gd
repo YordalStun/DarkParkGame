@@ -27,6 +27,7 @@ const CHANNELS := {"weather": "RAIN & WEATHER", "music": "RADIO", "ambience": "R
 var volume := 0.8           ## 0..1
 var muted := false
 var fade := 0.0             ## 0..1, driven by the start-up fade-in
+var last_join_ip := ""      ## the co-op host typed in last time (JOIN A GAME)
 var mix := {"weather": 0.7, "music": 1.0, "ambience": 1.0, "cars": 0.8, "voices": 0.8}   ## 0..1 each
 
 
@@ -40,6 +41,7 @@ func _ready() -> void:
 		for k in graphics:
 			var v = cfg.get_value("graphics", k, graphics[k])
 			graphics[k] = v if typeof(v) == typeof(graphics[k]) else graphics[k]
+		last_join_ip = str(cfg.get_value("coop", "last_join_ip", ""))
 	apply()
 
 
@@ -96,4 +98,5 @@ func save() -> void:
 		cfg.set_value("audio", k, mix[k])
 	for k in graphics:
 		cfg.set_value("graphics", k, graphics[k])
+	cfg.set_value("coop", "last_join_ip", last_join_ip)
 	cfg.save(PATH)

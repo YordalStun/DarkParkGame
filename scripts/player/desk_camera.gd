@@ -23,6 +23,9 @@ var _step_acc := 0.0
 signal footstep
 
 const SEAT_POS := Vector3(0.0, 1.2, 0.32)
+var seat_pos := SEAT_POS      ## where this player's eyes rest (co-op: P2-P4 stand at other spots in the booth)
+## Co-op: asked before leaning in to something (the PC is one player's at a time). Returns true to allow.
+var zoom_guard := Callable()
 const BASE_PITCH := -5.0      # degrees, looking slightly down at the desk
 const YAW_RANGE := 34.0       # degrees each side
 const PITCH_UP := 18.0
@@ -46,7 +49,7 @@ func _ready() -> void:
 	near = 0.03
 	far = 400.0
 	current = true
-	position = SEAT_POS
+	position = seat_pos
 	rotation_degrees = Vector3(BASE_PITCH, 0, 0)
 
 
@@ -107,7 +110,7 @@ func _update_seated(delta: float) -> void:
 	var breath := sin(_t * 1.15) * 0.006 * sk
 	var sway := sin(_t * 0.37) * 0.004 * sk
 	var head_turn := deg_to_rad(_yaw)
-	position = SEAT_POS + Vector3(-sin(head_turn) * 0.06 + sway, breath, -absf(sin(head_turn)) * 0.03)
+	position = seat_pos + Vector3(-sin(head_turn) * 0.06 + sway, breath, -absf(sin(head_turn)) * 0.03)
 	rotation = Vector3(deg_to_rad(_pitch + sin(_t * 0.9) * 0.15 * sk), head_turn, deg_to_rad(sin(_t * 0.31) * 0.25 * sk))
 
 
@@ -254,6 +257,8 @@ func click() -> void:
 	if hovered:
 		var it := hovered
 		if it.zoom_marker and state != State.MOVING and it != focus:
+			if zoom_guard.is_valid() and not zoom_guard.call(it):
+				return
 			zoom_to(it)
 		it.activate()
 
@@ -288,7 +293,7 @@ func zoom_to(it: Interactable) -> void:
 func unzoom() -> void:
 	state = State.MOVING
 	focus = null
-	var rest := Transform3D(Basis.from_euler(Vector3(deg_to_rad(_pitch), deg_to_rad(_yaw), 0)), SEAT_POS)
+	var rest := Transform3D(Basis.from_euler(Vector3(deg_to_rad(_pitch), deg_to_rad(_yaw), 0)), seat_pos)
 	var tw := create_tween().set_parallel(true)
 	tw.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 	tw.tween_property(self, "global_transform", rest, 0.7)

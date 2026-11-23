@@ -394,6 +394,21 @@ func _recalc() -> void:
 		_next_btn.disabled = false
 
 
+## Co-op guest: the same report, but the host decides (bills, upgrades, NEXT NIGHT).
+var view_only := false
+func set_view_only(text: String) -> void:
+	view_only = true
+	await get_tree().process_frame
+	for n in find_children("*", "BaseButton", true, false):
+		if n.text != "QUIT":
+			n.disabled = true
+	if _next_btn:
+		_next_btn.text = "WAITING..."
+	if _warn:
+		_warn.add_theme_color_override("font_color", DIM)
+		_warn.text = text
+
+
 ## A pop-up over the screen (e.g. "CO-OP UNLOCKED"). Click OK to carry on.
 func show_unlock(title: String, text: String) -> void:
 	var dim := ColorRect.new()

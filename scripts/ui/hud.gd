@@ -15,6 +15,35 @@ var _sub: RichTextLabel
 var _sub_id := 0
 var _sub_skip := false
 signal choice_picked(entry_index: int)   ## the player clicked or pressed 1-4 on a dialog option
+
+## Co-op host: shared messages (subtitles, notices, objectives, tips, coins) are also sent to the other
+## players through this (fn name, args). `relay_paused` keeps a message to this player only.
+var relay := Callable()
+var relay_paused := false
+var _relaying_in := false
+
+
+func _relay(fn: String, args: Array) -> void:
+	if relay.is_valid() and not relay_paused and not _relaying_in:
+		relay.call(fn, args)
+
+
+## Co-op client: a message from the host's HUD.
+const RELAYED := ["say", "notify", "add_objective", "complete_objective", "set_objectives", "tip", "set_money"]
+func relay_in(fn: String, args: Array) -> void:
+	if not fn in RELAYED:
+		return
+	_relaying_in = true
+	callv(fn, args)
+	_relaying_in = false
+
+
+## A message for this player only (not sent to the other guards).
+func notify_local(text: String, seconds := 4.0) -> void:
+	var was := relay_paused
+	relay_paused = true
+	notify(text, seconds)
+	relay_paused = was
 var _choice_box: PanelContainer
 var _choice_rows: Array = []              ## the option buttons
 var _choice_head: Label
@@ -167,7 +196,7 @@ func set_zoomed(z: bool) -> void:
 func set_paused(p: bool) -> void:
 	paused = p
 	_pause.visible = p
-	get_tree().paused = p
+	get_tree().paused = p and not Net.active()   # co-op: the night goes on for everyone else
 
 
 ## Small FPS counter in the top-left corner (GRAPHICS > Show FPS).
@@ -467,6 +496,9 @@ func _slider_row(parent: Control, title: String, value: float, on_change: Callab
 ## (after `seconds`, or sooner if the player clicks to skip).
 ## click_through: stay up until the player clicks (phone calls), however long that takes.
 func say(speaker: String, text: String, seconds := -1.0, click_through := false) -> void:
+	if Net.active():
+		click_through = false   # co-op: nobody waits for one player's click
+	_relay("say", [speaker, text, seconds, click_through])
 	if seconds < 0.0:
 		seconds = clampf(1.6 + text.length() * 0.075, 3.0, 9.0)
 	if click_through:
@@ -517,6 +549,7 @@ func _speak(speaker: String, text: String) -> void:
 
 ## A short notice at the top of the screen ("A car has pulled up at the barrier").
 func notify(text: String, seconds := 4.0) -> void:
+	_relay("notify", [text, seconds])
 	_note.text = text
 	_note_id += 1
 	var id := _note_id
@@ -626,6 +659,7 @@ func _show_money(v: float) -> void:
 
 ## How many coins the player has. It counts there slowly (about a third of a second per coin).
 func set_money(v: int, animate := true) -> void:
+	_relay("set_money", [v, animate])
 	money = v
 	if _money_tween:
 		_money_tween.kill()
@@ -640,6 +674,7 @@ func set_money(v: int, animate := true) -> void:
 
 
 func set_objectives(list: Array) -> void:
+	_relay("set_objectives", [list])
 	_objectives.clear()
 	for o in list:
 		_objectives.append({"id": o[0], "text": o[1], "done": false})
@@ -647,6 +682,7 @@ func set_objectives(list: Array) -> void:
 
 
 func add_objective(id: String, text: String) -> void:
+	_relay("add_objective", [id, text])
 	for o in _objectives:
 		if o.id == id:
 			return
@@ -655,6 +691,7 @@ func add_objective(id: String, text: String) -> void:
 
 
 func complete_objective(id: String) -> void:
+	_relay("complete_objective", [id])
 	for o in _objectives:
 		if o.id == id and not o.done:
 			o.done = true
@@ -866,6 +903,7 @@ var _tip_busy := false
 ## A guide tip in the bottom-left corner ("TIP: you can write things down..."). Each one is
 ## shown once per save slot (id), then never again.
 func tip(id: String, text: String, seconds := 11.0) -> void:
+	_relay("tip", [id, text, seconds])
 	if SaveGame.tip_seen(id):
 		return
 	SaveGame.mark_tip(id)

@@ -85,6 +85,24 @@ renderer. Nothing is kept between sessions (incognito).
 Chromium is about 2 GB unpacked, so it is not in git. After cloning, run `tools/fetch_cef.sh` once.
 Without it the game still runs; real sites then fall back to the simple built-in renderer.
 
+## Co-op (night three on)
+
+Up to four guards can share the shift. **MULTIPLAYER** on the title screen:
+
+* **HOST A GAME**: pick a save that has finished night two, or start a new game that skips straight to
+  night three (for players who haven't unlocked co-op yet). The lobby shows your IP address and port.
+* **JOIN A GAME**: type the host's IP address and port (default **24680**). On the same network that's
+  all; over the internet the host forwards UDP port 24680 on their router (or you all use Hamachi or
+  ZeroTier). Friends can only join from the lobby, before the night starts.
+
+The host runs the story and their save is the one that changes. Friends play as guests and keep nothing.
+P1 sits at the desk; P2-P4 stand around it. Anyone can open the window, take an ID card or press the
+barrier buttons; whoever opened the window (or answered the phone) picks the dialog replies; one guard
+at a time can use the PC. At 07:00 the host clocks out and presses NEXT NIGHT for everyone.
+
+Testing on one machine: run `godot --path . -- --host` in one window and `godot --path . -- --join=127.0.0.1`
+in another (use different `HOME`s so the saves don't clash).
+
 ## Controls
 
 The game is played entirely with the mouse.

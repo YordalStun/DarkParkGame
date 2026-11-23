@@ -52,9 +52,14 @@ Running list for the game. Tick items off as they are done, and add new ones at 
 
 ## Co-op (from night three; design log in docs/design/coop-notes.md)
 
-- [ ] Build co-op: host + join by code/IP, host runs the story, up to 4 guards (player models exist)
-- [ ] Settle the open questions at the bottom of docs/design/coop-notes.md before building it
+- [x] Build co-op: host + join by IP and port, host runs the story, up to 4 guards (scripts/autoload/net.gd, scripts/net/coop.gd)
+- [x] MULTIPLAYER on the main menu. Co-op unlocks after night 2; players who haven't got there can host a new game that skips to night 3
+- [x] Lobby: host shows IP + port and the guards (P1-P4); only the host presses START; joining is lobby only
 - [ ] Every new night-three feature goes through one function that takes a player id (see the rules in coop-notes.md)
+- [ ] Co-op: spectator view of the PC for the guards who aren't using it (for now they are told who is on it)
+- [ ] Co-op: more arrivals per extra guard (the risk meter already rises faster; numbers still to tune)
+- [ ] Co-op: guests' notepads are their own (dialog "note" effects only reach the host's)
+- [ ] Co-op: test over a real LAN / the internet (so far tested with two copies on one machine)
 
 ## Night 3
 

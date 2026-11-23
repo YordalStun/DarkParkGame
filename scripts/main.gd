@@ -12,12 +12,16 @@ extends Node
 ##   --lightning   --zoom
 ##   --desktop[=browser,paint]   lean in, boot the desktop and open those programs
 ##   --url=http://...            address for the browser (with --desktop=browser)
+##
+## Co-op testing (two copies on one machine): --host[=2] waits for that many guards, then starts
+## night three; --join=127.0.0.1 joins it. Add --port=N to both to use another port.
 
 const World := preload("res://scripts/world/world.gd")
 const Hud := preload("res://scripts/ui/hud.gd")
 const LoadingScreen := preload("res://scripts/ui/loading_screen.gd")
 const Inspect := preload("res://scripts/ui/inspect.gd")
 const Shift := preload("res://scripts/story/shift.gd")
+const Coop := preload("res://scripts/net/coop.gd")
 const TARGET_HEIGHT := 360.0   ## internal render height in pixels
 
 var container: SubViewportContainer
@@ -26,6 +30,7 @@ var world: Node3D
 var hud: CanvasLayer
 var inspect: CanvasLayer
 var story: Node
+var coop: Node              ## co-op sync (scripts/net/coop.gd), only in a co-op game
 var post: ShaderMaterial
 
 var _shot_path := ""
@@ -49,8 +54,10 @@ func _ready() -> void:
 		if _args.has("night"):
 			SaveGame.set_progress(SaveGame.coins(), int(_args.night))
 
+	if (_args.has("host") or _args.has("join")) and not Net.in_game:
+		await _test_coop()
 	# Title screen (save slots) first, unless going straight on to the next night or testing.
-	if not SaveGame.skip_title and _shot_path == "" and not _args.has("notitle"):
+	elif not SaveGame.skip_title and _shot_path == "" and not _args.has("notitle") and not Net.in_game:
 		var title = load("res://scripts/ui/title_screen.gd").new()
 		add_child(title)
 		await title.chosen
@@ -119,6 +126,11 @@ func _ready() -> void:
 	add_child(story)
 	world.story = story
 	story.setup(world, hud, inspect)
+	if Net.in_game and Net.active():
+		coop = Coop.new()
+		coop.name = "Coop"
+		add_child(coop)
+		coop.setup(world, hud, story, inspect)
 	world.camera.hover_changed.connect(hud.set_prompt)
 	world.camera.focus_changed.connect(func(f): hud.set_zoomed(f != null))
 	world.camera.walk_blockers = world.booth.walk_blockers
@@ -167,9 +179,25 @@ func _ready() -> void:
 		story.debug_shift_end()
 	elif _args.has("report"):
 		story.debug_report()
+	elif coop != null:
+		if Net.is_host():
+			hud.notify_local("Waiting for the other guards to load...", 4.0)
+			await coop.wait_for_everyone()
+			for id in Net.ids():
+				if id != 1:
+					story.send_state_to(id)
+			story.start()
+		else:
+			Net.request("ready")
+			story.guest_start()
 	elif not quick or _args.has("story"):
 		story.start()
-	if _args.has("autoplay"):
+	if _args.has("autoplay") and story.guest:
+		var gb = load("res://scripts/net/coop_bot.gd").new()
+		gb.name = "CoopBot"
+		add_child(gb)
+		gb.setup(story, world, hud, inspect)
+	elif _args.has("autoplay"):
 		var bot = load("res://scripts/story/autoplay.gd").new()
 		bot.name = "Autoplay"
 		add_child(bot)
@@ -185,6 +213,27 @@ func _ready() -> void:
 	var tw := create_tween()
 	tw.tween_interval(0.0 if quick else 0.3)
 	tw.tween_method(func(v): post.set_shader_parameter("fade", v), 0.0, 1.0, 0.01 if quick else 3.5)
+
+
+## --host[=N] / --join=IP: set up a co-op game without the title screen (for testing).
+func _test_coop() -> void:
+	var port := int(_args.get("port", Net.DEFAULT_PORT))
+	if _args.has("host"):
+		SaveGame.ensure_slot()
+		SaveGame.set_progress(SaveGame.coins(), maxi(SaveGame.night(), SaveGame.COOP_NIGHT))
+		var why := Net.host(port)
+		print("COOP host on %d %s" % [port, why])
+		var want := int(_args.host) if str(_args.host).is_valid_int() else 2
+		while Net.players.size() < want:
+			await get_tree().process_frame
+		print("COOP starting with ", Net.ids())
+		Net.start_game(SaveGame.night(), SaveGame.coins())
+	else:
+		var why := Net.join(str(_args.join), port)
+		print("COOP join %s:%d %s" % [_args.join, port, why])
+		var r: Array = await Net.begin
+		SaveGame.start_guest(int(r[0]), int(r[1]))
+		print("COOP joined as ", Net.my_id(), " night ", r[0])
 
 
 ## Render the scene (hidden behind the loading screen) until frame times settle,

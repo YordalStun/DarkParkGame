@@ -123,6 +123,11 @@ var risk := 0                 ## the hacking side hustle's "getting caught" mete
 var local_player_id := 1      ## this machine's player (the host is always 1)
 var player_ids := [1]         ## everyone in the booth; co-op will fill this in
 var _phone_owner := 1         ## who answered the phone (they answer the replies in that call)
+## Co-op (scripts/net/coop.gd). The host's story runs the night; a guest's only mirrors it.
+var guest := false            ## this machine is a friend in someone else's game
+var net_cars := {}            ## name -> visitor car (host and guests use the same names)
+var _window_opener := 1       ## who last opened the side window (they talk to the next visitor)
+var _choice_tick := 0.0
 ## Tonight's data (night one's constants, or night two's from night_two.gd).
 var arrivals: Array = []     ## who turns up
 var list_now: Array = []     ## the printed list you check IDs against
@@ -138,6 +143,10 @@ func setup(p_world, p_hud, p_inspect) -> void:
 	hud = p_hud
 	camera = p_world.camera
 	inspect = p_inspect
+	guest = Net.is_guest() and Net.in_game
+	if Net.active():
+		local_player_id = Net.my_id()
+		player_ids = Net.ids()
 	_load_progress()
 	if night >= 2:
 		arrivals = NightTwo.arrivals(ARRIVALS)
@@ -148,9 +157,14 @@ func setup(p_world, p_hud, p_inspect) -> void:
 		arrivals = ARRIVALS.duplicate(true)
 		list_now = LIST.duplicate(true)
 	log_list = list_now.duplicate(true)
+	for i in arrivals.size():
+		arrivals[i]["idx"] = i   # the same on every machine, so a car can be named by number
 	if night >= 2:
 		world.props.logbook_interact.prompt = "Read the logbook"
-	world.props.phone_interact.activated.connect(_on_phone.bind(local_player_id))
+	if guest:
+		world.props.phone_interact.activated.connect(func(): Net.request("phone"))
+	else:
+		world.props.phone_interact.activated.connect(_on_phone.bind(local_player_id))
 	_setup_dialog()
 	if night >= 3:
 		_setup_hack()
@@ -158,11 +172,27 @@ func setup(p_world, p_hud, p_inspect) -> void:
 		world.props.notepad_interact.activated.connect(open_notes)
 	world.props.logbook_interact.activated.connect(_on_logbook)
 	hud.set_money(money, false)
-	world.booth.raise_button.activated.connect(_on_raise)
+	if guest:
+		world.booth.raise_button.activated.connect(func(): Net.request("raise"))
+		world.booth.lower_button.activated.connect(func(): Net.request("lower"))
+		# The side window opens on the host's say-so (so everyone sees the same window).
+		var pane: Interactable = world.booth.side_pane_interact
+		for c in pane.activated.get_connections():
+			pane.activated.disconnect(c.callable)
+		pane.activated.connect(func(): Net.request("window", [not world.booth.side_is_open]))
+	else:
+		world.booth.raise_button.activated.connect(_on_raise)
+		world.booth.lower_button.activated.connect(_on_lower)
+		world.booth.side_window_moved.connect(func(o: bool):
+			Net.send("window", [o])
+			if not _remote_window:
+				_window_opener = local_player_id)
+		world.lot.gate.moved.connect(func(o: bool): Net.send("gate", [o]))
 	if world.booth.vehicle_log:   # bought as an upgrade after a shift
 		world.booth.vehicle_log.activated.connect(_open_log)
 		inspect._log_ready = true
-	world.booth.lower_button.activated.connect(_on_lower)
+	if Net.active():
+		camera.zoom_guard = _may_zoom
 	world.booth.side_window_moved.connect(func(_o): world.ambience.play_at("window_slide", world.booth.side_pane.global_position, -6.0))
 	_ring = AudioStreamPlayer3D.new()
 	var rs := load("res://assets/audio/phone_ring.ogg") as AudioStreamOggVorbis
@@ -224,7 +254,7 @@ func _spawn_leavers() -> void:
 func _all_leavers_gone() -> void:
 	for c in _leavers:
 		if is_instance_valid(c) and c.state == "parked":
-			c.go()
+			_leaver_go(c)
 	for c in _leavers:
 		while is_instance_valid(c):
 			await _wait(0.5)
@@ -239,7 +269,12 @@ func _run_leavers() -> void:
 		while current != null and is_instance_valid(current) and current.state == "entering":
 			await _wait(1.0)
 		if is_instance_valid(c):
-			c.go()
+			_leaver_go(c)
+
+
+func _leaver_go(c) -> void:
+	Net.send("leaver", [_leavers.find(c)])
+	c.go()
 
 
 ## Expected names for GateLog.
@@ -248,8 +283,12 @@ func staff_list() -> Array:
 
 
 func log_entry(reg: String, staff: String) -> void:
+	if guest:
+		Net.request("log", [reg, staff])   # the host's log is the one that counts
+		return
 	var shown := reg.strip_edges().to_upper()
 	entries.append({"time": NightClock.time_text(), "reg": shown, "key": _norm(reg), "name": staff})
+	Net.send("entries", [entries])
 	list_changed.emit()
 
 
@@ -334,7 +373,7 @@ func debug_car(style: String) -> void:
 	_visitor(p)
 	await _wait(0.8)
 	if current:
-		current.offer_card()
+		_car(current, "offer_card")
 
 
 ## Testing (--dialog=window|phone|patrol): plays a sample conversation right now.
@@ -383,6 +422,7 @@ func _ward_call() -> void:
 	hud.complete_objective("ward")
 	_call_done = true
 	log_list.append(NightTwo.ADDED.duplicate())   # GateLog can log the new porter
+	Net.send("log_list", [log_list])
 	list_changed.emit()
 	hud.add_objective("notes", "Write down the changes: press N for your notepad")
 	hud.tip("notepad_call", "Changes to the list come by phone. Press N, type what you were told, then close it (Esc or N). It stays beside every ID card you check.")
@@ -424,7 +464,7 @@ func skip_wait() -> void:
 func debug_send_leaver() -> void:
 	for c in _leavers:
 		if is_instance_valid(c) and c.state == "parked":
-			c.go()
+			_leaver_go(c)
 			return
 	hud.notify("No evening cars left to go home.", 3.0)
 
@@ -479,7 +519,7 @@ func debug_visitor(i: int, offer := true) -> void:
 	if offer:
 		await _wait(0.8)
 		if current:
-			current.offer_card()
+			_car(current, "offer_card")
 
 
 func _wait(sec: float) -> void:
@@ -500,6 +540,7 @@ func _setup_hack() -> void:
 	hack.name = "Hack"
 	add_child(hack)
 	hack.setup(self)
+	hack.remote = guest
 	# Placeholder until night three's real conversations are written: Kevin Platt's window chat
 	# (his dog's name is the hospital gateway's password).
 	for p in arrivals:
@@ -508,24 +549,72 @@ func _setup_hack() -> void:
 	# Whoever started using the PC first owns it until they stop (co-op rule): sitting back or shutting
 	# down frees it. Everyone else can watch the screen but not act.
 	var desk = world.props.desktop
-	desk.away_changed.connect(func(away: bool): _set_pc_owner(0 if away else local_player_id))
+	desk.away_changed.connect(func(away: bool): _pc_use(not away))
 	desk.state_changed.connect(func(on: bool):
 		if not on:
-			_set_pc_owner(0))
+			_pc_use(false))
 	hack.download_finished.connect(func(id: String):
-		desk.vfs.make_dir("C:\\DOWNLOADS")
-		desk.vfs.write("C:\\DOWNLOADS\\" + Hack.FILES[id].name, hack.file_text(id))
+		_save_download(id)
 		hud.notify("Download finished: " + Hack.FILES[id].name, 4.0)
+		Net.send("download", [id])
 		flags["got_" + id] = true)
+	if not guest:
+		hack.changed.connect(func(): _hack_dirty = true)
 
 
-func _set_pc_owner(id: int) -> void:
-	if hack and (id == 0 or hack.pc_owner == 0):
+var _hack_dirty := false
+var _hack_sent := 0.0
+
+
+func _save_download(id: String) -> void:
+	var desk = world.props.desktop
+	desk.vfs.make_dir("C:\\DOWNLOADS")
+	desk.vfs.write("C:\\DOWNLOADS\\" + Hack.FILES[id].name, hack.file_text(id))
+
+
+## This player started or stopped using the PC.
+func _pc_use(on: bool) -> void:
+	if guest:
+		Net.request("pc", [on])
+	else:
+		_set_pc_owner(local_player_id if on else 0, local_player_id)
+
+
+## Whoever started using the PC first owns it until they free it up. `who` is the player asking.
+func _set_pc_owner(id: int, who := 1) -> void:
+	if hack == null:
+		return
+	var before: int = hack.pc_owner
+	if id == 0:
+		if hack.pc_owner == who:
+			hack.pc_owner = 0
+	elif hack.pc_owner == 0:
 		hack.pc_owner = id
+	elif hack.pc_owner != id:
+		Net.send_to(who, "pc_taken", [hack.pc_owner])   # someone got there first: sit them back
+	if hack.pc_owner != before:
+		Net.send("pc_owner", [hack.pc_owner])
+
+
+func pc_owner() -> int:
+	return hack.pc_owner if hack else 0
+
+
+## Co-op: leaning in to the PC is only allowed when nobody else is using it.
+func _may_zoom(it) -> bool:
+	if it != world.props.crt_interact:
+		return true
+	var o := pc_owner()
+	if o != 0 and o != local_player_id:
+		hud.notify_local("%s is using the PC. You can watch over their shoulder; it's yours once they sit back." % Net.label(o), 4.0)
+		return false
+	return true
 
 
 ## The risk of being caught goes up with each hacking action (0-100). At 100 the session is cut.
 func add_risk(n: int) -> void:
+	if n > 0 and Net.count() > 1:   # co-op: more guards, faster-rising risk (numbers still to tune)
+		n = int(ceil(n * (1.0 + 0.25 * (Net.count() - 1))))
 	risk = clampi(risk + n, 0, 100)
 	if risk >= 100 and hack and not hack.state.dead:
 		hack.caught()
@@ -540,15 +629,26 @@ func _setup_dialog() -> void:
 	dialog.effect_fn = _apply_effect
 	dialog.flag_fn = func(f: String) -> bool: return bool(flags.get(f, false))
 	add_child(dialog)
-	dialog.options_ready.connect(func(_nid, entries, owner_id, seconds):
-		hud.show_choices(entries, seconds, owner_id == local_player_id, _player_label(owner_id)))
-	dialog.tick.connect(hud.update_choice_time)
-	dialog.chosen.connect(func(_nid, _i, _o, _auto): hud.hide_choices())
-	hud.choice_picked.connect(func(i): dialog.submit_choice(i, local_player_id))
+	dialog.options_ready.connect(func(_nid, ents, owner_id, seconds):
+		Net.send("choices", [ents, owner_id, seconds])
+		hud.show_choices(ents, seconds, owner_id == local_player_id, _player_label(owner_id)))
+	dialog.tick.connect(func(left: float, total: float):
+		hud.update_choice_time(left, total)
+		_choice_tick -= get_process_delta_time()
+		if _choice_tick <= 0.0:
+			_choice_tick = 0.2
+			Net.send("choice_time", [left, total]))
+	dialog.chosen.connect(func(_nid, _i, _o, _auto):
+		Net.send("choices_hide")
+		hud.hide_choices())
+	if guest:
+		hud.choice_picked.connect(func(i): Net.request("choice", [i]))
+	else:
+		hud.choice_picked.connect(func(i): dialog.submit_choice(i, local_player_id))
 
 
 func _player_label(id: int) -> String:
-	return "YOU" if id == local_player_id else "P%d" % id
+	return "YOU" if id == local_player_id else (Net.label(id) if Net.active() else "P%d" % id)
 
 
 ## Plays a conversation (see dialog.gd). `owner_id` is whoever is talking: the player who opened the
@@ -563,6 +663,7 @@ func talk(tree: Dictionary, owner_id := -1) -> Dictionary:
 
 func _dialog_say(speaker: String, text: String, auto: bool, is_player: bool) -> void:
 	if is_player:
+		Net.send("say_player", [dialog.talker, text, auto])
 		await hud.say_player(speaker, text, auto)
 	else:
 		await hud.say(speaker, text)
@@ -591,6 +692,10 @@ func _shift_over() -> void:
 	hud.complete_objective("log")
 	hud.complete_objective("shift")
 	hud.complete_objective("notes")
+	Net.send("chime")
+	if Net.active():
+		Net.send("hud", ["notify", ["07:00. The shift is over. %s clocks out for the team." % Net.label(1), 9.0]])
+		hud.relay_paused = true   # the clock-out is the host's job (they press NEXT NIGHT too)
 	hud.add_objective("pc", "Shut down the PC")
 	hud.add_objective("out", "Clock out: sign the logbook")
 	world.ambience.play_ui("chime", -6.0)
@@ -662,9 +767,11 @@ func _on_logbook() -> void:
 			world.ambience.play_ui("click2", -16.0)
 			inspect.show_page("LOGBOOK  -  BOOTH 2  -  the last operator's notes", LOGBOOK_PAGE)
 		else:
-			hud.notify("Your shift isn't over yet.", 3.0)
+			hud.notify_local("Your shift isn't over yet.", 3.0)
+	elif guest:
+		hud.notify_local("%s clocks out for the team." % Net.label(1), 3.0)
 	elif not _pc_off:
-		hud.notify("Shut down the PC before you clock out.", 4.0)
+		hud.notify_local("Shut down the PC before you clock out.", 4.0)
 	else:
 		clocked_out.emit()
 
@@ -706,10 +813,14 @@ func _phone_call(lines: Array) -> void:
 	_phone_ringing = true
 	_phone_answered = false
 	_ring.play()
+	Net.send("ring", [true])
 	hud.notify("The phone is ringing.", 4.0)
 	while not _phone_answered:
 		await get_tree().process_frame
 	_ring.stop()
+	Net.send("ring", [false])
+	if Net.active() and _phone_owner != local_player_id:
+		hud.notify_local("%s answered the phone." % Net.label(_phone_owner), 3.0)
 	world.ambience.play_ui("handset", -8.0)
 	_lift_handset(true)
 	for l in lines:
@@ -729,6 +840,7 @@ func _on_phone(from_player := 1) -> void:
 
 
 func _lift_handset(up: bool) -> void:
+	Net.send("handset", [up])
 	var hs: Node3D = world.props.get_node_or_null("Phone/Handset")
 	if hs == null:
 		return
@@ -751,11 +863,15 @@ func _visitor(p: Dictionary) -> void:
 	car.name = "Visitor_" + p.reg.replace(" ", "")
 	world.add_child(car)
 	current = car
+	net_cars[car.name] = car
+	car.tree_exiting.connect(func(): net_cars.erase(car.name))
+	Net.send("car_new", [int(p.get("idx", -1)), bay, car.name])
 	if _debug_skip:
 		_debug_skip = false
 		car._dist = car._stop_dist - 0.02
 	var res := {"name": p.name, "reg": p.reg, "admit": p.admit, "decided": "", "checked": false, "why": p.get("why", "")}
 	results.append(res)
+	car.set_meta("res", res)
 	if p.get("ghost", false):
 		_kessler_res = res
 	car.card_interact.activated.connect(func(): _on_card(car, p, res))
@@ -771,9 +887,9 @@ func _visitor(p: Dictionary) -> void:
 		waited += get_process_delta_time()
 		if waited > 14.0 + knocked * 16.0 and knocked < 3:
 			knocked += 1
-			world.ambience.play_at("knock", world.booth.side_pane.global_position + Vector3(-0.05, 0, 0), -6.0)
+			_knock()
 			hud.say("", "(Knock knock on the side window.)", 2.5)
-	_claim_talker(car, local_player_id)   # TODO(coop): the id of whoever opened the window
+	_claim_talker(car, _window_opener)
 	if car.state == "waiting":
 		await _wait(0.6)
 		for l in p.greet:
@@ -784,7 +900,7 @@ func _visitor(p: Dictionary) -> void:
 		if car.state == "waiting" and p.has("convo"):
 			await talk(p.convo, _talker_of(car))
 		if car.state == "waiting" and not res.checked:
-			car.offer_card()
+			_car(car, "offer_card")
 	# Until it drives in or reverses away.
 	while car.state in ["waiting", "approach"]:
 		await get_tree().process_frame
@@ -816,33 +932,72 @@ func _talker_of(car) -> int:
 func _on_card(car, p: Dictionary, res: Dictionary) -> void:
 	if car.state != "waiting" or inspect.is_open:
 		return
-	_claim_talker(car, local_player_id)   # TODO(coop): the id of the player who clicked
-	car.take_card()
+	_claim_talker(car, local_player_id)
+	_car(car, "take_card")
 	world.ambience.play_ui("click2", -16.0)
 	res.checked = true
+	var choice: String = await _show_card(p)
+	await _card_choice(car, p, res, choice, local_player_id)
+
+
+func _show_card(p: Dictionary) -> String:
 	inspect.smudge = night >= 2 and Weather.rain > 0.3   # rain-soaked paperwork
 	inspect.show_id(p, list_now, date_text, p.reg if night >= 2 else "", notes)
-	var choice: String = await inspect.closed
-	if car.state != "waiting":
+	return await inspect.closed
+
+
+## What the guard holding the ID card decided (`from` is that player). Runs on the host.
+func _card_choice(car, p: Dictionary, res: Dictionary, choice: String, from: int) -> void:
+	if not is_instance_valid(car) or car.state != "waiting":
 		return   # the barrier went up meanwhile (that hands the card back)
 	match choice:
 		"refuse":
-			car.return_card()
+			_car(car, "return_card")
 			res.decided = "refused"
 			await hud.say(_short(p), p.refused)
 			if car.state == "waiting":
-				car.reverse_out()
+				_car(car, "reverse_out")
 		"ok":
 			# Handed back, but nothing is decided until the barrier goes up.
-			car.return_card()
-			car.card_interact.prompt = "Ask for the ID again"
-			car.card_interact.enabled = true
+			_car(car, "return_card")
+			_card_prompt(car, "Ask for the ID again")
 			await hud.say(_short(p), p.ok)
 		_:
 			# Kept hold of it to go and check something. The driver waits.
-			car.card_interact.prompt = "Look at the ID card again"
-			car.card_interact.enabled = true
-			hud.notify("You keep hold of the card. The driver waits.", 3.5)
+			_card_prompt(car, "Look at the ID card again")
+			_tell(from, "You keep hold of the card. The driver waits.", 3.5)
+
+
+## A car does something (offer_card, take_card, drive_in...): here, and on every guest's screen.
+func _car(car, method: String) -> void:
+	if not is_instance_valid(car):
+		return
+	Net.send("car", [car.name, method])
+	car.call(method)
+
+
+func _card_prompt(car, prompt: String) -> void:
+	car.card_interact.prompt = prompt
+	car.card_interact.enabled = true
+	Net.send("car_prompt", [car.name, prompt])
+
+
+func _knock() -> void:
+	Net.send("knock")
+	world.ambience.play_at("knock", world.booth.side_pane.global_position + Vector3(-0.05, 0, 0), -6.0)
+
+
+func _term(text: String) -> void:
+	Net.send("term", [text])
+	world.props.terminal.add_log(text)
+
+
+## A notice for one player (on their screen only).
+func _tell(id: int, text: String, seconds := 4.0) -> void:
+	if id == local_player_id:
+		hud.notify_local(text, seconds)
+	else:
+		Net.send_to(id, "hud", ["notify", [text, seconds]])
 
 
 func _on_plate(car, p: Dictionary) -> void:
@@ -872,18 +1027,19 @@ func _on_raise() -> void:
 	var gate = world.lot.gate
 	if not gate.is_open:
 		gate.open()
-		world.props.terminal.add_log("GATE OPENED - BOOTH")
+		_term("GATE OPENED - BOOTH")
 	var car = current
 	if car != null and car.state == "waiting":
 		var res: Dictionary = results[results.size() - 1]
 		res.decided = "admitted"
+		Net.send("close_inspect")
 		if inspect.is_open:
 			inspect.close("ok")
 		if car.card_with_guard:
-			car.return_card()
+			_car(car, "return_card")
 		hud.say(_short(car.person), car.person.drive)
 		await _wait(1.0)
-		car.drive_in()
+		_car(car, "drive_in")
 		_auto_close(car)
 
 
@@ -894,7 +1050,7 @@ func _on_lower() -> void:
 		return   # safety: won't drop on a car
 	if world.lot.gate.is_open:
 		world.lot.gate.close()
-		world.props.terminal.add_log("GATE CLOSED - BOOTH")
+		_term("GATE CLOSED - BOOTH")
 
 
 ## The induction loop drops the barrier once the car is through.
@@ -909,6 +1065,11 @@ func _auto_close(car) -> void:
 # ------------------------------------------------------------------ 3am
 func _ghost_parks(car) -> void:
 	await car.parked
+	Net.send("ghost", [car.name])
+	await _ghost_fx(car)
+
+
+func _ghost_fx(car) -> void:
 	await _wait(6.0)
 	world.booth.force_flicker()
 	await _wait(0.5)
@@ -920,7 +1081,8 @@ func _ghost_parks(car) -> void:
 	world.booth.force_flicker()
 	world.lot.lamp.level = 1.0
 	world.booth.lane_flood.visible = true
-	world.props.terminal.add_log("VEHICLE TKM 117 - NOT DETECTED")
+	if not guest:
+		_term("VEHICLE TKM 117 - NOT DETECTED")
 
 
 # ------------------------------------------------------------------ end of night
@@ -992,7 +1154,7 @@ const NIGHT_WORDS := ["ONE", "TWO", "THREE", "FOUR", "FIVE", "SIX", "SEVEN", "EI
 func _summary() -> void:
 	var ev := evaluate()
 	money = ev.total
-	world.props.terminal.add_log("SHIFT REPORT: WAGES %+d" % (ev.earned + ev.bonus))
+	_term("SHIFT REPORT: WAGES %+d" % (ev.earned + ev.bonus))
 	var word: String = NIGHT_WORDS[night - 1] if night <= NIGHT_WORDS.size() else str(night)
 	hud.visible = false
 	var es = EndScreen.new()
@@ -1001,11 +1163,18 @@ func _summary() -> void:
 		for u in es.bought_upgrades():
 			SaveGame.add_upgrade(u)
 		SaveGame.finish_night(coins, ev.earned + ev.bonus, es.skipped_bills())
+		Net.ready_ids = {1: true}
+		Net.send("next_night", [coins, SaveGame.night()])
 		_restart())
 	es.start_again.connect(func():
 		SaveGame.set_progress(START_MONEY, 1)
+		if Net.active():   # night one isn't a co-op night: everyone else goes back to the title screen
+			Net.send("ended", ["The host started again from night one."])
+			await _wait(0.3)
+			Net.leave()
 		_restart())
 	es.show_night(ev, "END OF NIGHT %s" % word, date_short, _dale_note(ev))
+	Net.send("report", [ev, "END OF NIGHT %s" % word, date_short, _dale_note(ev)])
 	if night == 2 and not SaveGame.data.get("coop_unlocked", false):
 		SaveGame.data["coop_unlocked"] = true
 		await _wait(6.0)
@@ -1042,4 +1211,311 @@ func _restart() -> void:
 	Settings.set_fade(0.0)
 	get_tree().paused = false
 	SaveGame.skip_title = true
+	get_tree().reload_current_scene()
+
+
+# ================================================================== co-op
+# The host's story runs the night. These are the entry points for the other guards' actions
+# (remote_action, with their player id) and, on a guest's machine, for what the host sends
+# (guest_event). See scripts/net/coop.gd and docs/design/coop-notes.md.
+
+var _remote_window := false
+
+
+## Host: another guard did something.
+func remote_action(from: int, what: String, args: Array) -> void:
+	match what:
+		"phone":
+			_on_phone(from)
+		"window":
+			_remote_window = true
+			if bool(args[0]):
+				_window_opener = from
+			world.booth.set_side_window(bool(args[0]))
+			_remote_window = false
+		"raise":
+			_on_raise()
+		"lower":
+			_on_lower()
+		"card":
+			var car = net_cars.get(str(args[0]))
+			if car != null and is_instance_valid(car) and car.state == "waiting" and car.card_interact.enabled:
+				_claim_talker(car, from)
+				_car(car, "take_card")
+				car.get_meta("res").checked = true
+				Net.send_to(from, "show_id", [car.name])
+		"card_choice":
+			var car = net_cars.get(str(args[0]))
+			if car != null and is_instance_valid(car) and car.card_with_guard:
+				_card_choice(car, car.person, car.get_meta("res"), str(args[1]), from)
+		"choice":
+			dialog.submit_choice(int(args[0]), from)
+		"log":
+			log_entry(str(args[0]), str(args[1]))
+		"pc":
+			_set_pc_owner(from if bool(args[0]) else 0, from)
+		"hack":
+			if hack == null:
+				return
+			var r := {}
+			match str(args[0]):
+				"connect":
+					r = hack.connect_to(str(args[1]), from)
+				"login":
+					r = hack.login(str(args[1]), str(args[2]), from)
+				"download":
+					r = hack.start_download(str(args[1]), from)
+				"hang_up":
+					if hack.pc_owner == 0 or hack.pc_owner == from:
+						hack.hang_up(str(args[1]))
+			if r.has("msg"):
+				Net.send_to(from, "hack_msg", [r.msg])
+			_send_hack()
+
+
+## Host: a guard who has just loaded the night gets anything that has already changed.
+func send_state_to(id: int) -> void:
+	Net.send_to(id, "log_list", [log_list])
+	Net.send_to(id, "entries", [entries])
+	Net.send_to(id, "window", [world.booth.side_is_open])
+	Net.send_to(id, "gate", [world.lot.gate.is_open])
+
+
+## Host: someone left mid-night. Their guard goes, and whatever they were using is freed.
+func player_gone(id: int) -> void:
+	player_ids.erase(id)
+	if hack and hack.pc_owner == id:
+		hack.pc_owner = 0
+		Net.send("pc_owner", [0])
+	if _phone_owner == id:
+		_phone_owner = local_player_id
+	for nm in net_cars:
+		var c = net_cars[nm]
+		if is_instance_valid(c) and int(c.get_meta("talker", 0)) == id:
+			c.remove_meta("talker")
+	# Mid-conversation: the safe option is chosen for them, then the conversation is free (the host
+	# carries it on).
+	if dialog.active and dialog.talker == id:
+		if dialog._awaiting:
+			for i in dialog._entries.size():
+				if dialog._entries[i].safe:
+					dialog.submit_choice(i, id)
+		dialog.talker = local_player_id
+
+
+func _send_hack() -> void:
+	if hack and not guest:
+		_hack_dirty = false
+		_hack_sent = 0.0
+		_hack_last = var_to_str([hack.state, risk])
+		Net.send("hack_state", [hack.state, risk])
+
+
+var _hack_last := ""
+
+
+func _process(delta: float) -> void:
+	if guest or hack == null or not Net.active():
+		return
+	_hack_sent += delta
+	# The gateway's state changes every frame while a download or a lock-out runs: send it at most
+	# four times a second, and only when something is different.
+	if _hack_dirty and _hack_sent > 0.25:
+		_hack_dirty = false
+		if var_to_str([hack.state, risk]) != _hack_last:
+			_send_hack()
+
+
+## Guest: the night starts (the host is running it).
+func guest_start() -> void:
+	started = true
+
+
+## Guest: what the host's game says happened.
+func guest_event(what: String, a: Array) -> void:
+	match what:
+		"car_new":
+			_guest_car(int(a[0]), a[1], str(a[2]))
+		"car":
+			var c = net_cars.get(str(a[0]))
+			if c != null and is_instance_valid(c):
+				var m := str(a[1])
+				if m in ["drive_in", "reverse_out", "offer_card", "take_card"] and c.state == "approach":
+					_snap_arrived(c)   # running a little behind the host: catch up first
+				c.call(m)
+		"car_prompt":
+			var c = net_cars.get(str(a[0]))
+			if c != null and is_instance_valid(c):
+				c.card_interact.prompt = str(a[1])
+				c.card_interact.enabled = true
+		"gate":
+			if bool(a[0]) != world.lot.gate.is_open:
+				if bool(a[0]):
+					world.lot.gate.open()
+				else:
+					world.lot.gate.close()
+		"window":
+			world.booth.set_side_window(bool(a[0]))
+		"ring":
+			_phone_ringing = bool(a[0])
+			if _phone_ringing:
+				_ring.play()
+			else:
+				_ring.stop()
+		"handset":
+			world.ambience.play_ui("handset", -8.0)
+			var hs: Node3D = world.props.get_node_or_null("Phone/Handset")
+			if hs:
+				hs.visible = not bool(a[0])
+		"term":
+			world.props.terminal.add_log(str(a[0]))
+		"knock":
+			world.ambience.play_at("knock", world.booth.side_pane.global_position + Vector3(-0.05, 0, 0), -6.0)
+		"chime":
+			world.ambience.play_ui("chime", -6.0)
+		"leaver":
+			var i := int(a[0])
+			if i >= 0 and i < _leavers.size() and is_instance_valid(_leavers[i]):
+				_leavers[i].go()
+		"ghost":
+			var c = net_cars.get(str(a[0]))
+			if c != null and is_instance_valid(c):
+				_ghost_fx(c)
+		"entries":
+			entries = a[0]
+			list_changed.emit()
+		"log_list":
+			log_list = a[0]
+			list_changed.emit()
+		"say_player":
+			hud.say_player(_player_label(int(a[0])), str(a[1]), bool(a[2]))
+		"choices":
+			hud.show_choices(a[0], float(a[2]), int(a[1]) == local_player_id, _player_label(int(a[1])))
+		"choice_time":
+			hud.update_choice_time(float(a[0]), float(a[1]))
+		"choices_hide":
+			hud.hide_choices()
+		"show_id":
+			_guest_show_id(str(a[0]))
+		"close_inspect":
+			if inspect.is_open and inspect.mode == "id":
+				inspect.close("ok")
+		"pc_owner":
+			guest_pc_owner(int(a[0]))
+		"pc_taken":
+			guest_pc_owner(int(a[0]))
+		"hack_state":
+			if hack:
+				hack.state = a[0]
+				risk = int(a[1])
+				hack.changed.emit()
+		"hack_msg":
+			if hack:
+				hack.message.emit(str(a[0]))
+		"download":
+			if hack:
+				_save_download(str(a[0]))
+		"report":
+			_guest_report(a[0], str(a[1]), str(a[2]), str(a[3]))
+		"next_night":
+			SaveGame.data.coins = int(a[0])
+			SaveGame.data.night = int(a[1])
+			_restart()
+		"ended":
+			leave_to_title(str(a[0]))
+
+
+func _guest_car(idx: int, bay: Vector3, nm: String) -> void:
+	if idx < 0 or idx >= arrivals.size() or net_cars.has(nm):
+		return
+	var p: Dictionary = arrivals[idx]
+	var car = VisitorCar.new()
+	car.setup(world, p, bay)
+	car.name = nm
+	world.add_child(car)
+	current = car
+	net_cars[nm] = car
+	car.tree_exiting.connect(func():
+		net_cars.erase(nm)
+		if current == car:
+			current = null)
+	car.card_interact.activated.connect(func():
+		if not inspect.is_open:
+			Net.request("card", [nm]))
+	car.plate_interact.activated.connect(func(): _on_plate(car, p))
+	car.arrived.connect(func():
+		if camera.focus != world.booth.side_view:
+			hud.notify_local("A car has pulled up at the side window.", 5.0))
+	car.parked.connect(func():
+		if current == car:
+			current = null)
+
+
+## Running behind the host: put the car at the window now.
+func _snap_arrived(c) -> void:
+	c._dist = c._stop_dist
+	c._target = c._stop_dist
+	c.state = "waiting"
+	c._place()
+	c.arrived.emit()
+
+
+## Guest: the host says where the cars are. Only big differences are corrected.
+func guest_cars(list: Array) -> void:
+	for row in list:
+		var c = net_cars.get(str(row[0]))
+		if c == null or not is_instance_valid(c):
+			continue
+		var st := str(row[1])
+		var d := float(row[2])
+		if st == c.state and absf(c._dist - d) > 3.0 and st in ["approach", "entering", "leaving"]:
+			c._dist = d
+			c._place()
+		elif st == "waiting" and c.state == "approach" and absf(c._dist - d) > 1.0:
+			_snap_arrived(c)
+
+
+## Guest: someone else is now using the PC (or nobody is). If it isn't us, sit back from it.
+func guest_pc_owner(id: int) -> void:
+	if hack == null:
+		return
+	hack.pc_owner = id
+	if id != 0 and id != local_player_id and camera.focus == world.props.crt_interact:
+		camera.unzoom()
+		hud.notify_local("%s is using the PC." % Net.label(id), 4.0)
+
+
+## Guest: we took the ID card; look at it, then tell the host what we decided.
+func _guest_show_id(nm: String) -> void:
+	var car = net_cars.get(nm)
+	if car == null or not is_instance_valid(car) or inspect.is_open:
+		Net.request("card_choice", [nm, "ok"])
+		return
+	world.ambience.play_ui("click2", -16.0)
+	var choice: String = await _show_card(car.person)
+	Net.request("card_choice", [nm, choice])
+
+
+## Guest: the end-of-night report. Everyone sees the same one; only the host goes on.
+func _guest_report(ev: Dictionary, title: String, date: String, note: String) -> void:
+	_shift_done = true
+	hud.visible = false
+	var es = EndScreen.new()
+	add_child(es)
+	es.show_night(ev, title, date, note)
+	es.set_view_only("Only %s (the host) can start the next night." % Net.label(1))
+
+
+## Back to the title screen (the host left, or co-op ended). `why` is shown there.
+func leave_to_title(why: String) -> void:
+	Net.leave()
+	Net.last_error = why
+	SaveGame.guest = false
+	SaveGame.slot = 0
+	SaveGame.skip_title = false
+	NightClock.set_time(23, 4)
+	NightClock.shift_over = false
+	NightClock.running = true
+	Weather.set_profile("rain_mist", 0.0)   # a guest's weather was the host's
+	get_tree().paused = false
 	get_tree().reload_current_scene()

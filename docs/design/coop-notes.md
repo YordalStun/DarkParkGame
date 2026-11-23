@@ -1,6 +1,6 @@
 # Co-op design log
 
-Status: design log, written before co-op exists. **Everything from night three onwards must be built
+Status: co-op is built (see "What's built" at the bottom). Started as the design log written before it existed. **Everything from night three onwards must be built
 so it can work with co-op (up to 4 players).** Add decisions here as they are agreed, with the date,
 so the multiplayer build session can work from this file without the original chat.
 
@@ -73,10 +73,45 @@ so the multiplayer build session can work from this file without the original ch
 - **Subtitles and voices:** **everyone sees the subtitles; the voice babble fades with distance** from the
   speaker. Each player has their own voice volume.
 
+## More decisions (agreed 23 Nov 2026, build pass)
+
+- **Unlock:** co-op unlocks when night two is finished (the "CO-OP UNLOCKED" pop-up); night three is the
+  first co-op night.
+- **MULTIPLAYER on the main menu** for everyone. A player who hasn't unlocked it can still HOST: that
+  starts a **new save at night three** in a slot they pick (their other saves are left alone). Joining a
+  friend needs nothing unlocked.
+- **Joining:** type the host's **IP address and port** (default 24680, UDP). No relay server, so over the
+  internet the host forwards the port (or uses Hamachi / ZeroTier).
+- **Late joiners:** **lobby only.** Once the host presses START, new connections are refused.
+- **Host migration:** none. If the host leaves, everyone goes back to the title screen.
+
 ## Still open
 
-- Exactly how arrivals and the risk meter scale per extra player (numbers to be tuned).
+- Exactly how many more arrivals per extra player (the risk meter already rises 25% faster per extra
+  guard; numbers to be tuned).
 - What the "spectator" view of the PC looks like for players who are not using it (a second screen
-  texture on the CRT, or the player is shown the screen when they look at it).
-- How a late joiner enters a night already in progress (or whether joining is only between nights).
-- The lobby: room code vs IP entry screen, ready checks, host migration (probably none).
+  texture on the CRT, or the player is shown the screen when they look at it). For now they can't lean
+  in and are told who is using it.
+
+## What's built
+
+- `scripts/autoload/net.gd` (`Net`): ENet host/join/leave, the lobby (player id -> guard 0-3, so P1-P4
+  and their colours), lobby-only joining, version check, `send` (host -> everyone), `send_to`,
+  `request` (client -> host), head positions (`send_pose`), and who has finished loading (`ready_ids`).
+- `scripts/ui/title_screen.gd`: MULTIPLAYER -> HOST (from an unlocked save, or a new game at night
+  three) / JOIN (IP + port, remembered in settings) -> LOBBY (IP and port to give friends, the guards,
+  START for the host).
+- `scripts/net/coop.gd` (added by `main.gd` in a co-op game): every guard's spot in the booth (P1 in the
+  chair, the others standing round it), the other guards' models moving with their heads, and the
+  host's once-a-second sync (clock, weather, cars, risk, coins, who is on the PC). Relays HUD messages.
+- `scripts/story/shift.gd`: the host runs the night as before; every action another guard takes comes
+  in through `remote_action(from, what, args)` (phone, window, barrier, ID card and the decision,
+  dialog choice, GateLog plate, PC, hospital gateway). A guest's story doesn't run its own night: it
+  shows what the host sends (`guest_event`). Personal messages go to one player (`_tell`,
+  `hud.notify_local`). At 07:00 the host clocks out for the team; everyone sees the same report, and
+  only the host presses NEXT NIGHT (the guests' report is view-only), after which everyone loads the next
+  night together.
+- `scripts/story/hack.gd`: on a guest, `remote = true`: actions go to the host's gateway, the state
+  comes back, and finished downloads are saved on everyone's PC.
+- Testing: `--autoplay=coop_host --host=2` and `--autoplay --join=127.0.0.1` (`scripts/net/coop_bot.gd`)
+  play a whole night where the guest does all the work; both print a RESULT line.

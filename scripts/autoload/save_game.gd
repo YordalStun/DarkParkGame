@@ -11,6 +11,9 @@ const START_COINS := 8
 var slot := 0               ## the slot being played (1..3), 0 = none chosen yet
 var data := {}              ## the current slot's contents (see _blank)
 var skip_title := false     ## going straight into the next night (no title screen)
+var guest := false          ## a friend in someone else's co-op game: nothing is saved (the host's save counts)
+
+const COOP_NIGHT := 3       ## co-op starts on night three (it unlocks when night two is finished)
 
 
 func _ready() -> void:
@@ -24,7 +27,7 @@ func _path(n: int) -> String:
 func _blank() -> Dictionary:
 	return {"night": 1, "coins": START_COINS, "skipped": {}, "history": [], "upgrades": {},
 		"started": Time.get_datetime_string_from_system(false, true),
-		"saved": Time.get_datetime_string_from_system(false, true), "playtime": 0.0}
+		"saved": Time.get_datetime_string_from_system(false, true), "playtime": 0.0, "coop_unlocked": false}
 
 
 ## What's in a slot (or {} if it's empty), for the title screen.
@@ -55,15 +58,49 @@ func latest() -> int:
 
 
 func new_game(n: int) -> void:
+	guest = false
 	slot = n
 	data = _blank()
 	_write()
+
+
+## MULTIPLAYER on the title screen for someone who hasn't unlocked co-op yet: a fresh game that starts
+## straight on night three, with co-op unlocked (their other slots are left alone).
+func new_coop_game(n: int) -> void:
+	new_game(n)
+	data.night = COOP_NIGHT
+	data.coop_unlocked = true
+	_write()
+
+
+## Co-op is open in this save (night two is done).
+func coop_ready(d: Dictionary) -> bool:
+	return not d.is_empty() and (bool(d.get("coop_unlocked", false)) or int(d.get("night", 1)) >= COOP_NIGHT)
+
+
+## Any save slot with co-op unlocked.
+func any_coop_unlocked() -> bool:
+	for n in range(1, SLOTS + 1):
+		if coop_ready(peek(n)):
+			return true
+	return false
+
+
+## A friend joining someone else's game: play that night in memory only. Nothing is written.
+func start_guest(night_: int, coins_: int) -> void:
+	guest = true
+	slot = 0
+	data = _blank()
+	data.night = night_
+	data.coins = coins_
+	data.coop_unlocked = true
 
 
 func load_slot(n: int) -> bool:
 	var d := peek(n)
 	if d.is_empty():
 		return false
+	guest = false
 	slot = n
 	data = d
 	return true
@@ -76,7 +113,7 @@ func delete_slot(n: int) -> void:
 
 ## No slot picked (testing runs, screenshots): play in slot 1 without touching other slots.
 func ensure_slot() -> void:
-	if slot == 0:
+	if slot == 0 and not guest:
 		if not load_slot(1):
 			new_game(1)
 
@@ -141,6 +178,8 @@ func _process(delta: float) -> void:
 
 
 func _write() -> void:
+	if guest or slot == 0:
+		return
 	data.saved = Time.get_datetime_string_from_system(false, true)
 	var cfg := ConfigFile.new()
 	for k in data:

@@ -12,6 +12,7 @@ extends Node
 
 signal changed                      ## anything in `state` changed (the app redraws)
 signal download_finished(file_id: String)
+signal message(msg: String)         ## co-op guest: the host's answer to what we asked
 
 const GATEWAY_IP := "10.113.7.20"
 const USER_ID := "K.PLATT"          ## the porter whose account is easy to guess
@@ -37,6 +38,13 @@ var state := {
 	"downloading": "", "progress": 0.0, "downloaded": [], "log": [],
 }
 var pc_owner := 0                   ## the player using the PC (0 = nobody); set by the story
+## Co-op guest: the host runs the real gateway. Actions are sent to it, and `state` is what it sends back.
+var remote := false
+
+
+func _ask_host(args: Array, waiting: String) -> Dictionary:
+	Net.request("hack", args)
+	return {"ok": false, "msg": waiting, "pending": true}
 
 
 func setup(p_story) -> void:
@@ -60,6 +68,8 @@ func _allowed(player_id: int) -> String:
 
 
 func connect_to(ip: String, player_id: int) -> Dictionary:
+	if remote:
+		return _ask_host(["connect", ip], "Dialling %s..." % ip.strip_edges())
 	var why := _allowed(player_id)
 	if why != "":
 		return {"ok": false, "msg": why}
@@ -73,6 +83,8 @@ func connect_to(ip: String, player_id: int) -> Dictionary:
 
 
 func login(user: String, password: String, player_id: int) -> Dictionary:
+	if remote:
+		return _ask_host(["login", user, password], "Checking...")
 	var why := _allowed(player_id)
 	if why != "":
 		return {"ok": false, "msg": why}
@@ -97,6 +109,8 @@ func login(user: String, password: String, player_id: int) -> Dictionary:
 
 
 func start_download(file_id: String, player_id: int) -> Dictionary:
+	if remote:
+		return _ask_host(["download", file_id], "Requesting the file...")
 	var why := _allowed(player_id)
 	if why != "":
 		return {"ok": false, "msg": why}
@@ -115,6 +129,9 @@ func start_download(file_id: String, player_id: int) -> Dictionary:
 
 ## Drops the session (the player closes the window, or the risk meter fills up).
 func hang_up(reason := "") -> void:
+	if remote:
+		Net.request("hack", ["hang_up", reason])
+		return
 	state.connected = false
 	state.logged_in = false
 	state.downloading = ""
@@ -131,7 +148,7 @@ func caught() -> void:
 
 
 func _process(delta: float) -> void:
-	if is_inside_tree() and get_tree().paused:
+	if remote or (is_inside_tree() and get_tree().paused):
 		return
 	if state.lock_left > 0.0:
 		state.lock_left = maxf(0.0, state.lock_left - delta)

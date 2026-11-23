@@ -7,6 +7,8 @@ extends Node
 ##   godot --path . -- --autoplay=sloppy          # lets everyone in, logs nothing
 ##   godot --path . -- --autoplay=notes_early     # writes the ward's changes down DURING the call
 ##   godot --path . -- --autoplay=timeout         # lets every dialog timer run out (the safe option is picked)
+##   godot --path . -- --autoplay=coop_host --host # co-op: the host only clocks out; a guest running
+##                                                   --autoplay --join=127.0.0.1 (net/coop_bot.gd) does the rest
 ##   add --speed=20 to run 20x faster, and --night=2 to start on that night
 ##   (--headless works too). It prints "BOT ..." lines, then "BOT RESULT: PASS" (exit 0) when the
 ##   night's end screen shows, or "BOT RESULT: STUCK ..." (exit 2) with a dump of the state.
@@ -54,6 +56,12 @@ func _once(key: String) -> bool:
 
 
 func _act() -> void:
+	if mode == "coop_host":
+		hud.skip_line()
+		if story._shift_done:
+			_clock_out()
+		_check_end()
+		return
 	# Narration and subtitle lines: skip them straight away (clicks through phone calls too).
 	if hud.skip_line() and mode != "notes_early":
 		pass
@@ -84,7 +92,11 @@ func _act() -> void:
 	# 07:00 onwards: PC off, clock out, get up, light, door.
 	if story._shift_done:
 		_clock_out()
-	# The end screen means the night is over.
+	_check_end()
+
+
+## The end screen means the night is over.
+func _check_end() -> void:
 	for c in story.get_children():
 		if c.get_script() != null and str(c.get_script().resource_path).ends_with("end_screen.gd"):
 			_finish(true, "end screen shown")
@@ -229,6 +241,9 @@ func _finish(ok: bool, why: String) -> void:
 		if story.hack != null:
 			extra = " hack(logged_in=%s downloads=%d risk=%d)" % [story.hack.state.logged_in, story.hack.state.downloaded.size(), story.risk]
 		print("BOT RESULT: PASS (%s) coins=%d success=%s wrong=%d%s" % [why, ev.total, ev.success, ev.wrong.size(), extra])
+		if mode == "coop_host":
+			print("BOT coop: entries=%d results=%s" % [story.entries.size(), str(story.results.map(func(r): return r.name + ":" + r.decided + ("c" if r.checked else "-")))])
+			await get_tree().create_timer(3.0).timeout   # let the guest get the report
 		for w in ev.wrong:
 			print("BOT   wrong: ", w)
 	else:

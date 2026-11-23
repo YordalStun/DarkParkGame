@@ -34,6 +34,9 @@ func setup(p_os: Node, _win: Control, _args: Dictionary) -> void:
 	hack = story.hack
 	_build()
 	hack.changed.connect(_refresh)
+	hack.message.connect(func(m: String):   # co-op guest: the host's answer
+		if is_instance_valid(_msg):
+			_msg.text = m)
 	_refresh()
 
 
