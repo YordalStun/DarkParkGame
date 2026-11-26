@@ -97,9 +97,9 @@ Running list for the game. Tick items off as they are done, and add new ones at 
 
 ## Night 3 people and dialog
 
-- [ ] Write night three's people, each with their own dialog (side window, desk phone and out on patrol), using the dialog format in `scripts/story/dialogs/`.
-- [ ] Dialog options for every night three conversation, with the safe option and the 2-4 numbered choices.
-- [ ] Hacking clue: one night three person has a dog. Their dog's name is the password clue (ties in with the hospital login).
+- [x] Write night three's people, each with their own side-window dialog (scripts/story/dialogs/night_three.gd): Sandra, Michael, Kevin, Dr Marsh, Tom, Janet, Doris, and Mick Doyle (wrong car: turn away). Dale's own night-three call. (Desk phone and patrol conversations still to write.)
+- [x] Dialog options for every night three conversation, with the safe option and the 2-4 numbered choices.
+- [x] Hacking clue: Kevin Platt's dog Biscuit (the hospital password), from his night-three window chat. NPC knowledge for boots: Tom's guitar, Dr Marsh's husband's camera bag.
 - [x] Hacking clue: the printed paper with the hospital's IP is handed to the guard by an old, friendly staff member: Doris Fenn (64, Ward 7 clerk), a new night-three arrival, hands over the staff newsletter (scripts/story/dialogs/doris.gd).
 - [x] Printed sheet from the elderly staff member: the printer footer carries the hospital address (10.113.7.20, the same one the leaked memo gives, so either route works) and the newsletter gives the staff noticeboard, www.ashfordgeneral.org/staff (a new intranet page with the MediCare Remote download link, not linked from anywhere else).
 

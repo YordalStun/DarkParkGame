@@ -115,6 +115,7 @@ const Dialog := preload("res://scripts/story/dialog.gd")
 const Hack := preload("res://scripts/story/hack.gd")
 const Samples := preload("res://scripts/story/dialogs/samples.gd")
 const Doris := preload("res://scripts/story/dialogs/doris.gd")
+const NightThree := preload("res://scripts/story/dialogs/night_three.gd")
 var hack: Node                ## the hospital side hustle (night three on)
 ## Selectable dialog (night three on). Shared state: in co-op it is the HOST's copy that counts.
 var dialog: Node
@@ -163,6 +164,9 @@ func setup(p_world, p_hud, p_inspect) -> void:
 	else:
 		arrivals = ARRIVALS.duplicate(true)
 		list_now = LIST.duplicate(true)
+	if night >= 3:   # night three's own people and conversations (dialogs/night_three.gd)
+		arrivals = NightThree.arrivals(ARRIVALS)
+		list_now = NightThree.LIST.duplicate(true)
 	if night >= 3:   # night three is the Sunday (it used to borrow night two's date)
 		date_text = "Sunday 15th October 1989  -  23:00 to 07:00"
 		date_short = "SUN 15 OCT 1989"
@@ -236,7 +240,7 @@ func setup(p_world, p_hud, p_inspect) -> void:
 			continue
 		(after if p.get("after_call", false) else before).append(p)
 	before.shuffle()
-	if night >= 2:
+	if night == 2:   # the ward rings with changes on night two only
 		var first := before.slice(0, 2)
 		var rest: Array = before.slice(2) + after
 		rest.shuffle()
@@ -337,7 +341,8 @@ func start() -> void:
 	hud.set_night(night, date_text.split("  -  ")[0])
 	hud.set_objectives([["phone", "Answer the phone (click it)"] if night >= 2 else ["phone", "Answer the phone"]])
 	await _wait(5.0)
-	await _phone_call((NightTwo.dale_call() if night >= 2 else _dale_call()) + _dale_reports_lines())
+	var opening: Array = NightThree.dale_call() if night >= 3 else (NightTwo.dale_call() if night >= 2 else _dale_call())
+	await _phone_call(opening + _dale_reports_lines())
 	hud.complete_objective("phone")
 	if night >= 2:
 		hud.add_objective("ids", "Check each ID against tonight's list")
@@ -590,7 +595,7 @@ func _setup_hack() -> void:
 	# Placeholder until night three's real conversations are written: Kevin Platt's window chat
 	# (his dog's name is the hospital gateway's password).
 	for p in arrivals:
-		if p.name == "Kevin Platt":
+		if p.name == "Kevin Platt" and not p.has("convo"):
 			p["convo"] = Samples.window()
 	# Whoever started using the PC first owns it until they stop (co-op rule): sitting back or shutting
 	# down frees it. Everyone else can watch the screen but not act.
