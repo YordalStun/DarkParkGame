@@ -627,9 +627,32 @@ func _build_chair() -> void:
 
 
 ## Getting up: the chair rolls back and swivels, and becomes something you walk round.
+## Co-op: the chair moved here (pushed back, pulled in, rolled to the window or screen).
+## story.gd passes it on so every guard sees the same chair.
+signal chair_changed(out: bool, where: String)
+var chair_where := "desk"
+
+
+## Another guard's chair move, from the network (doesn't send it back out).
+func apply_chair(out: bool, where: String, swivel: float) -> void:
+	_remote = true
+	if out:
+		push_chair_back()
+	else:
+		pull_chair_in()
+		chair_follow(where)
+	chair_swivel = swivel
+	_remote = false
+
+
+var _remote := false
+
+
 func push_chair_back() -> void:
 	if chair_out:
 		return
+	if not _remote:
+		chair_changed.emit(true, "desk")
 	chair_out = true
 	var tw := create_tween().set_parallel(true)
 	tw.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
@@ -643,6 +666,8 @@ func pull_chair_in() -> void:
 	if not chair_out:
 		return
 	chair_out = false
+	if not _remote:
+		chair_changed.emit(false, "desk")
 	walk_blockers.erase(_chair_block)
 	_chair_rot_base = 0.0
 	var tw := create_tween().set_parallel(true)
@@ -666,6 +691,10 @@ func chair_follow(where: String) -> void:
 			pos = Vector3(0.38, 0.0, 0.3)
 			rot = -14.0
 	_chair_rot_base = deg_to_rad(rot)
+	if where != chair_where:
+		chair_where = where
+		if not _remote:
+			chair_changed.emit(false, where)
 	var tw := create_tween()
 	tw.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 	tw.tween_property(chair, "position", pos, 0.85)

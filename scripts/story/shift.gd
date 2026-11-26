@@ -154,6 +154,7 @@ func setup(p_world, p_hud, p_inspect) -> void:
 		local_player_id = Net.my_id()
 		player_ids = Net.ids()
 	_load_progress()
+	world.booth.chair_changed.connect(func(o, w): _send_chair(o, w))
 	if night >= 2:
 		arrivals = NightTwo.arrivals(ARRIVALS)
 		list_now = NightTwo.LIST.duplicate(true)
@@ -1305,6 +1306,9 @@ func remote_action(from: int, what: String, args: Array) -> void:
 			log_entry(str(args[0]), str(args[1]))
 		"pc":
 			_set_pc_owner(from if bool(args[0]) else 0, from)
+		"chair_pose":   # a guest moved the chair: show it here, and to everyone else
+			world.booth.apply_chair(bool(args[0]), str(args[1]), float(args[2]))
+			Net.send("chair_pose", args)
 		"chair":
 			_set_chair(from, bool(args[0]))
 			Net.send_to(from, "chair_answer", [chair_owner])
@@ -1374,6 +1378,7 @@ var _hack_last := ""
 
 
 func _process(delta: float) -> void:
+	_sync_swivel(delta)
 	if guest or hack == null or not Net.active():
 		return
 	_hack_sent += delta
@@ -1392,8 +1397,38 @@ func guest_start() -> void:
 
 
 ## Guest: what the host's game says happened.
+## Co-op: tell the other guards how the chair moved (the host sends, a guest asks the host).
+func _send_chair(out: bool, where: String) -> void:
+	if not Net.active():
+		return
+	var args := [out, where, world.booth.chair_swivel]
+	if Net.is_host():
+		Net.send("chair_pose", args)
+	else:
+		Net.request("chair_pose", args)
+
+
+## The seated guard's swivel, a few times a second while it changes.
+var _swivel_sent := 0.0
+var _swivel_t := 0.0
+
+
+func _sync_swivel(delta: float) -> void:
+	if not Net.active() or world.booth.chair_out:
+		return
+	_swivel_t += delta
+	if _swivel_t < 0.2:
+		return
+	_swivel_t = 0.0
+	if camera.state == camera.State.SEATED and absf(world.booth.chair_swivel - _swivel_sent) > 0.05:
+		_swivel_sent = world.booth.chair_swivel
+		_send_chair(false, world.booth.chair_where)
+
+
 func guest_event(what: String, a: Array) -> void:
 	match what:
+		"chair_pose":
+			world.booth.apply_chair(bool(a[0]), str(a[1]), float(a[2]))
 		"car_new":
 			_guest_car(int(a[0]), a[1], str(a[2]))
 		"car":
