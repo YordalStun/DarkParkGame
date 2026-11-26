@@ -383,7 +383,9 @@ func _build_interacts() -> void:
 	plate_interact = Interactable.new()
 	plate_interact.prompt = "Check number plate"
 	plate_interact.requires_focus = side
-	plate_interact.add_box(Vector3(1.8, 0.7, 4.4), Vector3(0, 0.5, 0))
+	# Only the number plates themselves (front and back), so the close-up opens on purpose.
+	plate_interact.add_box(Vector3(0.7, 0.3, 0.25), Vector3(0, _model.plate_y, _model.front_plate_z))
+	plate_interact.add_box(Vector3(0.7, 0.3, 0.25), Vector3(0, _model.plate_y, _model.rear_plate_z))
 	add_child(plate_interact)
 
 

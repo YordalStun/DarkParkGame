@@ -139,6 +139,11 @@ func _ready() -> void:
 	world.camera.hover_changed.connect(hud.set_prompt)
 	world.camera.focus_changed.connect(func(f): hud.set_zoomed(f != null))
 	world.camera.walk_blockers = world.booth.walk_blockers
+	world.camera.chair_owner_booth = world.booth
+	world.camera.zoom_changed.connect(func(_z):
+		var f = world.camera.focus
+		world.booth.chair_swivel = 0.0
+		world.booth.chair_follow("window" if f == world.booth.side_view else ("screen" if f == world.props.crt_interact else "desk")))
 	world.camera.footstep.connect(func(): world.ambience.play_at("footstep", world.camera.global_position - Vector3(0, 1.5, 0), -10.0 + randf_range(-2, 1), "Interior", 1.0))
 	var desk = world.props.desktop
 	desk.world = world

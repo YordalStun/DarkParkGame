@@ -119,6 +119,7 @@ func get_up() -> void:
 	var spot: Vector3 = camera.seat_pos
 	var at := Vector2(0.42, 0.42) if spot.y < 1.4 else Vector2(spot.x, spot.z)   # P1 gets up beside the chair
 	world.ambience.play_at("window_slide", world.booth.chair.global_position + Vector3(0, 0.3, 0), -18.0)
+	world.booth.push_chair_back()
 	in_chair = false
 	story.chair_use(false)
 	await camera.stand_up(at)
@@ -157,6 +158,7 @@ func chair_answer(owner_id: int) -> void:
 func _sit() -> void:
 	_busy = true
 	in_chair = true
+	world.booth.pull_chair_in()
 	await camera.sit_down()
 	_busy = false
 	hud.set_look_left(true)

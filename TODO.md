@@ -107,7 +107,7 @@ Running list for the game. Tick items off as they are done, and add new ones at 
 
 - [x] Show which night it is: "NIGHT 3" beside the coins all night, and a "NIGHT THREE" title as each night starts
 
-- [ ] Bug: clicking a car's plate to check it fills too much of the screen. The plate view (`inspect.show_plate` in `scripts/ui/inspect.gd`) should be smaller. Also stop it opening when the player doesn't want to check the plate (only open it on a deliberate click on the plate).
+- [x] Bug: clicking a car's plate to check it fills too much of the screen. The plate view (`inspect.show_plate` in `scripts/ui/inspect.gd`) should be smaller. Also stop it opening when the player doesn't want to check the plate (only open it on a deliberate click on the plate).
 - [x] Bug: NightLink shows up on the desktop and Start menu from night three with no download. It should only appear after the MediCare download is finished and installed (see docs/design/hacking-system.md). The icon is added in `scripts/desktop/os.gd` when `SaveGame.night() >= 3`.
 - [x] Bug: the NightLink UI overlaps other UI. Fix the layout so it does not overlap.
 
@@ -115,6 +115,7 @@ Running list for the game. Tick items off as they are done, and add new ones at 
 
 - [x] Leave the hut (night 3 on, solo and co-op): GET UP / G, walk the booth, the back door takes you out into the car park and back (scripts/player/roam.gd). Torch outside. Clocking out still works (come back in first)
 - [x] One desk chair: only one guard sits at a time; standing guards can still use the phone, window, barrier, logbook and PC
+- [x] The chair moves with the player: rolls back when you get up, back in when you sit, swivels with your view, and rolls over when you lean to the side window or in to the screen
 - [ ] Walkable area: take screenshots of the lot from player eye height and check it looks right from every angle (a few checked: towards the lamp, back at the booth)
 - [x] Walkable area: make sure the player cannot leave the lot (the fence, the tree line, the shop and the end of the access road stop you; cars, the booth, lamp island, payphone and bin are in the way)
 - [ ] Walkable area: the end of the access road behind the booth is an invisible stop; put something there (a gate, bollards or a "NO ENTRY" sign)

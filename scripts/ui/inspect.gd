@@ -463,7 +463,7 @@ func _layout() -> void:
 	_card.scale = Vector2.ONE
 	_list.position = Vector2(x0 + card_size.x + 40 * s, vs.y * 0.5 - list_size.y * 0.5 - 10 * s + drop * 0.5)
 	_list.size = list_size
-	_plate.size = Vector2(720, 160) * s
+	_plate.size = Vector2(420, 94) * s
 	_plate.position = (vs - _plate.size) * 0.5
 	if _id_car != "":
 		_plate.size = Vector2(300, 66) * s

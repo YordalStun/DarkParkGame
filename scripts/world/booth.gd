@@ -436,6 +436,8 @@ func _build_light() -> void:
 
 func _process(delta: float) -> void:
 	_update_clock()
+	if not chair_out and chair:
+		chair.rotation.y = lerpf(chair.rotation.y, _chair_rot_base + chair_swivel, 1.0 - exp(-delta * 4.0))
 	_update_wet(delta)
 	_flicker_timer -= delta
 	if not light_on:
@@ -626,11 +628,54 @@ func _build_chair() -> void:
 
 ## Getting up: the chair rolls back and swivels, and becomes something you walk round.
 func push_chair_back() -> void:
+	if chair_out:
+		return
+	chair_out = true
 	var tw := create_tween().set_parallel(true)
 	tw.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
 	tw.tween_property(chair, "position", Vector3(-0.32, 0.0, 0.78), 1.2)
 	tw.tween_property(chair, "rotation:y", deg_to_rad(28.0), 1.4)
-	walk_blockers.append(Rect2(-0.62, 0.48, 0.6, 0.6))
+	walk_blockers.append(_chair_block)
+
+
+## Sitting back down: the chair rolls in under you.
+func pull_chair_in() -> void:
+	if not chair_out:
+		return
+	chair_out = false
+	walk_blockers.erase(_chair_block)
+	_chair_rot_base = 0.0
+	var tw := create_tween().set_parallel(true)
+	tw.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	tw.tween_property(chair, "position", Vector3(0.0, 0.0, 0.5), 0.9)
+	tw.tween_property(chair, "rotation:y", 0.0, 0.9)
+
+
+## Leaning over to the side window or in to the screen: the chair rolls with you.
+## where: "desk" | "window" | "screen"
+func chair_follow(where: String) -> void:
+	if chair_out or chair == null:
+		return
+	var pos := Vector3(0.0, 0.0, 0.5)
+	var rot := 0.0
+	match where:
+		"window":
+			pos = Vector3(-0.9, 0.0, 0.52)
+			rot = 70.0
+		"screen":
+			pos = Vector3(0.38, 0.0, 0.3)
+			rot = -14.0
+	_chair_rot_base = deg_to_rad(rot)
+	var tw := create_tween()
+	tw.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	tw.tween_property(chair, "position", pos, 0.85)
+
+
+var _chair_rot_base := 0.0
+var chair_out := false
+var _chair_block := Rect2(-0.62, 0.48, 0.6, 0.6)
+## While someone sits in it, the chair swivels a little with where they look (desk_camera sets it).
+var chair_swivel := 0.0
 
 
 ## The booth's ceiling light, by the switch at the door.

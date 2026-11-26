@@ -46,6 +46,7 @@ var hovered: Interactable
 var focus: Interactable       ## what we are zoomed into
 
 var _yaw := 0.0
+var chair_owner_booth: Node3D   ## the booth (the chair swivels with the seated view)
 var _pitch := BASE_PITCH
 var _zyaw := 0.0
 var _zpitch := 0.0
@@ -118,6 +119,8 @@ func _update_seated(delta: float) -> void:
 	var breath := sin(_t * 1.15) * 0.006 * sk
 	var sway := sin(_t * 0.37) * 0.004 * sk
 	var head_turn := deg_to_rad(_yaw)
+	if chair_owner_booth:
+		chair_owner_booth.chair_swivel = head_turn * 0.6
 	position = seat_pos + Vector3(-sin(head_turn) * 0.06 + sway, breath, -absf(sin(head_turn)) * 0.03)
 	rotation = Vector3(deg_to_rad(_pitch + sin(_t * 0.9) * 0.15 * sk), head_turn, deg_to_rad(sin(_t * 0.31) * 0.25 * sk))
 
