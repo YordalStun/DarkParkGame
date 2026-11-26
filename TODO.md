@@ -46,8 +46,8 @@ Running list for the game. Tick items off as they are done, and add new ones at 
 - [ ] Once in, see the data of the people letting in (visitor details)
 - [ ] Bribe visitors, or use the stolen data some other way (payoff details still to decide)
 - [ ] Overnight file transfers that run while the shift goes on, finishing before 07:00 (basic downloads exist: three files, 25-110 s each, saved to C:\DOWNLOADS; the overnight/background version is still to do)
-- [ ] Risk of getting caught grows with each action (what happens when caught is still to decide)
-- [ ] Decide what happens when caught (fired, game over, or a fine)
+- [x] Risk of getting caught grows with each action (what happens when caught is still to decide)
+- [x] Decide what happens when caught (fired, game over, or a fine)
 - [ ] Decide the exact payoff: coins from bribes, story info, or both
 
 ## Co-op (from night three; design log in docs/design/coop-notes.md)
@@ -72,9 +72,9 @@ Running list for the game. Tick items off as they are done, and add new ones at 
 - [ ] Protection: a VPN helps with small hacks; a separate PC is needed for big hacks. Big hacks can catch Dave instantly without protection. Other ideas to consider: IP hiding, fake names, a contact.
 - [ ] Police: they walk through the lot and catch Dave red-handed (game over).
 - [x] Restart after being caught: the night restarts, but suspicion carries over. (Risk 100 at the end of the night = CAUGHT: the same night restarts, reports kept, risk set to 50.)
-- [ ] Suspicion carries from night to night and takes time to reduce.
+- [x] Suspicion carries from night to night and takes time to reduce.
 - [ ] Multiplayer quota: 4 coins a day shared across the guards, getting harder every 3 days. If the team misses it, the whole team loses.
-- [ ] NPC knowledge: the player learns about NPCs (e.g. who has a guitar in their boot) so they can target items instead of stealing from everyone.
+- [x] NPC knowledge: the player learns about NPCs (e.g. who has a guitar in their boot) so they can target items instead of stealing from everyone. (Night three: Tom's guitar, Dr Marsh's camera bag; notes go in the notepad. More people to come.)
 
 ## Co-op: second hut (multiplayer only)
 
@@ -123,7 +123,7 @@ Running list for the game. Tick items off as they are done, and add new ones at 
 - [x] Boot wedge: bought on the end-of-shift screen (2 coins), there from the next night. (Ordering it on the PC is still an option for later.)
 - [x] Be able to open the boot of any car in the lot (night three on, outside, with the wedge). The lid swings up; each car has 0-2 items.
 - [x] Opening a boot for no reason: the car's owner gets angry and reports it to Dale (+1 report each boot).
-- [ ] Dale's reaction to a report: first tells the player to keep an eye out for people, then gets suspicious of the player if it keeps happening.
+- [x] Dale's reaction to a report: first tells the player to keep an eye out for people, then gets suspicious of the player if it keeps happening.
 
 - [x] Boots are real: every car has a boot well and a hinged lid with a boot light; 0-5 items (20 kinds, scripts/world/boot_items.gd) lie in it without overlapping. Click one to take it: adds its own risk and takes 1-2 of 3 carry slots. Drop them in the storage crate in the hut. Tom's and Dr Marsh's boots hold what they mentioned.
 - [ ] Steal items from car boots and sell them to a weird guy who turns up. For now 'the man by the payphone' buys everything stored or carried at the end of the night (it shows on the pay list). Still to do: him turning up in person, haggling, and buying radio parts from him.
