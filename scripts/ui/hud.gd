@@ -675,6 +675,54 @@ var night := 0   ## the night being played (shown beside the coins); 0 = not sho
 var _status_label: Label
 
 
+## A choice box in the middle of the screen. Returns the index of the button pressed.
+func choose(title: String, text: String, options: Array) -> int:
+	var dim := ColorRect.new()
+	dim.color = Color(0, 0, 0, 0.55)
+	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	dim.mouse_filter = Control.MOUSE_FILTER_STOP
+	add_child(dim)
+	var box := PanelContainer.new()
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = Color(0.06, 0.07, 0.06, 0.96)
+	sb.border_color = Color(0.91, 0.75, 0.44)
+	sb.set_border_width_all(2)
+	sb.content_margin_left = 28
+	sb.content_margin_right = 28
+	sb.content_margin_top = 18
+	sb.content_margin_bottom = 20
+	box.add_theme_stylebox_override("panel", sb)
+	box.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
+	box.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	box.grow_vertical = Control.GROW_DIRECTION_BOTH
+	dim.add_child(box)
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", 12)
+	box.add_child(v)
+	var t := _label(34, Color(0.91, 0.75, 0.44))
+	t.reparent(v)
+	t.text = title
+	var b := _label(26, Color(0.9, 0.9, 0.85))
+	b.reparent(v)
+	b.text = text
+	b.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	b.custom_minimum_size = Vector2(520, 0)
+	var row := HBoxContainer.new()
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	row.add_theme_constant_override("separation", 12)
+	v.add_child(row)
+	var picked := [-1]
+	for i in options.size():
+		var btn := _menu_button(str(options[i]), 24)
+		var idx := i
+		btn.pressed.connect(func(): picked[0] = idx)
+		row.add_child(btn)
+	while picked[0] < 0:
+		await get_tree().process_frame
+	dim.queue_free()
+	return picked[0]
+
+
 ## Single player: the survival meters, Dale's reports and the risk, under the coins.
 ##   HEAT ||.  FOOD |||  RENT |||     REPORTS 2/10   RISK 15%
 func set_status(meters: Dictionary, reports: int, risk: int) -> void:

@@ -32,6 +32,7 @@ const BAR_MAX := 16.0
 ## Upgrades you can buy here: [id, name, cost, what it does]. Shown until owned.
 const UPGRADES := [
 	["vehicle_log", "Vehicle log", 4, "clipboard at the window"],
+	["boot_wedge", "Boot wedge", 2, "opens car boots, from tomorrow"],
 ]
 
 var _black: ColorRect

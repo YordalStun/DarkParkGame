@@ -250,6 +250,12 @@ func setup(p_world, p_hud, p_inspect) -> void:
 	_bays = BAYS.duplicate()
 	_bays.shuffle()
 	_spawn_leavers()
+	for c in world.lot.cars:
+		if c is CarModel:
+			_hook_boot(c, "")
+	for l in _leavers:
+		if is_instance_valid(l) and l._model:
+			_hook_boot(l._model, "")
 
 
 func _bay_pos(i: int, nose_out := false) -> Vector3:
@@ -924,6 +930,7 @@ func _visitor(p: Dictionary) -> void:
 		bay = _bay_pos(i)
 	var car = VisitorCar.new()
 	car.setup(world, p, bay)
+	car.parked.connect(func(): _hook_boot(car._model, str(p.name)))
 	car.name = "Visitor_" + p.reg.replace(" ", "")
 	world.add_child(car)
 	current = car
@@ -1220,6 +1227,16 @@ const NIGHT_WORDS := ["ONE", "TWO", "THREE", "FOUR", "FIVE", "SIX", "SEVEN", "EI
 func _summary() -> void:
 	ending = true
 	var ev := evaluate()
+	if not stolen.is_empty():
+		# The man by the payphone buys tonight's take.
+		var total := 0
+		var what := []
+		for s_ in stolen:
+			total += int(s_[1])
+			what.append(_bare(str(s_[0])))
+		ev.earned += total
+		ev.total += total
+		ev.rows.append({"name": "Sold: " + ", ".join(what), "delta": total, "verdict": "to the man by the payphone"})
 	if not Net.active():   # survival meters, reports and risk are single player
 		ev["meters"] = SaveGame.meters().duplicate()
 		ev["reports"] = SaveGame.reports()
@@ -1278,6 +1295,84 @@ func _load_progress() -> void:
 	if not Net.active():
 		risk = SaveGame.risk()
 	_update_status.call_deferred()
+
+
+# ------------------------------------------------------------------ car boots (night three on)
+## What could be in a boot: [name, sells for (coins), risk added when you take it].
+const BOOT_ITEMS := [
+	["a guitar in a hard case", 6, 25], ["a car radio", 4, 15], ["a camera bag", 5, 20],
+	["a briefcase", 5, 20], ["a toolbox", 3, 15], ["a bag of shopping", 1, 5],
+]
+var stolen: Array = []      ## tonight's take: [name, coins]
+
+
+## Every car you can walk up to gets a boot (lot cars, the evening shift's, tonight's arrivals).
+func _hook_boot(model: CarModel, owner_name: String) -> void:
+	if night < 3 or model == null:
+		return
+	model.boot_owner = owner_name
+	var it := model.add_boot()
+	if not it.activated.is_connected(_open_boot):
+		it.activated.connect(_open_boot.bind(model))
+
+
+## The same car always has the same things in its boot.
+func _boot_contents(model: CarModel) -> Array:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = hash(str(model.get_path()) + str(night))
+	var out := []
+	for i in rng.randi_range(0, 2):
+		var item: Array = BOOT_ITEMS[rng.randi() % BOOT_ITEMS.size()]
+		if not out.has(item):
+			out.append(item)
+	return out
+
+
+## "a guitar in a hard case" -> "guitar in a hard case"
+func _bare(name: String) -> String:
+	return name.trim_prefix("a ").trim_prefix("an ")
+
+
+func _open_boot(model: CarModel) -> void:
+	if roam == null or not roam.outside:
+		hud.notify("You'd have to go outside for that.", 3.0)
+		return
+	if model.boot_open:
+		hud.notify("You've already been in that one.", 3.0)
+		return
+	if not SaveGame.has_upgrade("boot_wedge"):
+		hud.notify("Locked. You'd need a boot wedge (buy one at the end of a shift).", 4.0)
+		hud.tip("boot_wedge", "Boots can be opened with a boot wedge. Buy one on the end-of-shift screen; it arrives the next night. Owners notice, and they complain to Dale.")
+		return
+	camera.blocked = true
+	world.ambience.play_at("car_door", model.global_position, -12.0, "Outside", 4.0)
+	model.open_boot_lid()
+	var items := _boot_contents(model)
+	if model.boot_owner != "":
+		add_report("%s will notice someone's been in their boot." % model.boot_owner)
+	else:
+		add_report("Someone will notice their boot's been opened.")
+	if items.is_empty():
+		await hud.choose("THE BOOT", "Nothing in here but a spare tyre and a wet blanket.", ["CLOSE"])
+	else:
+		while not items.is_empty():
+			var names := []
+			for it in items:
+				names.append(it[0])
+			var text := "Inside: %s.\nTaking something adds to your risk. The man by the payphone buys whatever you bring him at the end of the night." % ", ".join(names)
+			var opts := []
+			for it in items:
+				opts.append("TAKE " + _bare(str(it[0])).to_upper())
+			opts.append("CLOSE")
+			var pick: int = await hud.choose("THE BOOT", text, opts)
+			if pick >= items.size():
+				break
+			var item: Array = items[pick]
+			items.remove_at(pick)
+			stolen.append([item[0], item[1]])
+			add_risk(int(item[2]))
+			hud.notify("You took %s. (+%d%% risk)" % [item[0], item[2]], 4.0)
+	camera.blocked = false
 
 
 ## Single player: the HUD's survival meters, reports and risk.

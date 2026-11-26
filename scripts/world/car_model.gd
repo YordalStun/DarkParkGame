@@ -516,6 +516,40 @@ func _lights() -> void:
 			MK.box(self, Vector3(0.1, 0.14, 0.02), Vector3(sgn * (w - 0.04), ty2, r + 0.01), amber)
 
 
+## The boot: something to click from outside, at the back of the car (night three on).
+## story.gd decides what happens (needs the boot wedge; the owner reports it).
+var boot_interact: Interactable
+var boot_owner := ""        ## whose car (for the report), "" = nobody in particular
+var boot_open := false
+
+
+func add_boot() -> Interactable:
+	if boot_interact:
+		return boot_interact
+	boot_interact = Interactable.new()
+	boot_interact.prompt = "Open boot"
+	var S2: Dictionary = S if not S.is_empty() else SPECS["saloon"]
+	boot_interact.add_box(Vector3(S2.w * 1.6, 0.6, 0.7), Vector3(0, S2.belt - 0.1, S2.r + 0.25))
+	add_child(boot_interact)
+	return boot_interact
+
+
+## Pop the boot: a lid-shaped panel swings up at the back.
+func open_boot_lid() -> void:
+	if boot_open:
+		return
+	boot_open = true
+	var r: float = S.r
+	var lid := Node3D.new()
+	lid.position = Vector3(0, _top(r + 0.6) + 0.02, r + 0.6)
+	add_child(lid)
+	MK.box(lid, Vector3(S.w * 1.7, 0.04, 0.62), Vector3(0, 0, -0.31), body_mat)
+	MK.box(self, Vector3(S.w * 1.6, 0.02, 0.55), Vector3(0, _top(r + 0.3) - 0.05, r + 0.33), MK.mat(Color(0.02, 0.02, 0.02), "", 1.0))
+	var tw := create_tween()
+	tw.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tw.tween_property(lid, "rotation:x", deg_to_rad(-75.0), 0.7)
+
+
 ## Visual layer for things inside the cabin: the booth floodlight skips it, so the
 ## inside of a car stays dark even with the window down.
 const CABIN_LAYER := 2

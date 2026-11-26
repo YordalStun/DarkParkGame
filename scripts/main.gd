@@ -423,7 +423,7 @@ func _update_desktop_mode(win_size: Vector2) -> void:
 	var walking: bool = world.camera.state == world.camera.State.WALK
 	if story.ending:
 		mode = Input.MOUSE_MODE_VISIBLE   # the end screen: you need the cursor to click NEXT NIGHT
-	elif walking and not hud.paused and focused and _shot_path == "":
+	elif walking and not hud.paused and focused and _shot_path == "" and not world.camera.blocked:
 		mode = Input.MOUSE_MODE_CAPTURED
 	elif confine:
 		mode = Input.MOUSE_MODE_CONFINED_HIDDEN if over else Input.MOUSE_MODE_CONFINED
@@ -674,6 +674,11 @@ func _apply_args() -> void:
 			get_tree().create_timer(1.0).timeout.connect(story.open_notes)
 	if _args.has("tiptest"):
 		hud.tip("test", "You can write things down. Press N (or click the notepad on the desk) and type.")
+	if _args.has("boottest"):   # testing: open a lot car's boot as if standing behind it
+		get_tree().create_timer(1.5).timeout.connect(func():
+			if story.roam:
+				story.roam.outside = true
+			story._open_boot(world.lot.cars[1]))
 	if _args.has("car"):
 		story.debug_visitor(int(_args.car))
 		if _args.has("idcard"):

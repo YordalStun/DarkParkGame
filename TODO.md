@@ -68,7 +68,7 @@ Running list for the game. Tick items off as they are done, and add new ones at 
 - [ ] Legal income: a legal night pays the bills at a slow rate. An honest run can survive but not comfortably.
 - [x] Reports: 5 reports = suspicious, 7 = Dale makes it clear it must stop, 10 = fired (game over). Dale says he has footage before the firing. (Saved per slot; Dale reacts in the next night's call; 10 = FIRED on the end screen.)
 - [x] Forgiveness: one report is forgiven every two days.
-- [ ] Risk meter for hacking and stealing: 100% = caught by the police (game over). Each action adds to it; it drops about 20% a day.
+- [x] Risk meter for hacking and stealing: 100% = caught by the police (game over). Each action adds to it; it drops about 20% a day. (Saved per slot. Boot items add 5-25; hacking's own values unchanged.)
 - [ ] Protection: a VPN helps with small hacks; a separate PC is needed for big hacks. Big hacks can catch Dave instantly without protection. Other ideas to consider: IP hiding, fake names, a contact.
 - [ ] Police: they walk through the lot and catch Dave red-handed (game over).
 - [x] Restart after being caught: the night restarts, but suspicion carries over. (Risk 100 at the end of the night = CAUGHT: the same night restarts, reports kept, risk set to 50.)
@@ -120,9 +120,9 @@ Running list for the game. Tick items off as they are done, and add new ones at 
 - [x] Walkable area: make sure the player cannot leave the lot (the fence, the tree line, the shop and the end of the access road stop you; cars, the booth, lamp island, payphone and bin are in the way)
 - [ ] Walkable area: the end of the access road behind the booth is an invisible stop; put something there (a gate, bollards or a "NO ENTRY" sign)
 - [ ] Cars don't see you: a car driving in pushes you aside instead of stopping
-- [ ] Order a boot wedge from the PC. It is delivered the next day.
-- [ ] Be able to open the boot of any car in the lot.
-- [ ] Opening a boot for no reason: the car's owner gets angry and reports it to Dale.
+- [x] Boot wedge: bought on the end-of-shift screen (2 coins), there from the next night. (Ordering it on the PC is still an option for later.)
+- [x] Be able to open the boot of any car in the lot (night three on, outside, with the wedge). The lid swings up; each car has 0-2 items.
+- [x] Opening a boot for no reason: the car's owner gets angry and reports it to Dale (+1 report each boot).
 - [ ] Dale's reaction to a report: first tells the player to keep an eye out for people, then gets suspicious of the player if it keeps happening.
 
 - [ ] Steal items from car boots and sell them to a weird guy who turns up (a buyer for stolen goods; ties in with the dark web contact idea). Decide the buyer, when he shows up, what he pays, and the risk.
