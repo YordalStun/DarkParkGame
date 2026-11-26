@@ -73,7 +73,7 @@ Running list for the game. Tick items off as they are done, and add new ones at 
 - [ ] Police: they walk through the lot and catch Dave red-handed (game over).
 - [ ] Restart after being caught: the night restarts, but suspicion carries over.
 - [ ] Suspicion carries from night to night and takes time to reduce.
-- [ ] Multiplayer quota: 4 coins a day shared across the guards, getting harder every 3 days. Decide what happens when the team misses it.
+- [ ] Multiplayer quota: 4 coins a day shared across the guards, getting harder every 3 days. If the team misses it, the whole team loses.
 - [ ] NPC knowledge: the player learns about NPCs (e.g. who has a guitar in their boot) so they can target items instead of stealing from everyone.
 
 ## Co-op: second hut (multiplayer only)

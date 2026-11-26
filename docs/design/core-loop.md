@@ -67,7 +67,7 @@ but risk getting caught. The player chooses how far to go on each side.
 
 - In multiplayer the money is shared across the guards.
 - Starting figure: **4 coins a day** needed for the team. It gets harder every **3 days**.
-- Co-op shows the quota. The exact effect of missing it is to be decided.
+- Co-op shows the quota. If the team misses it, **the whole team loses** (game over for everyone).
 
 ## Big hits and missions
 
@@ -80,6 +80,5 @@ but risk getting caught. The player chooses how far to go on each side.
 
 - Exact daily cost of heat, food and rent, and how they're shown.
 - How the lore sets the pace of the money getting harder.
-- What happens when the team misses the co-op quota.
 - Exact risk value for each small and big action, and how big hacks are told apart.
 - How the player finds out about NPCs (dialog, the PC, or both).
