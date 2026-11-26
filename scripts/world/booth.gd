@@ -701,6 +701,34 @@ func chair_follow(where: String) -> void:
 
 
 var _chair_rot_base := 0.0
+## A wooden crate by the desk: somewhere to stash what you've taken from boots (night three on).
+var storage_interact: Interactable
+var storage_node: Node3D
+
+
+func build_storage() -> void:
+	if storage_node:
+		return
+	storage_node = Node3D.new()
+	storage_node.name = "StorageCrate"
+	storage_node.position = Vector3(1.32, 0.0, 0.02)
+	add_child(storage_node)
+	var wood := MK.mat(Color(0.5, 0.38, 0.22), "wood_desk", 0.85, 0.6)
+	var dark := MK.mat(Color(0.3, 0.22, 0.12), "", 0.8)
+	MK.box(storage_node, Vector3(0.5, 0.03, 0.4), Vector3(0, 0.015, 0), wood)
+	for x in [-0.235, 0.235]:
+		MK.box(storage_node, Vector3(0.03, 0.34, 0.4), Vector3(x, 0.17, 0), wood)
+	for z in [-0.185, 0.185]:
+		MK.box(storage_node, Vector3(0.5, 0.34, 0.03), Vector3(0, 0.17, z), wood)
+	for y in [0.08, 0.26]:
+		MK.box(storage_node, Vector3(0.505, 0.04, 0.405), Vector3(0, y, 0), dark)
+	storage_interact = Interactable.new()
+	storage_interact.prompt = "Storage crate"
+	storage_interact.add_box(Vector3(0.55, 0.45, 0.45), Vector3(0, 0.2, 0))
+	storage_node.add_child(storage_interact)
+	walk_blockers.append(Rect2(1.07, -0.18, 0.5, 0.4))
+
+
 var chair_out := false
 var _chair_block := Rect2(-0.62, 0.48, 0.6, 0.6)
 ## While someone sits in it, the chair swivels a little with where they look (desk_camera sets it).

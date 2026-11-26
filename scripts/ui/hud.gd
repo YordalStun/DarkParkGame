@@ -723,6 +723,23 @@ func choose(title: String, text: String, options: Array) -> int:
 	return picked[0]
 
 
+var _carry_label: Label
+
+
+## What the guard is carrying (bottom right), e.g. "CARRYING: guitar, radio  (3/3)".
+func set_carry(text: String) -> void:
+	if _carry_label == null:
+		_carry_label = _label(24, Color(0.95, 0.85, 0.55))
+		_carry_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+		_carry_label.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_RIGHT)
+		_carry_label.offset_left = -700
+		_carry_label.offset_right = -20
+		_carry_label.offset_top = -100
+		_carry_label.offset_bottom = -72
+	_carry_label.text = text
+	_carry_label.visible = text != ""
+
+
 ## Single player: the survival meters, Dale's reports and the risk, under the coins.
 ##   HEAT ||.  FOOD |||  RENT |||     REPORTS 2/10   RISK 15%
 func set_status(meters: Dictionary, reports: int, risk: int) -> void:

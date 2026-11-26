@@ -280,7 +280,11 @@ func _stations(keys: Array, step := 0.12) -> Array:
 func _lower_body() -> void:
 	var r: float = S.r
 	var f: float = S.f
-	var zs := _stations([r, f], 0.07)
+	# The boot: a well cut into the top at the back, closed by a separate lid (see _boot_lid).
+	var bl: float = clampf(S.g0 - r - 0.1, 0.55, 0.8)
+	boot_zone = Vector2(r + 0.07, r + 0.07 + bl)
+	boot_floor = maxf(S.get("sill", 0.27) + 0.16, _top(boot_zone.x + 0.1) - 0.3)   # ~30 cm deep: you can see in
+	var zs := _stations([r, boot_zone.x, boot_zone.y, f], 0.07)
 	var rings := []
 	for zz in zs:
 		var b := _bottom(zz)
@@ -299,13 +303,20 @@ func _lower_body() -> void:
 			side.append([xs[k], lerpf(b, t, clampf(fr[k], 0.0, 1.0))])
 		for s in side:
 			ring.append(Vector3(-w * s[0], s[1], zz))
-		ring.append(Vector3(-w * 0.45, t + 0.018, zz))
-		ring.append(Vector3(0.0, t + 0.024, zz))
-		ring.append(Vector3(w * 0.45, t + 0.018, zz))
+		if zz > boot_zone.x + 0.001 and zz < boot_zone.y - 0.001:
+			# Inside the boot: straight down from the rim to the boot floor and across.
+			ring.append(Vector3(-w * 0.86, boot_floor, zz))
+			ring.append(Vector3(0.0, boot_floor, zz))
+			ring.append(Vector3(w * 0.86, boot_floor, zz))
+		else:
+			ring.append(Vector3(-w * 0.45, t + 0.018, zz))
+			ring.append(Vector3(0.0, t + 0.024, zz))
+			ring.append(Vector3(w * 0.45, t + 0.018, zz))
 		for i in range(side.size() - 1, -1, -1):
 			ring.append(Vector3(w * side[i][0], side[i][1], zz))
 		rings.append(ring)
 	_loft(rings, body_mat, "Body")
+	_boot_lid()
 	_fan(rings[0], Vector3(0, (_bottom(r) + _top(r)) * 0.5, r), body_mat, Vector3(0, 0, -1))
 	_fan(rings[-1], Vector3(0, (_bottom(f) + _top(f)) * 0.5, f), body_mat, Vector3(0, 0, 1))
 	# Inside the arches and under the car: black.
@@ -315,7 +326,10 @@ func _lower_body() -> void:
 	for p in S.top:
 		top_min = minf(top_min, p[1])
 	var h := maxf(0.2, top_min - sill - 0.05)
-	MK.box(self, Vector3(S.w * 1.9, h, (f - r) - 0.3), Vector3(0, sill + h * 0.5, (f + r) * 0.5), black)
+	# (Stops short of the boot well, so what's in the boot isn't hidden inside it.)
+	var z_start: float = boot_zone.y + 0.02 if boot_zone != Vector2.ZERO else r + 0.15
+	MK.box(self, Vector3(S.w * 1.9, h, (f - 0.15) - z_start), Vector3(0, sill + h * 0.5, (f - 0.15 + z_start) * 0.5), black)
+	MK.box(self, Vector3(S.w * 1.9, boot_floor - sill, boot_zone.y - r - 0.1), Vector3(0, (sill + boot_floor) * 0.5, (r + 0.08 + boot_zone.y) * 0.5), black)
 
 
 func _glasshouse() -> void:
@@ -528,26 +542,110 @@ func add_boot() -> Interactable:
 		return boot_interact
 	boot_interact = Interactable.new()
 	boot_interact.prompt = "Open boot"
-	var S2: Dictionary = S if not S.is_empty() else SPECS["saloon"]
-	boot_interact.add_box(Vector3(S2.w * 1.6, 0.6, 0.7), Vector3(0, S2.belt - 0.1, S2.r + 0.25))
+	boot_interact.add_box(Vector3(S.w * 1.7, 0.5, boot_zone.y - boot_zone.x + 0.15), Vector3(0, _top(boot_zone.x) - 0.05, (boot_zone.x + boot_zone.y) * 0.5 - 0.05))
 	add_child(boot_interact)
 	return boot_interact
 
 
-## Pop the boot: a lid-shaped panel swings up at the back.
+## The boot lid: the top of the car over the boot well, hinged at its front edge.
+var boot_zone := Vector2.ZERO   ## z range of the boot opening
+var boot_floor := 0.4           ## height of the boot floor
+var _lid: Node3D
+
+
+func _boot_lid() -> void:
+	var z0 := boot_zone.x
+	var z1 := boot_zone.y
+	var hinge_y := _top(z1) + 0.02
+	_lid = Node3D.new()
+	_lid.name = "BootLid"
+	_lid.position = Vector3(0, hinge_y, z1)
+	add_child(_lid)
+	var rows := []
+	for zz in _stations([z0 - 0.01, z1], 0.07):
+		var t := _top(zz)
+		var w := _half_w(zz)
+		var row := []
+		for p in [[-0.94, 0.0], [-0.45, 0.018], [0.0, 0.024], [0.45, 0.018], [0.94, 0.0]]:
+			row.append(Vector3(w * p[0], t + p[1] + 0.006, zz) - _lid.position)
+		rows.append(row)
+	var lid_mat := body_mat.duplicate() as StandardMaterial3D
+	lid_mat.cull_mode = BaseMaterial3D.CULL_DISABLED   # seen from underneath once it's open
+	var lid := _loft(rows, lid_mat, "Lid")
+	lid.reparent(_lid, false)
+	# Shut lines round the lid, and a lock.
+	var line := MK.mat(Color(0.02, 0.02, 0.02), "", 0.8)
+	MK.box(self, Vector3(S.w * 1.86, 0.008, 0.012), Vector3(0, _top(z1) + 0.012, z1), line)
+	MK.box(self, Vector3(0.04, 0.03, 0.01), Vector3(0, _top(z0) - 0.04, z0 - 0.08), _chrome)
+	# The well: carpet on the floor, dark walls.
+	var carpet := MK.mat(Color(0.2, 0.18, 0.16), "", 1.0)
+	MK.box(self, Vector3(S.w * 1.7, 0.012, z1 - z0 - 0.02), Vector3(0, boot_floor + 0.008, (z0 + z1) * 0.5), carpet)
+	MK.box(self, Vector3(S.w * 1.7, maxf(0.05, _top(z1) - boot_floor), 0.012), Vector3(0, (boot_floor + _top(z1)) * 0.5, z1 - 0.008), carpet)
+	for sx in [-1.0, 1.0]:   # side linings
+		MK.box(self, Vector3(0.012, maxf(0.05, _top(z0) - boot_floor - 0.02), z1 - z0 - 0.02), Vector3(sx * S.w * 0.84, (boot_floor + _top(z0)) * 0.5, (z0 + z1) * 0.5), carpet)
+
+
+## Break into the boot: the lid swings up on its hinge.
 func open_boot_lid() -> void:
 	if boot_open:
 		return
 	boot_open = true
-	var r: float = S.r
-	var lid := Node3D.new()
-	lid.position = Vector3(0, _top(r + 0.6) + 0.02, r + 0.6)
-	add_child(lid)
-	MK.box(lid, Vector3(S.w * 1.7, 0.04, 0.62), Vector3(0, 0, -0.31), body_mat)
-	MK.box(self, Vector3(S.w * 1.6, 0.02, 0.55), Vector3(0, _top(r + 0.3) - 0.05, r + 0.33), MK.mat(Color(0.02, 0.02, 0.02), "", 1.0))
+	# The boot light comes on (so you can see what's in there at night).
+	var lamp := OmniLight3D.new()
+	lamp.light_color = Color(1.0, 0.85, 0.6)
+	lamp.light_energy = 1.1
+	lamp.omni_range = 1.4
+	lamp.light_volumetric_fog_energy = 0.0
+	lamp.shadow_enabled = false
+	lamp.position = Vector3(0, _top(boot_zone.y) + 0.05, boot_zone.y - 0.12)
+	add_child(lamp)
 	var tw := create_tween()
 	tw.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-	tw.tween_property(lid, "rotation:x", deg_to_rad(-75.0), 0.7)
+	tw.tween_property(_lid, "rotation:x", deg_to_rad(72.0), 0.8)
+
+
+## Lay up to 5 items out on the boot floor in a grid, each scaled to fit its own space, so nothing
+## overlaps. Returns the nodes.
+func place_in_boot(models: Array) -> Array:
+	var n := mini(models.size(), 5)
+	var cols := 3 if n > 2 else n
+	var rows := 2 if n > 3 else 1
+	var width: float = S.w * 1.6
+	var depth: float = boot_zone.y - boot_zone.x - 0.08
+	var cw: float = width / cols
+	var cd: float = depth / rows
+	for i in n:
+		var m: Node3D = models[i]
+		add_child(m)
+		# Whichever way round fits its space best (long things lie across the car).
+		var box := _aabb(m)
+		var k0: float = minf((cw * 0.9) / maxf(box.size.x, 0.01), (cd * 0.9) / maxf(box.size.z, 0.01))
+		var k90: float = minf((cw * 0.9) / maxf(box.size.z, 0.01), (cd * 0.9) / maxf(box.size.x, 0.01))
+		m.rotation_degrees.y = 0.0 if k0 >= k90 else 90.0
+		var k: float = minf(1.0, maxf(k0, k90))
+		m.scale = Vector3.ONE * k
+		var col := i % cols
+		var row := i / cols
+		var x: float = -width * 0.5 + cw * (col + 0.5)
+		var z: float = boot_zone.x + 0.04 + cd * (row + 0.5)
+		m.position = Vector3(x, boot_floor + 0.015, z)
+	return models.slice(0, n)
+
+
+## The bounding box of everything under a node, in its own (unscaled, unrotated) space.
+static func _aabb(n: Node3D) -> AABB:
+	var out := AABB()
+	var first := true
+	for c in n.find_children("*", "MeshInstance3D", true, false):
+		var mi := c as MeshInstance3D
+		var bb := mi.get_aabb()
+		bb = mi.transform * bb
+		if first:
+			out = bb
+			first = false
+		else:
+			out = out.merge(bb)
+	return out
 
 
 ## Visual layer for things inside the cabin: the booth floodlight skips it, so the

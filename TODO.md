@@ -125,7 +125,8 @@ Running list for the game. Tick items off as they are done, and add new ones at 
 - [x] Opening a boot for no reason: the car's owner gets angry and reports it to Dale (+1 report each boot).
 - [ ] Dale's reaction to a report: first tells the player to keep an eye out for people, then gets suspicious of the player if it keeps happening.
 
-- [ ] Steal items from car boots and sell them to a weird guy who turns up (a buyer for stolen goods; ties in with the dark web contact idea). Decide the buyer, when he shows up, what he pays, and the risk.
+- [x] Boots are real: every car has a boot well and a hinged lid with a boot light; 0-5 items (20 kinds, scripts/world/boot_items.gd) lie in it without overlapping. Click one to take it: adds its own risk and takes 1-2 of 3 carry slots. Drop them in the storage crate in the hut. Tom's and Dr Marsh's boots hold what they mentioned.
+- [ ] Steal items from car boots and sell them to a weird guy who turns up. For now 'the man by the payphone' buys everything stored or carried at the end of the night (it shows on the pay list). Still to do: him turning up in person, haggling, and buying radio parts from him.
 
 ## Bugs
 

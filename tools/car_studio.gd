@@ -33,6 +33,29 @@ func _init() -> void:
 	fl.mesh = pm
 	fl.material_override = floor_m
 	root.add_child(fl)
+	if args.has("boot"):   # --boot[=style]: a car with its boot broken into and five things inside
+		var c := CarModel.new()
+		c.paint = Color(0.55, 0.06, 0.05)
+		c.style = str(args.boot) if str(args.boot) != "true" else "saloon"
+		c.build()
+		root.add_child(c)
+		c.open_boot_lid()
+		var ids := ["guitar", "camera", "radio", "shopping", "cigs"]
+		var ms := []
+		for id in ids:
+			ms.append(BootItems.make(id))
+		c.place_in_boot(ms)
+		var cam2 := Camera3D.new()
+		cam2.fov = 45
+		root.add_child(cam2)
+		for v in [["boot_a", Vector3(1.6, 2.4, -4.6)], ["boot_b", Vector3(0.2, 1.5, c.S.r - 0.85)]]:
+			cam2.look_at_from_position(v[1], Vector3(0, c.boot_floor, (c.boot_zone.x + c.boot_zone.y) * 0.5))
+			for k in 12:
+				await process_frame
+			await RenderingServer.frame_post_draw
+			get_root().get_texture().get_image().save_png("%s/%s.png" % [out, v[0]])
+		quit()
+		return
 	if args.has("all"):
 		await _all_styles(root, out)
 		quit()

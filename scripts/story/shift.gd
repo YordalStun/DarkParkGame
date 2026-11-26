@@ -1232,13 +1232,13 @@ const NIGHT_WORDS := ["ONE", "TWO", "THREE", "FOUR", "FIVE", "SIX", "SEVEN", "EI
 func _summary() -> void:
 	ending = true
 	var ev := evaluate()
-	if not stolen.is_empty():
-		# The man by the payphone buys tonight's take.
+	if not (stored.is_empty() and carrying.is_empty()):
+		# The man by the payphone buys tonight's take (the crate, and anything still in your hands).
 		var total := 0
 		var what := []
-		for s_ in stolen:
-			total += int(s_[1])
-			what.append(_bare(str(s_[0])))
+		for id in stored + carrying:
+			total += int(BootItems.ITEMS[id][1])
+			what.append(_bare(str(BootItems.ITEMS[id][0])))
 		ev.earned += total
 		ev.total += total
 		ev.rows.append({"name": "Sold: " + ", ".join(what), "delta": total, "verdict": "to the man by the payphone"})
@@ -1303,12 +1303,15 @@ func _load_progress() -> void:
 
 
 # ------------------------------------------------------------------ car boots (night three on)
-## What could be in a boot: [name, sells for (coins), risk added when you take it].
-const BOOT_ITEMS := [
-	["a guitar in a hard case", 6, 25], ["a car radio", 4, 15], ["a camera bag", 5, 20],
-	["a briefcase", 5, 20], ["a toolbox", 3, 15], ["a bag of shopping", 1, 5],
-]
-var stolen: Array = []      ## tonight's take: [name, coins]
+## Boots hold real things (scripts/world/boot_items.gd). Take one: it adds to your risk and takes up
+## space in your hands (CARRY_SLOTS). Drop them in the storage crate in the hut. At the end of the night
+## the man by the payphone buys everything you've stored (or are still carrying).
+const CARRY_SLOTS := 3
+## Some owners' boots are known from what they say at the window (night three).
+const KNOWN_BOOTS := {"Tom Baxter": ["guitar"], "Dr Helen Marsh": ["camera", "shopping"]}
+var carrying: Array = []    ## item ids in your hands
+var stored: Array = []      ## item ids in the storage crate
+var stolen: Array = []      ## (kept for older saves of this field; unused)
 
 
 ## Every car you can walk up to gets a boot (lot cars, the evening shift's, tonight's arrivals).
@@ -1319,18 +1322,41 @@ func _hook_boot(model: CarModel, owner_name: String) -> void:
 	var it := model.add_boot()
 	if not it.activated.is_connected(_open_boot):
 		it.activated.connect(_open_boot.bind(model))
+	if world.booth.storage_node == null:
+		world.booth.build_storage()
+		world.booth.storage_interact.activated.connect(_use_storage)
 
 
-## The same car always has the same things in its boot.
+## The same car always has the same things in its boot (known owners have what they said).
 func _boot_contents(model: CarModel) -> Array:
+	if KNOWN_BOOTS.has(model.boot_owner):
+		return KNOWN_BOOTS[model.boot_owner].duplicate()
 	var rng := RandomNumberGenerator.new()
 	rng.seed = hash(str(model.get_path()) + str(night))
+	var ids: Array = BootItems.ITEMS.keys()
 	var out := []
-	for i in rng.randi_range(0, 2):
-		var item: Array = BOOT_ITEMS[rng.randi() % BOOT_ITEMS.size()]
-		if not out.has(item):
-			out.append(item)
+	for i in [0, 1, 1, 2, 2, 3, 3, 4, 5][rng.randi() % 9]:   # up to 5, usually 1-3
+		var id: String = ids[rng.randi() % ids.size()]
+		if not out.has(id):
+			out.append(id)
 	return out
+
+
+func _slots(ids: Array) -> int:
+	var n := 0
+	for id in ids:
+		n += int(BootItems.ITEMS[id][3])
+	return n
+
+
+func _update_carry() -> void:
+	if carrying.is_empty():
+		hud.set_carry("")
+		return
+	var names := []
+	for id in carrying:
+		names.append(_bare(str(BootItems.ITEMS[id][0])))
+	hud.set_carry("CARRYING: %s  (%d/%d)" % [", ".join(names), _slots(carrying), CARRY_SLOTS])
 
 
 ## "a guitar in a hard case" -> "guitar in a hard case"
@@ -1343,41 +1369,68 @@ func _open_boot(model: CarModel) -> void:
 		hud.notify("You'd have to go outside for that.", 3.0)
 		return
 	if model.boot_open:
-		hud.notify("You've already been in that one.", 3.0)
 		return
 	if not SaveGame.has_upgrade("boot_wedge"):
 		hud.notify("Locked. You'd need a boot wedge (buy one at the end of a shift).", 4.0)
 		hud.tip("boot_wedge", "Boots can be opened with a boot wedge. Buy one on the end-of-shift screen; it arrives the next night. Owners notice, and they complain to Dale.")
 		return
-	camera.blocked = true
 	world.ambience.play_at("car_door", model.global_position, -12.0, "Outside", 4.0)
 	model.open_boot_lid()
-	var items := _boot_contents(model)
+	model.boot_interact.enabled = false
 	if model.boot_owner != "":
 		add_report("%s will notice someone's been in their boot." % model.boot_owner)
 	else:
 		add_report("Someone will notice their boot's been opened.")
-	if items.is_empty():
-		await hud.choose("THE BOOT", "Nothing in here but a spare tyre and a wet blanket.", ["CLOSE"])
-	else:
-		while not items.is_empty():
-			var names := []
-			for it in items:
-				names.append(it[0])
-			var text := "Inside: %s.\nTaking something adds to your risk. The man by the payphone buys whatever you bring him at the end of the night." % ", ".join(names)
-			var opts := []
-			for it in items:
-				opts.append("TAKE " + _bare(str(it[0])).to_upper())
-			opts.append("CLOSE")
-			var pick: int = await hud.choose("THE BOOT", text, opts)
-			if pick >= items.size():
-				break
-			var item: Array = items[pick]
-			items.remove_at(pick)
-			stolen.append([item[0], item[1]])
-			add_risk(int(item[2]))
-			hud.notify("You took %s. (+%d%% risk)" % [item[0], item[2]], 4.0)
-	camera.blocked = false
+	var ids := _boot_contents(model)
+	if ids.is_empty():
+		hud.notify("Nothing in here but a spare tyre and a wet blanket.", 3.5)
+		return
+	var models := []
+	for id in ids:
+		models.append(BootItems.make(id))
+	model.place_in_boot(models)
+	for i in ids.size():
+		var id: String = ids[i]
+		var m: Node3D = models[i]
+		var it := Interactable.new()
+		var d: Array = BootItems.ITEMS[id]
+		it.prompt = "Take %s  (+%d%% risk)" % [_bare(str(d[0])), int(d[2])]
+		it.add_box(Vector3(0.6, 0.4, 0.6), Vector3(0, 0.15, 0))
+		m.add_child(it)
+		it.activated.connect(_take_item.bind(id, m))
+	hud.tip("boot_items", "Click something in the boot to take it. Each thing adds to your risk and fills your hands (3 slots). Drop them in the storage crate in the hut.")
+
+
+func _take_item(id: String, m: Node3D) -> void:
+	var d: Array = BootItems.ITEMS[id]
+	if _slots(carrying) + int(d[3]) > CARRY_SLOTS:
+		hud.notify("Your hands are full. Drop things in the storage crate in the hut first.", 4.0)
+		return
+	carrying.append(id)
+	if is_instance_valid(m):
+		m.queue_free()
+	world.ambience.play_ui("click2", -12.0)
+	add_risk(int(d[2]))
+	_update_carry()
+	hud.notify("You took %s. (+%d%% risk)" % [d[0], d[2]], 3.5)
+
+
+## The storage crate in the hut: drop off everything you're carrying.
+func _use_storage() -> void:
+	if carrying.is_empty():
+		hud.notify("Storage crate: %d thing%s in it. The man by the payphone takes it all at the end of the night." % [stored.size(), "" if stored.size() == 1 else "s"], 4.0)
+		return
+	for id in carrying:
+		stored.append(id)
+		var m := BootItems.make(id)
+		m.scale = Vector3.ONE * 0.45
+		world.booth.storage_node.add_child(m)
+		m.position = Vector3(randf_range(-0.12, 0.12), 0.05 + stored.size() * 0.05, randf_range(-0.08, 0.08))
+		m.rotation_degrees.y = randf_range(0, 360)
+	carrying.clear()
+	_update_carry()
+	world.ambience.play_ui("click2", -10.0)
+	hud.notify("Stashed in the crate (%d in there)." % stored.size(), 3.0)
 
 
 ## Single player: the HUD's survival meters, reports and risk.
