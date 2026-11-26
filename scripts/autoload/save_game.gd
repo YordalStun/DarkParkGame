@@ -7,6 +7,16 @@ extends Node
 
 const SLOTS := 3
 const START_COINS := 8
+## Survival (single player): each bill is a meter of METER_MAX nights. Paying it fills it;
+## skipping it costs one. A meter at 0 is game over (evicted / starving / ill from the cold).
+const METER_MAX := 3
+const BILL_COST := {"rent": 2, "food": 1, "heat": 1}   ## 4 a day: the 8-coin bank covers two days
+## Reports to Dale: 5 = suspicious, 7 = last warning, 10 = fired. One is forgiven every 2 nights.
+const REPORTS_SUSPICIOUS := 5
+const REPORTS_WARNING := 7
+const REPORTS_FIRED := 10
+## Risk (hacking and stealing), 0-100: 100 = caught. Drops 20 a day.
+const RISK_DECAY := 20
 
 var slot := 0               ## the slot being played (1..3), 0 = none chosen yet
 var data := {}              ## the current slot's contents (see _blank)
@@ -26,6 +36,7 @@ func _path(n: int) -> String:
 
 func _blank() -> Dictionary:
 	return {"night": 1, "coins": START_COINS, "skipped": {}, "history": [], "upgrades": {},
+		"meters": {"rent": METER_MAX, "food": METER_MAX, "heat": METER_MAX}, "reports": 0, "risk": 0,
 		"started": Time.get_datetime_string_from_system(false, true),
 		"saved": Time.get_datetime_string_from_system(false, true), "playtime": 0.0, "coop_unlocked": false}
 
@@ -151,9 +162,50 @@ func add_upgrade(id: String) -> void:
 	data["upgrades"] = u
 
 
+func meters() -> Dictionary:
+	var m: Dictionary = data.get("meters", {})
+	for k in BILL_COST:
+		if not m.has(k):
+			m[k] = METER_MAX
+	data["meters"] = m
+	return m
+
+
+func reports() -> int:
+	return int(data.get("reports", 0))
+
+
+func risk() -> int:
+	return int(data.get("risk", 0))
+
+
+## A customer complained to Dale (saved straight away).
+func add_report() -> int:
+	data["reports"] = reports() + 1
+	if slot != 0:
+		_write()
+	return reports()
+
+
+## The meters after tonight's bills: paid ones refill, skipped ones drop by one.
+static func meters_after(now: Dictionary, paid: Dictionary) -> Dictionary:
+	var out := {}
+	for k in BILL_COST:
+		out[k] = METER_MAX if paid.get(k, true) else maxi(0, int(now.get(k, METER_MAX)) - 1)
+	return out
+
+
 ## End of a night: record it and move on to the next one.
-func finish_night(coins_left: int, wages: int, skipped_bills: Array) -> void:
+func finish_night(coins_left: int, wages: int, skipped_bills: Array, risk_now := -1) -> void:
 	ensure_slot()
+	var paid := {}
+	for k in BILL_COST:
+		paid[k] = not skipped_bills.has(k.capitalize())
+	data["meters"] = meters_after(meters(), paid)
+	if risk_now >= 0:
+		data["risk"] = maxi(0, risk_now - RISK_DECAY)
+	if night() % 2 == 0 and reports() > 0:
+		data["reports"] = reports() - 1   # forgiveness: one report every two nights
 	var h: Array = data.history
 	h.append({"night": night(), "wages": wages, "coins": coins_left, "skipped": skipped_bills})
 	var sk: Dictionary = data.skipped

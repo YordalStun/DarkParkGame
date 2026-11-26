@@ -63,15 +63,15 @@ Running list for the game. Tick items off as they are done, and add new ones at 
 
 ## Core loop: staying alive (see docs/design/core-loop.md)
 
-- [ ] Survival meters: heat, food and rent. Each has a daily cost. Show them on screen.
-- [ ] Bank: Dave starts with 8 coins, enough for the first two days.
+- [x] Survival meters: heat, food and rent. Each has a daily cost. Show them on screen. (Rent 2, food 1, heat 1 a day; each meter is 3 nights, refilled by paying, -1 when skipped, 0 = game over. Single player only. HUD line under the coins, pips on the end screen.)
+- [x] Bank: Dave starts with 8 coins, enough for the first two days.
 - [ ] Legal income: a legal night pays the bills at a slow rate. An honest run can survive but not comfortably.
-- [ ] Reports: 5 reports = suspicious, 7 = Dale makes it clear it must stop, 10 = fired (game over). Dale says he has footage before the firing.
-- [ ] Forgiveness: one report is forgiven every two days.
+- [x] Reports: 5 reports = suspicious, 7 = Dale makes it clear it must stop, 10 = fired (game over). Dale says he has footage before the firing. (Saved per slot; Dale reacts in the next night's call; 10 = FIRED on the end screen.)
+- [x] Forgiveness: one report is forgiven every two days.
 - [ ] Risk meter for hacking and stealing: 100% = caught by the police (game over). Each action adds to it; it drops about 20% a day.
 - [ ] Protection: a VPN helps with small hacks; a separate PC is needed for big hacks. Big hacks can catch Dave instantly without protection. Other ideas to consider: IP hiding, fake names, a contact.
 - [ ] Police: they walk through the lot and catch Dave red-handed (game over).
-- [ ] Restart after being caught: the night restarts, but suspicion carries over.
+- [x] Restart after being caught: the night restarts, but suspicion carries over. (Risk 100 at the end of the night = CAUGHT: the same night restarts, reports kept, risk set to 50.)
 - [ ] Suspicion carries from night to night and takes time to reduce.
 - [ ] Multiplayer quota: 4 coins a day shared across the guards, getting harder every 3 days. If the team misses it, the whole team loses.
 - [ ] NPC knowledge: the player learns about NPCs (e.g. who has a guitar in their boot) so they can target items instead of stealing from everyone.

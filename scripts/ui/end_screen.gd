@@ -18,12 +18,16 @@ const GREEN := Color(0.5, 0.88, 0.54)
 const RED := Color(1.0, 0.44, 0.38)
 const BG := Color(0.043, 0.051, 0.047)
 ## Bills due each morning: [name, cost, ticked by default, note when you skip it]
+## The three bills (single player keeps a meter for each; see SaveGame.BILL_COST).
 const BILLS := [
-	["Rent", 3, true, "rent unpaid"],
-	["Food", 2, true, "hungry"],
-	["Heating", 1, true, "cold flat"],
-	["Bus pass", 1, false, "walk instead"],
+	["Rent", 2, true, "landlord waits"],
+	["Food", 1, true, "go hungry"],
+	["Heat", 1, true, "cold flat"],
 ]
+var _meters := {}       ## tonight's meters before the bills (empty = co-op: no meters)
+var _status := {}       ## reports, risk
+var _pips: Array = []   ## Label per bill showing the meter after tonight
+var lost_reason := ""   ## "EVICTED" / "STARVING" / "TOO COLD" / "FIRED" / "CAUGHT" (game over), or ""
 const BAR_MAX := 16.0
 ## Upgrades you can buy here: [id, name, cost, what it does]. Shown until owned.
 const UPGRADES := [
@@ -88,6 +92,8 @@ func _ready() -> void:
 ## Fade the night out, then show the pay and bills.
 func show_night(ev: Dictionary, night_title: String, date_text: String, note: String) -> void:
 	_start = ev.start
+	_meters = ev.get("meters", {})
+	_status = {"reports": ev.get("reports", 0), "risk": ev.get("risk", 0)}
 	_wages = ev.earned + ev.bonus
 	_black.visible = true
 	var tw := create_tween()
@@ -210,7 +216,9 @@ func _build(ev: Dictionary, night_title: String, date_text: String, note: String
 		for st in ["normal", "hover", "pressed", "focus", "hover_pressed"]:
 			cb.add_theme_stylebox_override(st, StyleBoxEmpty.new())
 		h.add_child(cb)
-		var nl := _label(" (%s)" % b[3], 28, DIM, h)
+		var pip := _label("", 24, GOLD, h)
+		_pips.append(pip)
+		var nl := _label(" (%s)" % b[3], 24, DIM, h)
 		nl.visible = not b[2]
 		var sp := Control.new()
 		sp.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -372,9 +380,42 @@ func _recalc() -> void:
 	_after_val.text = str(v)
 	_after_val.add_theme_color_override("font_color", RED if v < 0 else INK)
 	_bar_fill.size.x = clampf(v / BAR_MAX, 0.0, 1.0) * 480.0
+	# Survival meters (single player): what each bill's meter will be after tonight.
+	var lost := ""
+	lost_reason = ""
+	if not _meters.is_empty():
+		var paid := {"rent": _ticks[0].button_pressed, "food": _ticks[1].button_pressed, "heat": _ticks[2].button_pressed}
+		var after: Dictionary = SaveGame.meters_after(_meters, paid)
+		var keys := ["rent", "food", "heat"]
+		for i in 3:
+			var n: int = after[keys[i]]
+			_pips[i].text = "  " + "|".repeat(n) + ".".repeat(SaveGame.METER_MAX - n)
+			_pips[i].add_theme_color_override("font_color", RED if n <= 1 else GOLD)
+		if after.rent == 0:
+			lost = "EVICTED"
+		elif after.food == 0:
+			lost = "STARVING"
+		elif after.heat == 0:
+			lost = "TOO COLD"
+		if int(_status.get("reports", 0)) >= SaveGame.REPORTS_FIRED:
+			lost = "FIRED"
+		elif int(_status.get("risk", 0)) >= 100:
+			lost = "CAUGHT"
 	# Broke: even paying nothing at all, you're in the red.
-	_broke = _start + _wages < 0
-	if _broke:
+	lost_reason = lost
+	_broke = _start + _wages < 0 or lost != ""
+	if lost != "":
+		_big.text = lost
+		_big.add_theme_color_override("font_color", RED)
+		var why := {"EVICTED": "Three nights without rent. The landlord's changed the locks.",
+			"STARVING": "Three nights without food. You can't go on like this.",
+			"TOO COLD": "Three nights without heat. You're too ill to work.",
+			"FIRED": "Ten complaints. Dale's seen the footage. You're fired.",
+			"CAUGHT": "The police were waiting when you got home."}
+		_warn.text = why.get(lost, "")
+		_next_btn.text = "START AGAIN"
+		_next_btn.disabled = false
+	elif _broke:
 		_big.text = "YOU'RE BROKE"
 		_big.add_theme_color_override("font_color", RED)
 		_warn.text = "You can't afford another night."

@@ -672,6 +672,36 @@ func _build_objectives() -> void:
 
 
 var night := 0   ## the night being played (shown beside the coins); 0 = not shown
+var _status_label: Label
+
+
+## Single player: the survival meters, Dale's reports and the risk, under the coins.
+##   HEAT ||.  FOOD |||  RENT |||     REPORTS 2/10   RISK 15%
+func set_status(meters: Dictionary, reports: int, risk: int) -> void:
+	if _status_label == null:
+		_status_label = _label(22, Color(0.85, 0.8, 0.6))
+		_status_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+		_status_label.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
+		_status_label.offset_left = -640
+		_status_label.offset_right = -16
+		_status_label.offset_top = 44
+		_status_label.offset_bottom = 70
+		_status_label.modulate.a = 0.75
+		_obj_box.offset_top = 80
+		_obj_box.offset_bottom = 80
+	var t := ""
+	for k in ["heat", "food", "rent"]:
+		var n := int(meters.get(k, 3))
+		t += "%s %s%s   " % [k.to_upper(), "|".repeat(n), ".".repeat(maxi(0, 3 - n))]
+	t += "  REPORTS %d/10" % reports
+	if risk > 0:
+		t += "   RISK %d%%" % risk
+	_status_label.text = t
+	var danger := reports >= 7 or risk >= 70
+	for k in meters:
+		if int(meters[k]) <= 1:
+			danger = true
+	_status_label.label_settings.font_color = Color(1.0, 0.5, 0.4) if danger else Color(0.85, 0.8, 0.6)
 
 
 func _show_money(v: float) -> void:

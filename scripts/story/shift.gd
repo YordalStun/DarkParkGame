@@ -331,7 +331,7 @@ func start() -> void:
 	hud.set_night(night, date_text.split("  -  ")[0])
 	hud.set_objectives([["phone", "Answer the phone (click it)"] if night >= 2 else ["phone", "Answer the phone"]])
 	await _wait(5.0)
-	await _phone_call(NightTwo.dale_call() if night >= 2 else _dale_call())
+	await _phone_call((NightTwo.dale_call() if night >= 2 else _dale_call()) + _dale_reports_lines())
 	hud.complete_objective("phone")
 	if night >= 2:
 		hud.add_objective("ids", "Check each ID against tonight's list")
@@ -657,6 +657,7 @@ func add_risk(n: int) -> void:
 	if n > 0 and Net.count() > 1:   # co-op: more guards, faster-rising risk (numbers still to tune)
 		n = int(ceil(n * (1.0 + 0.25 * (Net.count() - 1))))
 	risk = clampi(risk + n, 0, 100)
+	_update_status()
 	if risk >= 100 and hack and not hack.state.dead:
 		hack.caught()
 		hud.notify("SECURITY ALERT: the hospital has cut your session.", 6.0)
@@ -842,6 +843,20 @@ func _kessler_call() -> Array:
 		lines.append(["Woman", "He said it's ever so cold, waiting. Is he out there? ...Can you see him?"])
 	lines.append(["", "(Before you can answer, she hangs up.)"])
 	return lines
+
+
+## Dale on the complaints (single player): 5+ he's suspicious, 7+ he thinks it's Dave.
+func _dale_reports_lines() -> Array:
+	if Net.active():
+		return []
+	var n := SaveGame.reports()
+	if n >= SaveGame.REPORTS_WARNING:
+		return [["Dale", "One more thing. I've had %d complaints now. People's cars, opened up in my car park." % n],
+			["Dale", "I've got footage, Dave. I know it's you. It stops tonight, or you're finished."]]
+	if n >= SaveGame.REPORTS_SUSPICIOUS:
+		return [["Dale", "Oh, and I've had %d complaints. Someone's been in people's boots." % n],
+			["Dale", "Keep your eyes open out there, will you? ...You would tell me if it was you."]]
+	return []
 
 
 func _dale_call() -> Array:
@@ -1205,6 +1220,10 @@ const NIGHT_WORDS := ["ONE", "TWO", "THREE", "FOUR", "FIVE", "SIX", "SEVEN", "EI
 func _summary() -> void:
 	ending = true
 	var ev := evaluate()
+	if not Net.active():   # survival meters, reports and risk are single player
+		ev["meters"] = SaveGame.meters().duplicate()
+		ev["reports"] = SaveGame.reports()
+		ev["risk"] = risk
 	money = ev.total
 	_term("SHIFT REPORT: WAGES %+d" % (ev.earned + ev.bonus))
 	var word: String = NIGHT_WORDS[night - 1] if night <= NIGHT_WORDS.size() else str(night)
@@ -1214,11 +1233,19 @@ func _summary() -> void:
 	es.next_night.connect(func(coins):
 		for u in es.bought_upgrades():
 			SaveGame.add_upgrade(u)
-		SaveGame.finish_night(coins, ev.earned + ev.bonus, es.skipped_bills())
+		SaveGame.finish_night(coins, ev.earned + ev.bonus, es.skipped_bills(), risk if not Net.active() else -1)
 		Net.ready_ids = {1: true}
 		Net.send("next_night", [coins, SaveGame.night()])
 		_restart())
 	es.start_again.connect(func():
+		if es.lost_reason == "CAUGHT" and not Net.active():
+			# Caught: tonight starts again, but Dale's reports (the suspicion) stay.
+			SaveGame.data["risk"] = 50
+			SaveGame.set_progress(start_money, night)
+			_restart()
+			return
+		if not Net.active() and SaveGame.slot != 0:
+			SaveGame.new_game(SaveGame.slot)   # a fresh start: meters, reports and risk reset
 		SaveGame.set_progress(START_MONEY, 1)
 		if Net.active():   # night one isn't a co-op night: everyone else goes back to the title screen
 			Net.send("ended", ["The host started again from night one."])
@@ -1248,6 +1275,32 @@ func _load_progress() -> void:
 	start_money = SaveGame.coins()
 	night = SaveGame.night()
 	money = start_money
+	if not Net.active():
+		risk = SaveGame.risk()
+	_update_status.call_deferred()
+
+
+## Single player: the HUD's survival meters, reports and risk.
+func _update_status() -> void:
+	if Net.active() or hud == null:
+		return
+	hud.set_status(SaveGame.meters(), SaveGame.reports(), risk)
+
+
+## A customer complained to Dale. 5 = Dale's suspicious, 7 = last warning, 10 = fired.
+func add_report(why: String) -> void:
+	if Net.active():
+		return
+	var n := SaveGame.add_report()
+	_update_status()
+	var msg := "%s Reported to Dale (%d/10)." % [why, n]
+	if n >= SaveGame.REPORTS_FIRED:
+		msg += " That's ten. You won't be working here tomorrow."
+	elif n >= SaveGame.REPORTS_WARNING:
+		msg += " Dale's last warning."
+	elif n >= SaveGame.REPORTS_SUSPICIOUS:
+		msg += " Dale's getting suspicious."
+	hud.notify(msg, 6.0)
 
 
 ## Testing menu: set the coins and night in the current save slot.
