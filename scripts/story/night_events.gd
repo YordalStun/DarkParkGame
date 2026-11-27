@@ -305,6 +305,21 @@ var _baxter_sells := false
 func baxter_outside(deal: bool, stay := 170.0) -> void:
 	if is_instance_valid(baxter):
 		return
+	_spawn_baxter(deal)
+	Net.send("n3_baxter", [deal])   # everyone sees him, and any guard can walk up and sell
+	await story._wait(stay)
+	while _baxter_busy:   # not while someone's mid-deal
+		await story._wait(1.0)
+	if is_instance_valid(baxter):
+		baxter.queue_free()
+		baxter = null
+		Net.send("n3_baxter_gone")
+
+
+## Everyone: Baxter by the payphone (just the figure; the host runs the talking).
+func _spawn_baxter(deal: bool) -> void:
+	if is_instance_valid(baxter):
+		return
 	var bd: Dictionary = NightThree.baxter(story.ARRIVALS)
 	baxter = PersonModel.from_arrival(bd, false)
 	baxter.name = "Baxter"
@@ -317,31 +332,40 @@ func baxter_outside(deal: bool, stay := 170.0) -> void:
 	it.prompt = "Talk to Baxter"
 	it.add_box(Vector3(0.8, 1.9, 0.8), Vector3(0, 0.95, 0))
 	baxter.add_child(it)
-	it.activated.connect(_talk_baxter)
+	it.activated.connect(_on_baxter)
 	hud.notify("Someone's waiting by the payphone, smoking. Baxter.", 6.0)
-	await story._wait(stay)
-	if is_instance_valid(baxter) and not _baxter_busy:
-		baxter.queue_free()
-		baxter = null
 
 
-func _talk_baxter() -> void:
-	if _baxter_busy or story.roam == null or not story.roam.outside or not is_instance_valid(baxter):
+func _on_baxter() -> void:
+	if story.roam == null or not story.roam.outside or not is_instance_valid(baxter):
+		return
+	if story.guest:
+		Net.request("n3_baxter_talk")
+	else:
+		baxter_talk(story.local_player_id)
+
+
+## Host: guard `who` talks to Baxter (and maybe sells him things from the shared crate).
+func baxter_talk(who: int) -> void:
+	if _baxter_busy or not is_instance_valid(baxter):
 		return
 	_baxter_busy = true
-	story.camera.blocked = true
+	var me: bool = who == story.local_player_id
+	if me:
+		story.camera.blocked = true
 	if _baxter_sells:
 		await hud.say("Baxter", "You again. Go on. What've you got?", 3.0)
-		await story.sell_from_crate("Baxter")
+		await story.sell_from_crate("Baxter", who)
 	else:
 		var sellable := SaveGame.stash().filter(func(id): return not BootItems.is_story(id))
-		await story.talk(NightThree.baxter_payphone(not sellable.is_empty() and not world.booth.crate_hidden))
+		await story.talk(NightThree.baxter_payphone(not sellable.is_empty() and not world.booth.crate_hidden), who)
 		if story.flags.get("baxter_sell", false) or story.flags.get("baxter_deal", false):
 			SaveGame.set_story("baxter_deal")
 		if story.flags.get("baxter_sell", false):
-			await story.sell_from_crate("Baxter")
+			await story.sell_from_crate("Baxter", who)
 		_baxter_sells = SaveGame.story("baxter_deal")
-	story.camera.blocked = false
+	if me:
+		story.camera.blocked = false
 	_baxter_busy = false
 
 
@@ -667,6 +691,12 @@ func guest_event(what: String, a: Array) -> bool:
 		"n3_hut_open":
 			if hut:
 				_open_hut(true)
+		"n3_baxter":
+			_spawn_baxter(bool(a[0]))
+		"n3_baxter_gone":
+			if is_instance_valid(baxter):
+				baxter.queue_free()
+			baxter = null
 		_:
 			return false
 	return true
@@ -687,6 +717,10 @@ func remote_action(from: int, what: String, _args: Array) -> bool:
 			hut_door(from)
 		"hut_seen":
 			task_done("t_hut")
+		"n3_baxter_talk":
+			baxter_talk(from)
+		"n3_sale_picks":
+			story.sale_reply.emit(_args[0] if _args.size() > 0 else [])
 		_:
 			return false
 	return true

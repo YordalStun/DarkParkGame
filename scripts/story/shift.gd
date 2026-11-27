@@ -1547,10 +1547,39 @@ func _open_crate() -> void:
 				break
 		SaveGame.set_stash(stash)
 		world.booth.show_crate(stash)
+		crate_sync()
 		_update_carry()
 		world.ambience.play_ui("click2", -14.0)
 	camera.blocked = false
 	_crate_busy = false
+
+
+## Co-op: the crate is the team's, kept in the host's save. The host tells everyone what's in it;
+## a guest changes their copy and sends it to the host.
+func crate_sync() -> void:
+	if guest:
+		Net.request("crate_set", [SaveGame.stash(), SaveGame.crate_hidden()])
+	elif Net.active():
+		Net.send("n3_crate", [SaveGame.stash(), SaveGame.crate_hidden()])
+
+
+func _crate_in(stash: Array, hidden: bool) -> void:
+	SaveGame.set_stash(stash)
+	if hidden != world.booth.crate_hidden:
+		world.booth.set_crate_hidden(hidden)
+	SaveGame.set_crate_hidden(hidden)
+	world.booth.show_crate(stash)
+
+
+## A guest's sale panel (Baxter): pick from the team's crate, then tell the host.
+func guest_sale(stash: Array) -> void:
+	if _stash_ui == null:
+		Net.request("n3_sale_picks", [[]])
+		return
+	camera.blocked = true
+	var picks: Array = await _stash_ui.sale(stash)
+	camera.blocked = false
+	Net.request("n3_sale_picks", [picks])
 
 
 ## End of the night: anything still in your hands goes in the crate (if there's room).
@@ -1566,6 +1595,7 @@ func _stash_carried() -> void:
 			lost += 1
 	carrying.clear()
 	SaveGame.set_stash(stash)
+	crate_sync()
 	if lost > 0:
 		_term("%d ITEM(S) LEFT BEHIND - CRATE FULL" % lost)
 
@@ -1580,13 +1610,34 @@ func _run_buyer() -> void:
 	events.baxter_outside(true)
 
 
-## Sell from the crate (Baxter). Returns the coins made.
-func sell_from_crate(speaker: String) -> int:
+## Sell from the crate (Baxter). `who` picks what to sell: in co-op the crate is the team's (the host's),
+## and a guest gets the sale panel on their own screen. Returns the coins made.
+signal sale_reply(picks: Array)
+
+
+func sell_from_crate(speaker: String, who := -1) -> int:
+	if who < 0:
+		who = local_player_id
 	var stash: Array = SaveGame.stash().duplicate()
 	if world.booth.crate_hidden or stash.filter(func(id): return not BootItems.is_story(id)).is_empty():
 		await hud.say(speaker, "Nothing? Bring it from your crate, then. I'm not hanging about all night.", 3.5)
 		return 0
-	var picks: Array = await _stash_ui.sale(stash)
+	var picks: Array = []
+	if who == local_player_id:
+		picks = await _stash_ui.sale(stash)
+	else:
+		Net.send_to(who, "n3_sale", [stash])
+		var got := [null]
+		var cb := func(p): got[0] = p
+		sale_reply.connect(cb, CONNECT_ONE_SHOT)
+		var waited := 0.0
+		while got[0] == null and waited < 90.0 and Net.ids().has(who):
+			await _wait(0.25)
+			waited += 0.25
+		if sale_reply.is_connected(cb):
+			sale_reply.disconnect(cb)
+		picks = got[0] if got[0] != null else []
+		picks = picks.filter(func(i): return int(i) >= 0 and int(i) < stash.size())
 	if picks.is_empty():
 		await hud.say(speaker, "Suit yourself.", 2.0)
 		return 0
@@ -1598,6 +1649,7 @@ func sell_from_crate(speaker: String) -> int:
 		stash.remove_at(i)
 	SaveGame.set_stash(stash)
 	world.booth.show_crate(stash)
+	crate_sync()
 	sales_tonight += total
 	money += total
 	hud.set_money(money)
@@ -1728,6 +1780,9 @@ func remote_action(from: int, what: String, args: Array) -> void:
 	if events and events.remote_action(from, what, args):
 		return
 	match what:
+		"crate_set":   # a guest used the crate: it's the team's, so everyone gets the new contents
+			_crate_in(args[0], bool(args[1]))
+			crate_sync()
 		"phone":
 			_on_phone(from)
 		"window":
@@ -1790,6 +1845,8 @@ func send_state_to(id: int) -> void:
 	Net.send_to(id, "entries", [entries])
 	Net.send_to(id, "window", [world.booth.side_is_open])
 	Net.send_to(id, "gate", [world.lot.gate.is_open])
+	if world.booth.storage_node != null:
+		Net.send_to(id, "n3_crate", [SaveGame.stash(), SaveGame.crate_hidden()])
 
 
 ## Host: someone left mid-night. Their guard goes, and whatever they were using is freed.
@@ -1880,6 +1937,10 @@ func guest_event(what: String, a: Array) -> void:
 	if events and events.guest_event(what, a):
 		return
 	match what:
+		"n3_crate":
+			_crate_in(a[0], bool(a[1]))
+		"n3_sale":
+			guest_sale(a[0])
 		"talker":
 			hud.overhearing = int(a[0]) != 0 and int(a[0]) != local_player_id
 		"chair_pose":
@@ -2063,6 +2124,8 @@ func _guest_show_id(nm: String) -> void:
 
 ## Guest: the end-of-night report. Everyone sees the same one; only the host goes on.
 func _guest_report(ev: Dictionary, title: String, date: String, note: String) -> void:
+	if world.booth.storage_node != null:
+		_stash_carried()   # what this guard is holding goes in the team's crate
 	ending = true
 	_shift_done = true
 	hud.visible = false

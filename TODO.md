@@ -85,7 +85,7 @@ Story (not started):
 - [x] Co-op: the old second hut at the back of the lot from night 3, padlocked. With a pick lock bought on an earlier night you can break in (inside: a dusty desk and an old PC, not working yet).
 - [x] Night 3 reports: opening a boot doesn't report you on night 3; Dale rings and asks you to keep an eye out for stolen goods. The area supervisor's spot checks start on night 4.
 - [x] No ending. The game keeps going after night 3.
-- [ ] Baxter in co-op: he's only spawned on the host (guests can't see him or sell to him yet).
+- [x] Baxter in co-op: every guard sees him at the payphone and can walk up, talk and sell. The storage crate is the team's (kept in the host's save; anyone can put things in, hide it or sell from it).
 - [ ] The second hut's PC (see "Co-op: second hut").
 - [ ] Police: guests can talk to them, but the trip to the hut is decided on the host only. Check it in a real co-op game.
 - [ ] Tune: the quota and the pick lock's break chance.
@@ -161,7 +161,7 @@ Story (not started):
 - [ ] Buyer (Baxter): haggling over the price (for now he pays a fixed price for each item).
 - [ ] Buyer: sell radio parts for the second hut's link (see "Co-op: second hut").
 - [ ] Buyer: give him his own lines and a name, and have him come back on later nights with different moods.
-- [ ] Co-op: the crate is saved in the host's slot only; decide whether guards share one crate.
+- [x] Co-op: the guards share one crate (the host's).
 - [ ] Co-op: supervisor spot checks are single player only for now; decide how they work with several guards.
 - [ ] Spot checks (night 4 on): let the player stop him at the door with a dialog (stall him while someone hides the crate).
 - [ ] Play-test: walk out to the buyer and sell to him, and watch the crate slide under the desk (both panels and the spot check were tested with test switches, not played through).

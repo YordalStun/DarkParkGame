@@ -687,6 +687,18 @@ func _apply_args() -> void:
 			get_tree().create_timer(1.0).timeout.connect(story.events._check_car)
 		if _args.has("readnote"):
 			get_tree().create_timer(2.0).timeout.connect(story.events._read_note)
+	if _args.has("buyhost") and story.events:   # testing (co-op host): Baxter turns up, crate has things
+		SaveGame.set_stash(["guitar", "radio", "newsletter"])
+		world.booth.show_crate(SaveGame.stash())
+		get_tree().create_timer(25.0).timeout.connect(func(): story.events.baxter_outside(true, 300.0))
+		get_tree().create_timer(75.0).timeout.connect(func(): print("HOST CRATE ", SaveGame.stash(), " sold=", story.sales_tonight, " money=", story.money))
+	if _args.has("buyguest") and story.events:   # testing (co-op guest): walk up to Baxter and sell one thing
+		get_tree().create_timer(40.0).timeout.connect(func():
+			print("GUEST SEES BAXTER ", is_instance_valid(story.events.baxter), " crate=", SaveGame.stash())
+			story.roam._set_outside(true)
+			story._stash_ui.auto_sell = true
+			story.events._on_baxter())
+		get_tree().create_timer(75.0).timeout.connect(func(): print("GUEST CRATE ", SaveGame.stash()))
 	if _args.has("objtest") and story.events:   # testing: night three's task list, and the co-op feed
 		story.events.add_tasks()
 		hud.add_objective("shift", "Stay at your post until 07:00")

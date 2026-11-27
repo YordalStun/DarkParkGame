@@ -140,8 +140,11 @@ func crate(stash: Array, carrying: Array, hidden: bool, slots_free: int) -> Dict
 
 
 ## The buyer: tick what to sell from the crate. Returns the stash indices chosen.
+var auto_sell := false   ## testing: tick the first thing and sell it
+
+
 func sale(stash: Array, offer_k := 1.0) -> Array:
-	var v := _frame("THE BUYER")
+	var v := _frame("BAXTER")
 	_label("\"What've you got for me, then?\"   (from your storage crate)", 24, Color(0.85, 0.85, 0.8), v)
 	var ticks := []
 	var total_l := [null]   # (filled in below; the closure reads it from here)
@@ -197,6 +200,10 @@ func sale(stash: Array, offer_k := 1.0) -> Array:
 		picked[0] = out)
 	var no := _button("NOT TONIGHT", row)
 	no.pressed.connect(func(): picked[0] = [])
+	if auto_sell and not ticks.is_empty():
+		ticks[0][0].button_pressed = true
+		await get_tree().create_timer(1.0).timeout
+		sell.pressed.emit()
 	while picked[0] == null:
 		await get_tree().process_frame
 	_close()
