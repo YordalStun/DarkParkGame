@@ -120,6 +120,10 @@ const NightEvents := preload("res://scripts/story/night_events.gd")
 var events: Node              ## night three on: the alarm car, the police, Baxter, the Nite Stop, the tasks
 var spent_tonight := 0        ## coins spent during the night (the Nite Stop)
 var _in_call := false
+signal pc_added(station: Node)
+signal test_requested(id: String)   ## co-op: a guest pressed a testing-menu button (main.gd runs it)   ## another computer appeared (the second hut's); main.gd drives it like the booth's
+const ScreenShare := preload("res://scripts/net/screen_share.gd")
+var share: Node                  ## co-op: shows each PC's screen to everyone
 var hack: Node                ## the hospital side hustle (night three on)
 ## Selectable dialog (night three on). Shared state: in co-op it is the HOST's copy that counts.
 var dialog: Node
@@ -264,6 +268,12 @@ func setup(p_world, p_hud, p_inspect) -> void:
 	for l in _leavers:
 		if is_instance_valid(l) and l._model:
 			_hook_boot(l._model, "")
+	if Net.active():
+		share = ScreenShare.new()
+		share.name = "ScreenShare"
+		add_child(share)
+		share.setup(self)
+		share.add_pc(world.props, pc_owner)
 	if night >= 3:
 		events = NightEvents.new()
 		events.name = "NightEvents"
@@ -692,6 +702,12 @@ func pc_owner() -> int:
 
 ## Co-op: leaning in to the PC is only allowed when nobody else is using it.
 func _may_zoom(it) -> bool:
+	if events and events.hut_pc and it == events.hut_pc.crt_interact:
+		var ho: int = events.hut_pc_owner
+		if ho != 0 and ho != local_player_id:
+			hud.notify_local("%s is using the old PC. You can watch the screen; it's yours once they sit back." % Net.label(ho), 4.0)
+			return false
+		return true
 	if it != world.props.crt_interact:
 		return true
 	var o := pc_owner()
@@ -1780,6 +1796,8 @@ func remote_action(from: int, what: String, args: Array) -> void:
 	if events and events.remote_action(from, what, args):
 		return
 	match what:
+		"test":
+			test_requested.emit(str(args[0]))
 		"crate_set":   # a guest used the crate: it's the team's, so everyone gets the new contents
 			_crate_in(args[0], bool(args[1]))
 			crate_sync()

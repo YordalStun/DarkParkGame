@@ -99,7 +99,7 @@ Story (in progress, see docs/design/night-three-lore.md):
 - [x] MULTIPLAYER on the main menu. Co-op unlocks after night 2; players who haven't got there can host a new game that skips to night 3
 - [x] Lobby: host shows IP + port and the guards (P1-P4); only the host presses START; joining is lobby only
 - [ ] Every new night-three feature goes through one function that takes a player id (see the rules in coop-notes.md)
-- [ ] Co-op: spectator view of the PC for the guards who aren't using it (for now they are told who is on it)
+- [x] Co-op: everyone sees the PC's screen. Whoever is using a PC sends a small picture of it a few times a second (scripts/net/screen_share.gd); works for the booth's PC and the second hut's.
 - [ ] Co-op: more arrivals per extra guard (the risk meter already rises faster; numbers still to tune)
 - [ ] Co-op: guests' notepads are their own (dialog "note" effects only reach the host's)
 - [ ] Co-op: test over a real LAN / the internet (so far tested with two copies on one machine)
@@ -119,7 +119,8 @@ Story (in progress, see docs/design/night-three-lore.md):
 - [x] Night 3 reports: opening a boot doesn't report you on night 3; Dale rings and asks you to keep an eye out for stolen goods. The area supervisor's spot checks start on night 4.
 - [x] No ending. The game keeps going after night 3.
 - [x] Baxter in co-op: every guard sees him at the payphone and can walk up, talk and sell. The storage crate is the team's (kept in the host's save; anyone can put things in, hide it or sell from it).
-- [ ] The second hut's PC (see "Co-op: second hut").
+- [x] The second hut's PC: a second NightWin 95 computer that works on its own (its own windows, files and user; scripts/world/pc_station.gd). Walk in once the hut's open. No story use yet (see "Co-op: second hut" for the radio link plan).
+- [x] Testing menu works in co-op: a guest's buttons run on the host so everyone gets the same result. New NIGHT THREE ON buttons: unlock the second hut and its PC, car alarm, police, Baxter, fill the crate, free pick lock, and jump to night 4.
 - [ ] Police: guests can talk to them, but the trip to the hut is decided on the host only. Check it in a real co-op game.
 - [ ] Tune: the quota and the pick lock's break chance.
 

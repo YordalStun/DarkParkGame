@@ -18,6 +18,10 @@ const PICK_LOCK_COST := 2
 const PICK_BREAK_CHANCE := 0.3
 const HUT_POS := Vector3(15.6, G, -39.4)
 const HUT_BLOCK := Rect2(14.3, -40.6, 2.6, 2.4)
+## Once it's open you can walk in: just its walls (with the doorway) and the desk are in the way.
+const HUT_WALLS := [Rect2(14.3, -40.6, 2.6, 0.25), Rect2(14.3, -40.6, 0.25, 2.3), Rect2(16.65, -40.6, 0.25, 2.3),
+	Rect2(14.3, -38.45, 0.85, 0.2), Rect2(16.1, -38.45, 0.8, 0.2), Rect2(14.9, -40.45, 1.4, 0.7)]
+const PCStation := preload("res://scripts/world/pc_station.gd")
 const POLICE_PATH := [Vector3(-4.4, G, 6.0), Vector3(-4.4, G, -16.8), Vector3(17.0, G, -16.8), Vector3(17.0, G, -34.0),
 	Vector3(-6.0, G, -34.0), Vector3(-6.0, G, -16.8), Vector3(-4.4, G, -16.8), Vector3(-4.4, G, 6.0)]
 
@@ -573,6 +577,42 @@ func _have_lock() -> void:
 
 # ------------------------------------------------------------------ the second hut (co-op)
 var hut: Node3D
+var hut_pc: Node3D               ## pc_station.gd
+var hut_pc_owner := 0            ## who's using the hut's PC (co-op: one at a time, like the booth's)
+var _hut_lamp: OmniLight3D
+
+
+func _hut_pc_use(on: bool) -> void:
+	if story.guest:
+		Net.request("n3_hutpc", [on])
+	else:
+		set_hut_pc_owner(story.local_player_id if on else 0, story.local_player_id)
+
+
+## Host: whoever sat down at the hut's PC first has it until they sit back.
+func set_hut_pc_owner(id: int, who: int) -> void:
+	var before := hut_pc_owner
+	if id == 0:
+		if hut_pc_owner == who:
+			hut_pc_owner = 0
+	elif hut_pc_owner == 0:
+		hut_pc_owner = id
+	if hut_pc_owner != before:
+		Net.send("n3_hutpc_owner", [hut_pc_owner])
+
+
+## Testing (and the testing menu): the hut is unlocked straight away, with a pick lock in hand.
+func debug_unlock_hut() -> void:
+	if hut == null:
+		_build_hut()
+		Net.send("n3_hut_build")
+	SaveGame.add_upgrade("pick_lock")
+	_have_lock()
+	if not SaveGame.story("hut_open"):
+		SaveGame.set_story("hut_open")
+		_open_hut(true)
+		Net.send("n3_hut_open")
+	hud.notify("TEST: the second hut is open (back right of the lot). Its PC works on its own.", 6.0)
 var _hut_door: Node3D
 var _hut_it: Interactable
 
@@ -594,12 +634,27 @@ func _build_hut() -> void:
 	MK.box_from(hut, Vector3(-0.4, 2.0, 1.0), Vector3(0.45, 2.3, 1.1), wall)
 	MK.box(hut, Vector3(2.7, 0.08, 2.6), Vector3(0, 2.36, 0), roof, Vector3(-6, 0, 0))
 	MK.box(hut, Vector3(2.2, 0.05, 2.0), Vector3(0, 0.02, 0), wood)
-	# A dusty desk and an old PC, for later.
+	# A dusty desk and the old PC: a second NightWin 95 machine that works on its own.
 	MK.box(hut, Vector3(1.2, 0.05, 0.6), Vector3(0, 0.75, -0.65), wood)
 	MK.box(hut, Vector3(0.05, 0.73, 0.55), Vector3(-0.55, 0.37, -0.65), wood)
 	MK.box(hut, Vector3(0.05, 0.73, 0.55), Vector3(0.55, 0.37, -0.65), wood)
-	MK.box(hut, Vector3(0.38, 0.34, 0.36), Vector3(0, 0.95, -0.72), MK.mat(Color(0.75, 0.72, 0.62), "", 0.6))
-	MK.box(hut, Vector3(0.3, 0.22, 0.01), Vector3(0, 0.97, -0.535), MK.mat(Color(0.05, 0.06, 0.05), "", 0.2))
+	hut_pc = PCStation.new()
+	hut_pc.name = "HutPC"
+	hut_pc.shared_web = world.props.desktop.web
+	hut.add_child(hut_pc)
+	hut_pc.position = Vector3(0, 0.775, -0.82)
+	hut_pc.desktop.away_changed.connect(func(away: bool): _hut_pc_use(not away))
+	hut_pc.desktop.state_changed.connect(func(on: bool):
+		if not on:
+			_hut_pc_use(false))
+	_hut_lamp = OmniLight3D.new()
+	_hut_lamp.light_color = Color(1.0, 0.85, 0.6)
+	_hut_lamp.omni_range = 3.2
+	_hut_lamp.light_energy = 0.0
+	_hut_lamp.position = Vector3(0, 2.1, 0)
+	hut.add_child(_hut_lamp)
+	MK.box(hut, Vector3(0.08, 0.1, 0.08), Vector3(0, 2.22, 0), MK.emissive(Color(1.0, 0.85, 0.6), 1.5))
+	story.pc_added.emit(hut_pc)
 	# The door, hinged on its left, with a padlock.
 	_hut_door = Node3D.new()
 	hut.add_child(_hut_door)
@@ -614,6 +669,8 @@ func _build_hut() -> void:
 	_hut_it.activated.connect(_on_hut_door)
 	if story.roam:
 		story.roam.extra_blockers.append(HUT_BLOCK)
+	if story.share:
+		story.share.add_pc(hut_pc, func(): return hut_pc_owner)
 	if SaveGame.story("hut_open"):
 		_open_hut(false)
 
@@ -653,6 +710,12 @@ func hut_door(who: int) -> void:
 
 func _open_hut(animate: bool) -> void:
 	_hut_it.enabled = false
+	_hut_lamp.light_energy = 0.8
+	if story.roam:   # walk in: only the walls and the desk are in the way now
+		story.roam.extra_blockers.erase(HUT_BLOCK)
+		for r in HUT_WALLS:
+			if not story.roam.extra_blockers.has(r):
+				story.roam.extra_blockers.append(r)
 	if animate:
 		create_tween().tween_property(_hut_door, "rotation_degrees:y", -100.0, 1.2).set_trans(Tween.TRANS_SINE)
 	else:
@@ -688,9 +751,17 @@ func guest_event(what: String, a: Array) -> bool:
 		"n3_lock_broke":
 			SaveGame.remove_upgrade("pick_lock")
 			_shop_it.enabled = true
+		"n3_hut_build":
+			if hut == null:
+				_build_hut()
 		"n3_hut_open":
 			if hut:
 				_open_hut(true)
+		"n3_hutpc_owner":
+			hut_pc_owner = int(a[0])
+			if hut_pc_owner != 0 and hut_pc_owner != story.local_player_id and story.camera.focus == hut_pc.crt_interact:
+				story.camera.unzoom()
+				hud.notify_local("%s is using the old PC." % Net.label(hut_pc_owner), 4.0)
 		"n3_baxter":
 			_spawn_baxter(bool(a[0]))
 		"n3_baxter_gone":
@@ -719,6 +790,8 @@ func remote_action(from: int, what: String, _args: Array) -> bool:
 			task_done("t_hut")
 		"n3_baxter_talk":
 			baxter_talk(from)
+		"n3_hutpc":
+			set_hut_pc_owner(from if bool(_args[0]) else 0, from)
 		"n3_sale_picks":
 			story.sale_reply.emit(_args[0] if _args.size() > 0 else [])
 		_:

@@ -145,12 +145,10 @@ func _ready() -> void:
 		world.booth.chair_swivel = 0.0
 		world.booth.chair_follow("window" if f == world.booth.side_view else ("screen" if f == world.props.crt_interact else "desk")))
 	world.camera.footstep.connect(func(): world.ambience.play_at("footstep", world.camera.global_position - Vector3(0, 1.5, 0), -10.0 + randf_range(-2, 1), "Interior", 1.0))
-	var desk = world.props.desktop
-	desk.world = world
-	desk.refresh_hack_icon()   # NightLink, if MediCare was installed on an earlier night
-	desk.state_changed.connect(func(on): hud.set_hint("Esc to sit back" if on else "Right click to sit back", on))
-	desk.sound.connect(func(n, db): world.ambience.play_ui(n, db))
-	world.camera.focus_changed.connect(func(f): desk.set_away(f != world.props.crt_interact))
+	_register_pc(world.props)
+	story.pc_added.connect(_register_pc)
+	if story.events and story.events.hut_pc:   # built before we were listening (co-op: the hut is there from the start)
+		_register_pc(story.events.hut_pc)
 	world.camera.focus_changed.connect(func(f):
 		hud.set_look_left(f == null and world.camera.state == world.camera.State.SEATED)
 		hud.set_look_back(f == world.booth.side_view))
@@ -168,6 +166,7 @@ func _ready() -> void:
 	_apply_graphics()
 	Settings.graphics_changed.connect(_apply_graphics)
 	hud.test_action.connect(_on_test)
+	story.test_requested.connect(_on_test)   # co-op: a guest pressed a testing-menu button
 	await _warm_up()
 
 	# Loading screen away, then the scene and its sound fade in from black.
@@ -330,9 +329,43 @@ func _apply_graphics(key := "") -> void:
 
 
 # ------------------------------------------------------------------ testing menu
+## Testing-menu buttons that only change this machine (everything else runs on the host in co-op).
+const LOCAL_TESTS := ["readout", "flicker", "booth_a", "booth_b"]
+
+
 func _on_test(id: String) -> void:
 	var resume := true
+	# Co-op: the host runs the night, so a guest's button is done there and everyone sees the result.
+	if Net.active() and story.guest and not id in LOCAL_TESTS:
+		Net.request("test", [id])
+		hud.notify_local("TEST: asked the host to do that.", 2.5)
+		if hud.paused:
+			hud.set_paused(false)
+		return
+	if Net.active() and id in ["night_1", "night_2", "reset", "booth_a", "booth_b"]:
+		hud.notify_local("Co-op nights start at night three.", 3.0)
+		return
+	if id in ["hut", "alarm", "police", "baxter", "crate", "picklock"] and story.events == null:
+		hud.notify_local("That's from night three on. Jump to night 3 first.", 3.5)
+		return
 	match id:
+		"hut": story.events.debug_unlock_hut()
+		"alarm":
+			if story.events.alarm_car == null:
+				story.events.start_alarm()
+		"police": story.events.police_walk()
+		"baxter": story.events.baxter_outside(true, 300.0)
+		"crate":
+			SaveGame.set_stash(["guitar", "radio", "camera", "cigs", "newsletter"])
+			world.booth.show_crate(SaveGame.stash())
+			story.crate_sync()
+			hud.notify("TEST: the crate has a guitar, a radio, a camera bag and cigarettes in it.", 4.0)
+		"picklock":
+			SaveGame.add_upgrade("pick_lock")
+			SaveGame.set_story("pick_lock_night", 0)
+			story.events._have_lock()
+			Net.send("n3_lock")
+			hud.notify("TEST: you've got a pick lock (usable tonight).", 4.0)
 		"time_1": NightClock.set_time(1, 0)
 		"time_455": NightClock.set_time(4, 55)
 		"time_658": NightClock.set_time(6, 58)
@@ -353,8 +386,11 @@ func _on_test(id: String) -> void:
 		"w_storm": Weather.set_profile("storm", 4.0)
 		"w_fog": Weather.set_profile("fog", 4.0)
 		"w_flash": Weather.strike_lightning(1.0)
-		"night_1", "night_2", "night_3":   # jump straight to that night (keeps your coins, restarts the shift)
+		"night_1", "night_2", "night_3", "night_4":   # jump straight to that night (keeps your coins, restarts the shift)
 			story._save_progress(story.money, int(id.substr(6)))
+			if Net.active():   # everyone goes to that night
+				Net.ready_ids = {1: true}
+				Net.send("next_night", [story.money, int(id.substr(6))])
 			story._restart()
 		"booth_a", "booth_b":
 			story._save_progress(story.money, 1 if id == "booth_a" else 2)
@@ -405,9 +441,34 @@ func _process(_delta: float) -> void:
 			get_tree().quit()
 
 
+## Every computer the player can lean in to: the booth's (desk_props.gd) and, in co-op, the second
+## hut's (pc_station.gd). Both have crt_interact, desktop and screen_pixel().
+var pcs: Array = []
+
+
+func _register_pc(p: Node) -> void:
+	if pcs.has(p):
+		return
+	pcs.append(p)
+	var desk = p.desktop
+	desk.world = world
+	desk.refresh_hack_icon()   # NightLink, if MediCare was installed on an earlier night
+	desk.state_changed.connect(func(on): if _pc() == p: hud.set_hint("Esc to sit back" if on else "Right click to sit back", on))
+	desk.sound.connect(func(n, db): world.ambience.play_ui(n, db))
+	world.camera.focus_changed.connect(func(f): desk.set_away(f != p.crt_interact))
+
+
+## The computer the camera is leaned in to (or the booth's).
+func _pc() -> Node:
+	for p in pcs:
+		if is_instance_valid(p) and world.camera.focus == p.crt_interact:
+			return p
+	return world.props
+
+
 ## Higher render resolution and a hidden system cursor while the player is using the desktop.
 func _update_desktop_mode(win_size: Vector2) -> void:
-	var desk = world.props.desktop
+	var desk = _pc().desktop
 	var want: bool = _at_crt() and desk.is_on()
 	if want != _hires:
 		_hires = want
@@ -434,7 +495,7 @@ func _update_desktop_mode(win_size: Vector2) -> void:
 
 ## Leaned in to the CRT (not some other close-up view like the side window).
 func _at_crt() -> bool:
-	return world.camera.state == world.camera.State.ZOOMED and world.camera.focus == world.props.crt_interact
+	return world.camera.state == world.camera.State.ZOOMED and world.camera.focus == _pc().crt_interact
 
 
 func _pointer_ndc(pos: Vector2, win_size: Vector2) -> Vector2:
@@ -443,7 +504,7 @@ func _pointer_ndc(pos: Vector2, win_size: Vector2) -> Vector2:
 
 func _screen_px(win_size: Vector2, pos := Vector2(-1, -1)) -> Vector2:
 	var m := pos if pos.x >= 0.0 else get_tree().root.get_mouse_position()
-	return world.props.screen_pixel(world.camera, _pointer_ndc(m, win_size))
+	return _pc().screen_pixel(world.camera, _pointer_ndc(m, win_size))
 
 
 func _on_screen(px: Vector2) -> bool:
@@ -453,7 +514,7 @@ func _on_screen(px: Vector2) -> bool:
 ## Sends mouse and keyboard to the desktop while the player is leaned in to the screen.
 ## Returns true if the event was used.
 func _desktop_input(event: InputEvent) -> bool:
-	var desk = world.props.desktop
+	var desk = _pc().desktop
 	if not _at_crt():
 		_desk_drag = false
 		return false
@@ -699,6 +760,31 @@ func _apply_args() -> void:
 			story._stash_ui.auto_sell = true
 			story.events._on_baxter())
 		get_tree().create_timer(75.0).timeout.connect(func(): print("GUEST CRATE ", SaveGame.stash()))
+	if _args.has("hutdesk") and story.events:   # testing: open the hut, lean in to its PC and boot it
+		story.events.debug_unlock_hut()
+		get_tree().create_timer(1.0).timeout.connect(func():
+			world.camera.zoom_to(story.events.hut_pc.crt_interact)
+			story.events.hut_pc.desktop.power_on(true)
+			if str(_args.hutdesk) != "true":
+				get_tree().create_timer(3.0).timeout.connect(func(): story.events.hut_pc.desktop.open_app(str(_args.hutdesk))))
+	if _args.has("sharehost"):   # testing (co-op host): use the booth PC; later, check the hut PC's screen
+		get_tree().create_timer(20.0).timeout.connect(func():
+			world.camera.zoom_to(world.props.crt_interact)
+			world.props.desktop.power_on(true)
+			get_tree().create_timer(3.0).timeout.connect(func(): world.props.desktop.open_app("notepad")))
+		get_tree().create_timer(60.0).timeout.connect(func():
+			var hp = story.events.hut_pc if story.events else null
+			print("HOST pc_owner=", story.pc_owner(), " hut_owner=", story.events.hut_pc_owner if story.events else -1,
+				" hut_open=", SaveGame.story("hut_open"), " hut screen=", hp.crt_screen_mat.get_shader_parameter("screen").get_class() if hp else "none"))
+	if _args.has("shareguest"):   # testing (co-op guest): see the host's screen; open the hut from the test menu, use its PC
+		get_tree().create_timer(28.0).timeout.connect(func():
+			print("GUEST booth screen=", world.props.crt_screen_mat.get_shader_parameter("screen").get_class(), " owner=", story.pc_owner())
+			_on_test("hut"))
+		get_tree().create_timer(36.0).timeout.connect(func():
+			print("GUEST hut=", story.events.hut != null, " door_locked=", story.events._hut_it.enabled)
+			story.roam._set_outside(true)
+			world.camera.zoom_to(story.events.hut_pc.crt_interact)
+			story.events.hut_pc.desktop.power_on(true))
 	if _args.has("objtest") and story.events:   # testing: night three's task list, and the co-op feed
 		story.events.add_tasks()
 		hud.add_objective("shift", "Stay at your post until 07:00")

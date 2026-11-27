@@ -421,7 +421,8 @@ const TESTS := [
 	["END OF NIGHT", [["Go to clock-out", "clockout"], ["Get up and leave", "leave"], ["End screen", "report"]]],
 	["WEATHER", [["Clear", "w_clear"], ["Rain", "w_rain"], ["Storm", "w_storm"], ["Fog", "w_fog"], ["Lightning", "w_flash"]]],
 	["BOOTH", [["Night 1 look", "booth_a"], ["Night 2 look", "booth_b"], ["Light flicker", "flicker"], ["Barrier", "gate"]]],
-	["JUMP TO NIGHT", [["Night 1", "night_1"], ["Night 2", "night_2"], ["Night 3", "night_3"]]],
+	["JUMP TO NIGHT", [["Night 1", "night_1"], ["Night 2", "night_2"], ["Night 3", "night_3"], ["Night 4", "night_4"]]],
+	["NIGHT THREE ON", [["Unlock second hut + PC", "hut"], ["Car alarm", "alarm"], ["Police walk-round", "police"], ["Baxter at the payphone", "baxter"], ["Fill the crate", "crate"], ["Buy pick lock (free)", "picklock"]]],
 	["SAVE", [["+5 coins", "coins"], ["Reset to night 1", "reset"], ["Weather readout", "readout"]]],
 ]
 

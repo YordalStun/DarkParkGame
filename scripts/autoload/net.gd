@@ -25,10 +25,11 @@ signal begin(night: int, coins: int)       ## the host pressed START: load the n
 signal event(name: String, args: Array)    ## (client) something happened in the host's game
 signal request_in(from_id: int, name: String, args: Array)   ## (host) a client did something
 signal pose_in(from_id: int, xf: Transform3D, state: int)    ## where another guard is
+signal screen_in(from_id: int, which: int, data: PackedByteArray)   ## a picture of a PC screen someone's using
 
 const DEFAULT_PORT := 24680
 const MAX_PLAYERS := 4
-const PROTOCOL := 1     ## bump when the messages change, so old builds can't join new ones
+const PROTOCOL := 2     ## bump when the messages change, so old builds can't join new ones
 
 var players := {}       ## id -> {"guard": 0..3}; the host is always id 1, guard 0
 var in_game := false    ## the night has started (no more joining)
@@ -290,3 +291,15 @@ func send_pose(xf: Transform3D, state: int) -> void:
 @rpc("any_peer", "unreliable_ordered")
 func _pose(xf: Transform3D, state: int) -> void:
 	pose_in.emit(multiplayer.get_remote_sender_id(), xf, state)
+
+
+## A small picture of the PC screen this player is using (a few times a second, newest wins), so
+## everyone else's monitor shows it. `which`: 0 = the booth's PC, 1 = the second hut's.
+func send_screen(which: int, data: PackedByteArray) -> void:
+	if active() and players.size() > 1:
+		_screen.rpc(which, data)
+
+
+@rpc("any_peer", "reliable")   # small (about 5 KB), a few a second; reliable so big pictures aren't lost in pieces
+func _screen(which: int, data: PackedByteArray) -> void:
+	screen_in.emit(multiplayer.get_remote_sender_id(), which, data)
