@@ -92,3 +92,5 @@ hacking and stealing.
   by walking up to them.
 - **Pick lock: 2 coins.** It can break. In multiplayer, once one player buys it, both
   have it.
+- **Alarm car:** a random car sets off the alarm, not Baxter's. The note the player finds
+  there names Baxter as the dealer. Baxter's details are kept separate from the alarm car.
