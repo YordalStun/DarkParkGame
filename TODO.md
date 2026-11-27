@@ -2,8 +2,18 @@
 
 Running list for the game. Tick items off as they are done, and add new ones at the bottom of a section.
 
-## Now
+## Next up (in order)
 
+- [ ] 1. Plate view: make the number plate view smaller and only open it on a deliberate click (see the Bugs items under UI).
+- [ ] 2. Survival meters: heat, food and rent, each with a daily cost, shown on screen. Bank starts at 8 coins. End-of-night deduction. (docs/design/core-loop.md)
+- [ ] 3. Boot opening and reports: opening a boot raises reports. Dale's reactions at 5, 7 and 10 reports. Gives the boot wedge and stolen goods a purpose.
+- [ ] 4. Night three's people and dialog: write the night three people, their dialog and options, and the dog and printed-IP clues.
+
+Decisions needed before items 2 and 3:
+- [ ] Daily cost of heat, food and rent (in coins).
+- [ ] Risk value for each small and big hacking or stealing action.
+
+Story (not started):
 - [ ] Missions: define the first night shift mission and what the player does
 - [ ] Story: outline the main story beats for the night shift
 - [ ] Hook the story events into the existing `Weather`, `NightClock`, booth and lot hooks (see README "Hooks ready for the story")
