@@ -4,19 +4,46 @@ Running list for the game. Tick items off as they are done, and add new ones at 
 
 ## Next up (in order)
 
-- [ ] 1. Plate view: make the number plate view smaller and only open it on a deliberate click (see the Bugs items under UI).
-- [ ] 2. Survival meters: heat, food and rent, each with a daily cost, shown on screen. Bank starts at 8 coins. End-of-night deduction. (docs/design/core-loop.md)
-- [ ] 3. Boot opening and reports: opening a boot raises reports. Dale's reactions at 5, 7 and 10 reports. Gives the boot wedge and stolen goods a purpose.
-- [ ] 4. Night three's people and dialog: write the night three people, their dialog and options, and the dog and printed-IP clues.
+- [x] 1. Plate view: smaller, only opens on a deliberate click (v0.8.1).
+- [x] 2. Survival meters: heat, food and rent (rent 2, food 1, heat 1 a day), bank starts at 8 coins (v0.8.1).
+- [x] 3. Boot opening and reports: Dale's reactions at 5, 7 and 10 reports (v0.8.1).
+- [x] 4. Night three's people and dialog, the dog and printed-IP clues (v0.8.1 - v0.8.3).
+- [x] Decisions: daily bill costs, and risk values for boots (5-25 each) and hacking.
+- [ ] 5. Play test with a friend (co-op over the internet) using the checklist below, and write down what happened.
+- [ ] 6. Nights four and on: their own arrivals, calls and story beats (at the moment they reuse night three's).
 
-Decisions needed before items 2 and 3:
-- [ ] Daily cost of heat, food and rent (in coins).
-- [ ] Risk value for each small and big hacking or stealing action.
+### Play-test checklist (v0.8.4)
 
-Story (not started):
-- [ ] Missions: define the first night shift mission and what the player does
-- [ ] Story: outline the main story beats for the night shift
+Watch for these, and note anything that was confusing, boring or broken:
+- [ ] Joining over the internet (not the same machine): does the guest connect, does the night start for both, any lag?
+- [ ] Does the second guard always have something to do while the other is at the window?
+- [ ] Do you both understand the objectives in the top right without being told?
+- [ ] Do you notice the car alarm and go out? Do you find the note?
+- [ ] Does Baxter turn up after the note, and does the window option / payphone deal make sense?
+- [ ] Can the guest see Baxter and sell to him? Does the crate stay the same for both of you?
+- [ ] The police walk-round: does it feel tense? Did you talk to him?
+- [ ] The Nite Stop pick lock and the second hut: can you find both? Does breaking in the next night work?
+- [ ] The quota: is missing it on night three fair, or just annoying?
+- [ ] How long does a night feel? Where is it slow?
+- [ ] Any crashes, stuck moments, or things that don't match between your two screens?
+
+Story (in progress, see docs/design/night-three-lore.md):
+- [x] Night three's beats: Doris's newsletter, Kevin's dog, the alarm car, Baxter, the police.
+- [ ] Missions: the first big hit (what the hacking and the stealing are building towards)
+- [ ] Story: outline the main beats after night three (Baxter's arc, Kessler and the car in Row C)
 - [ ] Hook the story events into the existing `Weather`, `NightClock`, booth and lot hooks (see README "Hooks ready for the story")
+
+## Ideas to make it better (from v0.8.4; not committed)
+
+- [ ] A job for the second guard: they can watch the CCTV, keep a lookout and radio in when the police or the supervisor are coming, or work in the second hut, so they aren't waiting while the other is at the window.
+- [ ] Radios for co-op: a push-to-talk walkie-talkie between the booth and the lot (crackly, cuts out in heavy rain).
+- [ ] Tension cues: a heartbeat or a sting when the police get close to an open boot, the torch beam sweeping across the hut's window, and a warning if you're standing at an open boot when a car pulls in.
+- [ ] Owners come back: a car's owner sometimes walks back to their car mid-shift (for something they forgot) and finds the open boot.
+- [ ] Consequences you can see: the next night's Ashford Gazette on the desk reports last night's thefts, and Dale's call mentions what happened.
+- [ ] Haggling with Baxter, and Baxter's own arc (why he's ill, who he sells for).
+- [ ] Spread night three's new things out: a lot happens at once (tasks, the alarm, the police, Baxter, the shop). Maybe move some to night four.
+- [ ] Kessler and the car in Row C: a payoff for the creepy thread from nights one and two.
+- [ ] Quality of life: save and quit mid-night, mouse sensitivity and key rebinding, a list of the controls on the pause screen.
 
 ## Desktop and in-game PC
 
