@@ -202,6 +202,7 @@ Story (in progress, see docs/design/night-three-lore.md):
 
 ## Bugs
 
+- [ ] Bug: players can click through the booth to open the door when they are on the wrong side of it. The door should only be usable from the correct side (the booth's door interaction in `scripts/world/booth.gd`, and the leave-booth flow in `scripts/story/shift.gd`).
 - [x] Bug: the radio's aerial goes through the window sill. The radio sits against the front window (`scripts/world/desk_props.gd` `_build_radio`, position z -0.93), and the aerial passes through the sill board at about y 0.95. Fix by moving the radio back from the sill or leaning the aerial back
 
 ## Web and story hints
