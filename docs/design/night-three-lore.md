@@ -77,3 +77,18 @@ hacking and stealing.
 5. Buy the pick lock from the store. In multiplayer, the second hut is there from the
    start and the players are asked to look around it. They can't get in until they buy
    the pick lock, and then they can break in the next day.
+
+## Answers to the night three questions
+
+- **Dog owner: Kevin Platt.** Matches the existing spaniel clue ("Biscuit"). The password
+  clue for the hospital login is Biscuit, learned from Kevin at the window.
+- **Weird guy: Baxter (Tom Baxter).** Works in the hospital's non-clinical admin. His name
+  may be revealed more fully later.
+- **Dealer note:** the note found after the alarm car names Baxter as the "dealer".
+- **Name rotation:** night three uses a rotating pool of arrivals, not a fixed list. After
+  the player finds the dealer note, Baxter is the fifth car (the maybe-timing is still to
+  check). A dialog option to bring up the note is available as long as the player has it.
+- **Police:** they are in the world. They walk the lot with a torch and can be talked to
+  by walking up to them.
+- **Pick lock: 2 coins.** It can break. In multiplayer, once one player buys it, both
+  have it.

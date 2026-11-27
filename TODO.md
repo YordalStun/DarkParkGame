@@ -80,6 +80,12 @@ Story (not started):
 - [ ] Weird guy: scared on first talk. On the next talk, offer to sell him something, which opens the stolen-goods menu. Night 3 has nothing to sell.
 - [ ] Night 3 is about six cars and earns no money. The team loses on the first quota in multiplayer.
 - [ ] Store: buy the pick lock. In multiplayer, the second hut is visible from night 3 and players are asked to look round it. Can't get in until the pick lock is bought, then they can break in the next day.
+- [ ] Dog clue: Kevin Platt's spaniel, Biscuit, is the password clue (the existing sample dialog already has it).
+- [ ] Weird guy: Baxter (Tom Baxter), a non-clinical hospital admin. The dealer note names him.
+- [ ] Night 3 arrivals come from a rotating pool of names. After the dealer note is found, Baxter comes as the fifth car (check the timing).
+- [ ] Dialog option to bring up the dealer note with Baxter, available once the player has found it.
+- [ ] Police are in the world: walk up to them with a torch to talk.
+- [ ] Pick lock costs 2 coins and can break. In multiplayer, once one player buys it, both have it.
 - [ ] Night 3 reports are very unlikely. Stealing on night 3 only leads to Dale asking the player to keep an eye out for stolen goods.
 - [ ] No ending. The game keeps going after night 3.
 
