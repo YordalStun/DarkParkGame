@@ -94,3 +94,5 @@ hacking and stealing.
   have it.
 - **Alarm car:** a random car sets off the alarm, not Baxter's. The note the player finds
   there names Baxter as the dealer. Baxter's details are kept separate from the alarm car.
+- **Baxter's arrival:** Baxter comes in later in the night, after the player has found the
+  dealer note. That's when the player gets the dialog option to bring it up with him.

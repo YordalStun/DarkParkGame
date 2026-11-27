@@ -73,6 +73,7 @@ Story (not started):
 
 ## Night 3 objectives and set pieces (see docs/design/night-three-lore.md)
 
+- [ ] Players who aren't in a conversation get small subtitles under the objective showing what's going on (so they're not left out of dialog options).
 - [ ] From night 3 the top right objectives are required tasks that stay until done, not tutorial text.
 - [ ] Police walk through the lot with a torch after about the second or third car. They only walk through. The player can leave the chair and talk to them.
 - [ ] Later: if police walk near a car with an open boot, they come over to the booth and look inside. Covered storage box and no PC download is safe. Otherwise the player loses that night.
@@ -83,8 +84,8 @@ Story (not started):
 - [ ] Dog clue: Kevin Platt's spaniel, Biscuit, is the password clue (the existing sample dialog already has it).
 - [ ] Weird guy: Baxter (Tom Baxter), a non-clinical hospital admin. The dealer note names him.
 - [ ] Alarm car: a random car sets off the alarm (not Baxter's). The note found there names Baxter as the dealer.
-- [ ] Night 3 arrivals come from a rotating pool of names. After the dealer note is found, Baxter comes as the fifth car (check the timing).
-- [ ] Dialog option to bring up the dealer note with Baxter, available once the player has found it.
+- [ ] Night 3 arrivals come from a rotating pool of names. Baxter comes in later in the night, after the dealer note is found.
+- [ ] Baxter comes in later in the night, after the dealer note is found. Then the player gets the dialog option to bring it up.
 - [ ] Police are in the world: walk up to them with a torch to talk.
 - [ ] Pick lock costs 2 coins and can break. In multiplayer, once one player buys it, both have it.
 - [ ] Night 3 reports are very unlikely. Stealing on night 3 only leads to Dale asking the player to keep an eye out for stolen goods.
