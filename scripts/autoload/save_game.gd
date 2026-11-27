@@ -49,6 +49,11 @@ func peek(n: int) -> Dictionary:
 	var d := _blank()
 	for k in d:
 		d[k] = cfg.get_value("save", k, d[k])
+	# Everything else in the file too (the crate, story progress, tips seen...), not just the basics.
+	if cfg.has_section("save"):
+		for k in cfg.get_section_keys("save"):
+			if not d.has(k):
+				d[k] = cfg.get_value("save", k)
 	return d
 
 
@@ -160,6 +165,27 @@ func add_upgrade(id: String) -> void:
 	var u: Dictionary = data.get("upgrades", {})
 	u[id] = true
 	data["upgrades"] = u
+
+
+func remove_upgrade(id: String) -> void:
+	var u: Dictionary = data.get("upgrades", {})
+	u.erase(id)
+	data["upgrades"] = u
+	if slot != 0:
+		_write()
+
+
+## Story progress kept between nights (the dealer note, Baxter's deal, the second hut...).
+func story(key: String, default = false):
+	return (data.get("story", {}) as Dictionary).get(key, default)
+
+
+func set_story(key: String, value = true) -> void:
+	var st: Dictionary = data.get("story", {})
+	st[key] = value
+	data["story"] = st
+	if slot != 0:
+		_write()
 
 
 func meters() -> Dictionary:

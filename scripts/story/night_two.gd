@@ -10,7 +10,7 @@ const DATE_SHORT := "SAT 14 OCT 1989"
 ## The printed list: now with each person's registered car.
 const LIST := [
 	{"name": "ADEYEMI, Michael", "staff_no": "40388", "dept": "Porter", "reg": "C771 PFM"},
-	{"name": "BAXTER, Tom", "staff_no": "40562", "dept": "Theatre Technician", "reg": "A456 GNB"},
+	{"name": "BAXTER, Tom", "staff_no": "40562", "dept": "Medical Records (Admin)", "reg": "A456 GNB"},
 	{"name": "DOYLE, Mick", "staff_no": "40391", "dept": "Porter", "reg": "D501 NKA"},
 	{"name": "LOWE, Janet", "staff_no": "40115", "dept": "Pharmacy", "reg": "D310 YXE"},
 	{"name": "MARSH, Dr Helen", "staff_no": "31105", "dept": "Registrar - A&E", "reg": "F23 HLM"},

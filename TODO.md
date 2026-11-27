@@ -73,23 +73,22 @@ Story (not started):
 
 ## Night 3 objectives and set pieces (see docs/design/night-three-lore.md)
 
-- [ ] Players who aren't in a conversation get small subtitles under the objective showing what's going on (so they're not left out of dialog options).
-- [ ] From night 3 the top right objectives are required tasks that stay until done, not tutorial text.
-- [ ] Police walk through the lot with a torch after about the second or third car. They only walk through. The player can leave the chair and talk to them.
-- [ ] Later: if police walk near a car with an open boot, they come over to the booth and look inside. Covered storage box and no PC download is safe. Otherwise the player loses that night.
-- [ ] Alarm car on night 3: lights going mad, nothing wrong. A note says "dealer" and a name (the weird guy, a hospital non-clinical admin).
-- [ ] Weird guy: scared on first talk. On the next talk, offer to sell him something, which opens the stolen-goods menu. Night 3 has nothing to sell.
-- [ ] Night 3 is about six cars and earns no money. The team loses on the first quota in multiplayer.
-- [ ] Store: buy the pick lock. In multiplayer, the second hut is visible from night 3 and players are asked to look round it. Can't get in until the pick lock is bought, then they can break in the next day.
-- [ ] Dog clue: Kevin Platt's spaniel, Biscuit, is the password clue (the existing sample dialog already has it).
-- [ ] Weird guy: Baxter (Tom Baxter), a non-clinical hospital admin. The dealer note names him.
-- [ ] Alarm car: a random car sets off the alarm (not Baxter's). The note found there names Baxter as the dealer.
-- [ ] Night 3 arrivals come from a rotating pool of names. Baxter comes in later in the night, after the dealer note is found.
-- [ ] Baxter comes in later in the night, after the dealer note is found. Then the player gets the dialog option to bring it up.
-- [ ] Police are in the world: walk up to them with a torch to talk.
-- [ ] Pick lock costs 2 coins and can break. In multiplayer, once one player buys it, both have it.
-- [ ] Night 3 reports are very unlikely. Stealing on night 3 only leads to Dale asking the player to keep an eye out for stolen goods.
-- [ ] No ending. The game keeps going after night 3.
+- [x] Players who aren't in a conversation get small subtitles under the objectives showing what's going on, including the options being chosen (co-op).
+- [x] From night 3 the top right objectives are required tasks that stay until done (saved; they come back each night until ticked): inspect IDs and plates (3 cars), take the call that adds someone to the list, get the printed sheet, find out why the car alarm went off, buy a pick lock, and in co-op look round the second hut.
+- [x] Police walk through the lot with a torch after the second or third car. They only walk through. Walk up to them to talk.
+- [x] From night 4: if the police pass a car with its boot open, they come to the hut and look inside. A hidden crate (or no stolen goods) and no PC download running is safe. Otherwise the night is lost and starts again.
+- [x] Alarm car: a random parked car goes off (hazards, wig-wagging headlamps, horn). Checking it finds nothing, but a note by the driver's door says "DEALER" and names Baxter.
+- [x] Baxter (Tom Baxter, Medical Records, clearly unwell) comes in later, about the fifth car, once the note's been found. At the window you can bring the note up: he's scared and says meet him at the payphone. Out there you can offer to sell him things (the stolen-goods menu). From then on he's the buyer at the payphone on later nights. (The anonymous "man by the payphone" is gone.)
+- [x] Night 3 is about six cars from a rotating pool: Kevin always (Biscuit), Doris after the ward rings to add her, and four of Sandra, Michael, Dr Marsh, Janet and Mick.
+- [x] Night 3 earns no money (payroll's frozen). Co-op: the team has a nightly quota (4 coins, +2 every 3 nights) from what the night brought in, so night 3 is lost unless they sell stolen goods. Missing it replays the night.
+- [x] Pick lock: 2 coins at the Nite Stop door, in the car park. It can break (30% each try). In co-op one purchase is the team's.
+- [x] Co-op: the old second hut at the back of the lot from night 3, padlocked. With a pick lock bought on an earlier night you can break in (inside: a dusty desk and an old PC, not working yet).
+- [x] Night 3 reports: opening a boot doesn't report you on night 3; Dale rings and asks you to keep an eye out for stolen goods. The area supervisor's spot checks start on night 4.
+- [x] No ending. The game keeps going after night 3.
+- [ ] Baxter in co-op: he's only spawned on the host (guests can't see him or sell to him yet).
+- [ ] The second hut's PC (see "Co-op: second hut").
+- [ ] Police: guests can talk to them, but the trip to the hut is decided on the host only. Check it in a real co-op game.
+- [ ] Tune: the quota and the pick lock's break chance.
 
 ## Core loop: staying alive (see docs/design/core-loop.md)
 
@@ -159,13 +158,12 @@ Story (not started):
 - [x] Storage crate in the hut (10 slots, kept between nights, holds story items too, can be hidden under the desk).
 - [x] The man by the payphone turns up in person some time in the night; talk to him and pick what to sell from the crate.
 - [x] Area supervisor spot checks: a van warning, then if the crate is out (or you're carrying stolen goods) he takes it all, reports you twice and adds risk.
-- [ ] Buyer: haggling over the price (for now he offers a fixed share of each item's value).
+- [ ] Buyer (Baxter): haggling over the price (for now he pays a fixed price for each item).
 - [ ] Buyer: sell radio parts for the second hut's link (see "Co-op: second hut").
 - [ ] Buyer: give him his own lines and a name, and have him come back on later nights with different moods.
-- [ ] Co-op: the buyer is only spawned on the host; guests need to see him and be able to sell to him too.
 - [ ] Co-op: the crate is saved in the host's slot only; decide whether guards share one crate.
 - [ ] Co-op: supervisor spot checks are single player only for now; decide how they work with several guards.
-- [ ] Spot checks: let the player stop him at the door with a dialog (stall him while someone hides the crate).
+- [ ] Spot checks (night 4 on): let the player stop him at the door with a dialog (stall him while someone hides the crate).
 - [ ] Play-test: walk out to the buyer and sell to him, and watch the crate slide under the desk (both panels and the spot check were tested with test switches, not played through).
 
 ## Bugs

@@ -55,6 +55,7 @@ var in_chair := false     ## this guard is sitting in the desk chair
 var _want_chair := false  ## co-op guest: asked the host for the chair, waiting for the answer
 var _torch: SpotLight3D
 var _in_bounds: Rect2
+var extra_blockers: Array = []   ## more Rect2s in the way outside (the second hut, in co-op)
 var _in_blockers: Array
 
 
@@ -236,7 +237,7 @@ func _process(_delta: float) -> void:
 func _lot_free(p: Vector2) -> bool:
 	if not LOT.grow(-BODY_R).has_point(p):
 		return false
-	for r in LOT_BLOCKERS:
+	for r in LOT_BLOCKERS + extra_blockers:
 		if (r as Rect2).grow(BODY_R).has_point(p):
 			return false
 	for c in _cars():

@@ -647,6 +647,8 @@ func _apply_args() -> void:
 		world.camera.state = world.camera.State.MOVING
 		world.camera.position = Vector3(float(c[0]), float(c[1]), float(c[2]))
 		world.camera.rotation_degrees = Vector3(float(c[4]), float(c[3]), 0)
+		if _args.has("out") and story.roam:   # standing in the car park, torch on
+			story.roam._set_outside(true)
 	# Health line in the log every 15 s (or --perflog=N). The log is user://logs/godot.log;
 	# on Windows: %APPDATA%\Godot\app_userdata\Dark Park\logs\godot.log
 	_perf_log()
@@ -679,6 +681,25 @@ func _apply_args() -> void:
 		story.carrying = ["camera"]
 		world.booth.show_crate(SaveGame.stash())
 		get_tree().create_timer(1.0).timeout.connect(story._open_crate)
+	if _args.has("alarmtest") and story.events:   # testing: a lot car's alarm (--alarmtest=N picks the car)
+		story.events._alarm_go(int(_args.alarmtest) if str(_args.alarmtest).is_valid_int() else 1)
+		if _args.has("alarmoff"):
+			get_tree().create_timer(1.0).timeout.connect(story.events._check_car)
+		if _args.has("readnote"):
+			get_tree().create_timer(2.0).timeout.connect(story.events._read_note)
+	if _args.has("objtest") and story.events:   # testing: night three's task list, and the co-op feed
+		story.events.add_tasks()
+		hud.add_objective("shift", "Stay at your post until 07:00")
+		hud.complete_objective("t_calls")
+		hud.overhearing = true
+		hud.say("Kevin", "Dog had me up at five. Biscuit. Spaniel. Daft as a brush.")
+		hud.show_choices([{"text": "Biscuit. Good name."}, {"text": "Bet he's the password to everything."}], 8.0, false, "P2")
+	if _args.has("policetest") and story.events:   # testing: the police walk-round
+		story.events.police_walk()
+	if _args.has("baxtertest") and story.events:   # testing: Baxter by the payphone
+		story.events.baxter_outside(_args.has("deal"))
+	if _args.has("hut") and story.events and story.events.hut == null:   # testing: the co-op hut
+		story.events._build_hut()
 	if _args.has("inspecttest"):   # testing: the supervisor drops in with the crate out
 		SaveGame.set_stash(["guitar", "newsletter"])
 		world.booth.show_crate(SaveGame.stash())

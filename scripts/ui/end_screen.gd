@@ -27,7 +27,7 @@ const BILLS := [
 var _meters := {}       ## tonight's meters before the bills (empty = co-op: no meters)
 var _status := {}       ## reports, risk
 var _pips: Array = []   ## Label per bill showing the meter after tonight
-var lost_reason := ""   ## "EVICTED" / "STARVING" / "TOO COLD" / "FIRED" / "CAUGHT" (game over), or ""
+var lost_reason := ""   ## "EVICTED" / "STARVING" / "TOO COLD" / "FIRED" / "CAUGHT" / "QUOTA MISSED" (co-op), or ""
 const BAR_MAX := 16.0
 ## Upgrades you can buy here: [id, name, cost, what it does]. Shown until owned.
 const UPGRADES := [
@@ -94,7 +94,7 @@ func _ready() -> void:
 func show_night(ev: Dictionary, night_title: String, date_text: String, note: String) -> void:
 	_start = ev.start
 	_meters = ev.get("meters", {})
-	_status = {"reports": ev.get("reports", 0), "risk": ev.get("risk", 0)}
+	_status = {"reports": ev.get("reports", 0), "risk": ev.get("risk", 0), "quota": ev.get("quota", [])}
 	_wages = ev.earned + ev.bonus
 	_black.visible = true
 	var tw := create_tween()
@@ -402,6 +402,10 @@ func _recalc() -> void:
 			lost = "FIRED"
 		elif int(_status.get("risk", 0)) >= 100:
 			lost = "CAUGHT"
+	# Co-op: the team's nightly quota (what tonight brought in, not savings).
+	var q: Array = _status.get("quota", [])
+	if q.size() == 2 and int(q[1]) < int(q[0]):
+		lost = "QUOTA MISSED"
 	# Broke: even paying nothing at all, you're in the red.
 	lost_reason = lost
 	_broke = _start + _wages < 0 or lost != ""
@@ -412,7 +416,8 @@ func _recalc() -> void:
 			"STARVING": "Three nights without food. You can't go on like this.",
 			"TOO COLD": "Three nights without heat. You're too ill to work.",
 			"FIRED": "Ten complaints. Dale's seen the footage. You're fired.",
-			"CAUGHT": "The police were waiting when you got home."}
+			"CAUGHT": "The police were waiting when you got home.",
+			"QUOTA MISSED": "The team needed %s coins tonight and brought in %s. The night starts again." % (q if q.size() == 2 else ["?", "?"])}
 		_warn.text = why.get(lost, "")
 		_next_btn.text = "START AGAIN"
 		_next_btn.disabled = false

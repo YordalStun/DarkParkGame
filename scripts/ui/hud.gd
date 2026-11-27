@@ -222,6 +222,8 @@ func toggle_debug() -> void:
 
 
 func _process(_delta: float) -> void:
+	if _feed != null and _feed.visible:
+		_refresh_feed()
 	if _fps and _fps.visible:
 		_fps.text = "%d FPS" % Engine.get_frames_per_second()
 	if _debug.visible:
@@ -500,6 +502,12 @@ func say(speaker: String, text: String, seconds := -1.0, click_through := false)
 	if Net.active():
 		click_through = false   # co-op: nobody waits for one player's click
 	_relay("say", [speaker, text, seconds, click_through])
+	if overhearing:   # co-op: someone else's conversation goes in the small feed under the objectives
+		overheard(speaker, text)
+		if seconds < 0.0:
+			seconds = clampf(1.6 + text.length() * 0.075, 3.0, 9.0)
+		await _sleep(seconds)
+		return
 	if seconds < 0.0:
 		seconds = clampf(1.6 + text.length() * 0.075, 3.0, 9.0)
 	if click_through:
@@ -871,6 +879,61 @@ func _refresh_objectives() -> void:
 	_obj_box.visible = not _objectives.is_empty()
 
 
+## Co-op: while another guard is in a conversation, its lines go in a small feed under the objectives
+## (so the others can follow it, and see the options, without the big subtitles in their way).
+var overhearing := false
+var _feed: RichTextLabel
+var _feed_lines: Array = []   ## [text, time shown]
+
+
+func overheard(speaker: String, text: String, col := Color(0.91, 0.75, 0.44)) -> void:
+	if _feed == null:
+		_feed = RichTextLabel.new()
+		_feed.bbcode_enabled = true
+		_feed.fit_content = true
+		_feed.scroll_active = false
+		_feed.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_feed.add_theme_font_override("normal_font", _font)
+		_feed.add_theme_font_override("italics_font", _font)
+		_feed.add_theme_font_size_override("normal_font_size", 17)
+		_feed.add_theme_font_size_override("italics_font_size", 17)
+		var fb := StyleBoxFlat.new()
+		fb.bg_color = Color(0, 0, 0, 0.55)
+		fb.content_margin_left = 10
+		fb.content_margin_right = 10
+		fb.content_margin_top = 5
+		fb.content_margin_bottom = 6
+		fb.set_corner_radius_all(3)
+		_feed.add_theme_stylebox_override("normal", fb)
+		_feed.add_theme_color_override("default_color", Color(0.85, 0.85, 0.8))
+		_feed.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.9))
+		_feed.add_theme_constant_override("shadow_offset_x", 1)
+		_feed.add_theme_constant_override("shadow_offset_y", 1)
+		_feed.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
+		_feed.offset_left = -316
+		_feed.offset_right = -16
+		add_child(_feed)
+	var t := ("[color=#%s]%s:[/color] %s" % [col.to_html(false), speaker.to_upper(), text]) if speaker != "" else "[color=#a0a090]%s[/color]" % text
+	_feed_lines.append([t, Time.get_ticks_msec()])
+	while _feed_lines.size() > 4:
+		_feed_lines.pop_front()
+	_refresh_feed()
+
+
+func _refresh_feed() -> void:
+	if _feed == null:
+		return
+	var now := Time.get_ticks_msec()
+	_feed_lines = _feed_lines.filter(func(l): return now - int(l[1]) < 12000)
+	var out := []
+	for l in _feed_lines:
+		out.append(l[0])
+	_feed.text = "\n".join(out)
+	_feed.visible = not out.is_empty()
+	_feed.offset_top = _obj_box.offset_top + (_obj_box.size.y + 6.0 if _obj_box.visible else 0.0)
+	_feed.offset_bottom = _feed.offset_top + 220.0
+
+
 ## Standing up: a dot in the middle of the view to aim with.
 func set_crosshair(on: bool) -> void:
 	if _cross == null:
@@ -956,6 +1019,12 @@ func _build_choices() -> void:
 ## Show the numbered options under the speaker. `entries` = [{text, safe, ...}] from the dialog runner.
 ## `can_answer` is false for players who are only watching someone else answer.
 func show_choices(entries: Array, seconds: float, can_answer: bool, owner_label: String) -> void:
+	if overhearing and not can_answer:
+		var opts := []
+		for i in entries.size():
+			opts.append("%d %s" % [i + 1, entries[i].text])
+		overheard("", "%s is choosing:  %s" % [owner_label, "   ".join(opts)])
+		return
 	_choice_open = true
 	_choice_can_answer = can_answer
 	_choice_count = entries.size()
@@ -1011,6 +1080,9 @@ func _input(event: InputEvent) -> void:
 
 ## What the player said. If the timer ran out and the safe option was picked for them, say so.
 func say_player(label: String, text: String, auto: bool) -> void:
+	if overhearing:
+		overheard(label, text + ("  (timed out)" if auto else ""), Color(0.5, 0.78, 1.0))
+		return
 	var t := "[color=#7fc8ff]%s:[/color]  %s" % [label, text]
 	if auto:
 		t += "\n[color=#ff9060][i]No answer - the safe option was chosen for you.[/i][/color]"

@@ -68,6 +68,8 @@ var front_plate_z := 2.25
 var rear_plate_z := -2.25
 var plate_y := 0.44
 var head_points: Array[Vector3] = []   ## where the headlamps are (for spot lights)
+var amber_mat: StandardMaterial3D    ## the indicator lenses (the alarm flashes them)
+var rear_point := Vector3.ZERO       ## the middle of the back of the car, at lamp height
 var seat := Vector3(-0.37, 0.0, -0.22)  ## driver's hip, right-hand drive (local -X)
 var window_hole := Vector2(-0.42, 0.62) ## z range of the front door glass
 var half_width := 0.86
@@ -492,8 +494,10 @@ func _lights() -> void:
 	var r: float = S.r
 	var w: float = S.w
 	var ly: float = S.get("lamp_y", minf(_top(f - 0.1) - 0.1, 0.66))
-	var amber := MK.emissive(Color(1.0, 0.55, 0.1), 0.2, Color(0.6, 0.35, 0.05))
+	amber_mat = MK.emissive(Color(1.0, 0.55, 0.1), 0.2, Color(0.6, 0.35, 0.05))
+	var amber := amber_mat
 	head_points.clear()
+	rear_point = Vector3(0, minf(_top(r + 0.05) - 0.12, S.belt - 0.18), r)
 	for sgn in [-1.0, 1.0]:
 		var lx: float = sgn * w * 0.58
 		match S.lamps:

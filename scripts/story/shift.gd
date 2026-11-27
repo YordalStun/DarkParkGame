@@ -22,7 +22,7 @@ const DATE_TEXT := "Friday 13th October 1989  -  23:00 to 07:00"
 ## Alphabetical, like a real rota, so it never hints at who turns up when.
 const LIST := [
 	{"name": "ADEYEMI, Michael", "staff_no": "40388", "dept": "Porter"},
-	{"name": "BAXTER, Tom", "staff_no": "40562", "dept": "Theatre Technician"},
+	{"name": "BAXTER, Tom", "staff_no": "40562", "dept": "Medical Records (Admin)"},
 	{"name": "DOYLE, Mick", "staff_no": "40391", "dept": "Porter"},
 	{"name": "LOWE, Janet", "staff_no": "40115", "dept": "Pharmacy"},
 	{"name": "MARSH, Dr Helen", "staff_no": "31105", "dept": "Registrar - A&E"},
@@ -53,7 +53,7 @@ const ARRIVALS := [
 		"admit": true, "delay": 30.0,
 		"greet": ["Hello again. Marsh, A&E. Sorry, I'm in a terrible hurry. Again."],
 		"ok": "Thank you.", "drive": "Thanks. Stay dry.", "refused": "I'm the on-call registrar. If someone dies tonight it's on you."},
-	{"name": "Tom Baxter", "role": "Theatre Technician", "dept": "Main Theatres", "staff_no": "40562", "expires": "30 / 09 / 1989",
+	{"name": "Tom Baxter", "role": "Records Clerk", "dept": "Medical Records", "staff_no": "40562", "expires": "30 / 09 / 1989",
 		"reg": "A456 GNB", "paint": Color(0.33, 0.22, 0.12), "style": "coupe", "skin": Color(0.85, 0.65, 0.52), "hair": Color(0.45, 0.42, 0.4),
 		"shirt": Color(0.15, 0.4, 0.35), "admit": false, "delay": 34.0,
 		"why": "His ID card had expired (30 / 09 / 1989), and tonight is 13th October.",
@@ -116,6 +116,10 @@ const Hack := preload("res://scripts/story/hack.gd")
 const Samples := preload("res://scripts/story/dialogs/samples.gd")
 const Doris := preload("res://scripts/story/dialogs/doris.gd")
 const NightThree := preload("res://scripts/story/dialogs/night_three.gd")
+const NightEvents := preload("res://scripts/story/night_events.gd")
+var events: Node              ## night three on: the alarm car, the police, Baxter, the Nite Stop, the tasks
+var spent_tonight := 0        ## coins spent during the night (the Nite Stop)
+var _in_call := false
 var hack: Node                ## the hospital side hustle (night three on)
 ## Selectable dialog (night three on). Shared state: in co-op it is the HOST's copy that counts.
 var dialog: Node
@@ -173,9 +177,8 @@ func setup(p_world, p_hud, p_inspect) -> void:
 	if night >= 3:   # Doris Fenn, Ward 7's clerk, who hands over the staff newsletter (the hospital's address)
 		var d: Dictionary = Doris.ARRIVAL.duplicate(true)
 		d["convo"] = Doris.window()
+		d["after_call"] = true   # the ward rings to add her to the list
 		arrivals.append(d)
-		list_now.append(Doris.LIST.duplicate())
-		list_now.sort_custom(func(a, b): return str(a.name) < str(b.name))
 		world.props.newsletter_interact.activated.connect(_read_newsletter)
 	log_list = list_now.duplicate(true)
 	for i in arrivals.size():
@@ -240,7 +243,7 @@ func setup(p_world, p_hud, p_inspect) -> void:
 			continue
 		(after if p.get("after_call", false) else before).append(p)
 	before.shuffle()
-	if night == 2:   # the ward rings with changes on night two only
+	if night >= 2:   # the ward rings with a change to the list (night two: Kevin; night three on: Doris)
 		var first := before.slice(0, 2)
 		var rest: Array = before.slice(2) + after
 		rest.shuffle()
@@ -261,6 +264,11 @@ func setup(p_world, p_hud, p_inspect) -> void:
 	for l in _leavers:
 		if is_instance_valid(l) and l._model:
 			_hook_boot(l._model, "")
+	if night >= 3:
+		events = NightEvents.new()
+		events.name = "NightEvents"
+		add_child(events)
+		events.setup(self)
 
 
 func _bay_pos(i: int, nose_out := false) -> Vector3:
@@ -345,7 +353,10 @@ func start() -> void:
 	var opening: Array = NightThree.dale_call() if night >= 3 else (NightTwo.dale_call() if night >= 2 else _dale_call())
 	await _phone_call(opening + _dale_reports_lines())
 	hud.complete_objective("phone")
-	if night >= 2:
+	if night >= 3:   # night three on: required tasks that stay until they're done
+		events.add_tasks()
+		hud.add_objective("shift", "Stay at your post until 07:00")
+	elif night >= 2:
 		hud.add_objective("ids", "Check each ID against tonight's list")
 		hud.add_objective("plate", "Their plate must match the car on the list (click the car to read it)")
 		hud.add_objective("log", "Log the plate of every car you let in")
@@ -357,7 +368,6 @@ func start() -> void:
 		hud.add_objective("log", "Log the plate of every car you let in")
 		hud.add_objective("shift", "Stay at your post until 07:00")
 	if night >= 3:
-		hud.add_objective("hack", "Side hustle: find the hospital's address on the PC and get in")
 		_watch_hack()
 	_watch_wet()
 	await _wait(2.0)
@@ -365,8 +375,28 @@ func start() -> void:
 	_run_leavers()
 	_run_buyer()
 	_run_inspection()
-	for i in _order.size():
+	var police_after := randi_range(2, 3)   # night three on: the police walk-round, after the 2nd or 3rd car
+	var baxter_queued: bool = not (night >= 3 and not SaveGame.story("baxter_met"))
+	var i := -1
+	while i + 1 < _order.size():
+		i += 1
 		var p: Dictionary = _order[i]
+		if night >= 3 and i > 0 and not p.get("ward_call", false):
+			var cars_done := 0
+			for o in _order.slice(0, i):
+				if not o.get("ward_call", false):
+					cars_done += 1
+			if cars_done == 2 and not SaveGame.story("dealer_note") and events.alarm_car == null:
+				events.start_alarm()
+			if cars_done == police_after and events.police == null:
+				events.police_walk()
+		# Baxter comes in later, once the dealer note's been found: about the fifth car, never the last.
+		if not baxter_queued and flags.get("dealer_note", false) and not p.get("ghost", false):
+			baxter_queued = true
+			var bx: Dictionary = NightThree.baxter(ARRIVALS)
+			bx["idx"] = arrivals.size()
+			arrivals.append(bx)
+			_order.insert(maxi(i + 1, 5), bx)
 		if p.get("ward_call", false):
 			await _wait(randf_range(12.0, 20.0))
 			await _ward_call()
@@ -386,7 +416,6 @@ func start() -> void:
 func _watch_hack() -> void:
 	while not _shift_done:
 		if hack and hack.state.logged_in:
-			hud.complete_objective("hack")
 			return
 		await _wait(1.0)
 
@@ -418,7 +447,11 @@ func debug_car(style: String) -> void:
 func debug_dialog(which: String) -> void:
 	started = true
 	var S := load("res://scripts/story/dialogs/samples.gd")
-	var tree: Dictionary = S.call(which)
+	if which.begins_with("n3_"):   # night three's (e.g. --dialog=n3_tom; the dealer note counts as found)
+		S = NightThree
+		which = which.substr(3)
+		flags["dealer_note"] = true
+	var tree: Dictionary = S.call(which) if which != "baxter_payphone" else NightThree.baxter_payphone(true)
 	var res := await talk(tree)
 	print("DIALOG RESULT ", res)
 
@@ -456,10 +489,12 @@ func _ward_call() -> void:
 	var notes_before_call := notes
 	_notes_opened_since_call = false
 	hud.add_objective("ward", "Answer the phone: the ward is ringing")
-	await _phone_call(NightTwo.ward_call())
+	await _phone_call(NightThree.ward_call() if night >= 3 else NightTwo.ward_call())
 	hud.complete_objective("ward")
+	if events:
+		events.task_done("t_calls")
 	_call_done = true
-	log_list.append(NightTwo.ADDED.duplicate())   # GateLog can log the new porter
+	log_list.append((NightThree.ADDED if night >= 3 else NightTwo.ADDED).duplicate())   # GateLog can log them
 	Net.send("log_list", [log_list])
 	list_changed.emit()
 	hud.add_objective("notes", "Write down the changes: press N for your notepad")
@@ -714,7 +749,13 @@ func talk(tree: Dictionary, owner_id := -1) -> Dictionary:
 		owner_id = local_player_id
 	var t := tree.duplicate()
 	t["player"] = _player_label(owner_id)
-	return await dialog.run(t, owner_id)
+	# Co-op: everyone who isn't in this conversation follows it in the small feed under the objectives.
+	Net.send("talker", [owner_id])
+	hud.overhearing = Net.active() and owner_id != local_player_id
+	var r: Dictionary = await dialog.run(t, owner_id)
+	Net.send("talker", [0])
+	hud.overhearing = false
+	return r
 
 
 func _dialog_say(speaker: String, text: String, auto: bool, is_player: bool) -> void:
@@ -888,6 +929,9 @@ func _dale_call() -> Array:
 
 
 func _phone_call(lines: Array) -> void:
+	while _in_call:   # one call at a time
+		await _wait(1.0)
+	_in_call = true
 	_phone_ringing = true
 	_phone_answered = false
 	_ring.play()
@@ -908,6 +952,7 @@ func _phone_call(lines: Array) -> void:
 			await hud.say(l[0], l[1], -1.0, true)
 	world.ambience.play_ui("handset", -8.0)
 	_lift_handset(false)
+	_in_call = false
 
 
 func _on_phone(from_player := 1) -> void:
@@ -944,7 +989,7 @@ func _visitor(p: Dictionary) -> void:
 	current = car
 	net_cars[car.name] = car
 	car.tree_exiting.connect(func(): net_cars.erase(car.name))
-	Net.send("car_new", [int(p.get("idx", -1)), bay, car.name])
+	Net.send("car_new", [int(p.get("idx", -1)), bay, car.name, p])   # the person too: night three's pool is random
 	if _debug_skip:
 		_debug_skip = false
 		car._dist = car._stop_dist - 0.02
@@ -978,6 +1023,9 @@ func _visitor(p: Dictionary) -> void:
 		# Night three on: some visitors have a conversation with replies instead of fixed lines.
 		if car.state == "waiting" and p.has("convo"):
 			await talk(p.convo, _talker_of(car))
+			if p.get("baxter", false) and flags.get("baxter_scared", false) and events:
+				SaveGame.set_story("baxter_met")
+				_baxter_later()
 		if car.state == "waiting" and p.get("hands", "") == "newsletter":
 			_hand_newsletter(_short(p))
 		if car.state == "waiting" and not res.checked:
@@ -993,6 +1041,13 @@ func _visitor(p: Dictionary) -> void:
 	elif car.state == "leaving":
 		await car.gone
 	current = null
+
+
+## Baxter, scared at the window, goes to the payphone a little later: the next talk is out there.
+func _baxter_later() -> void:
+	await _wait(35.0)
+	if not ending:
+		events.baxter_outside(false, 240.0)
 
 
 func _short(p: Dictionary) -> String:
@@ -1085,6 +1140,8 @@ func _on_plate(car, p: Dictionary) -> void:
 	if inspect.is_open:
 		return
 	inspect.show_plate(p.reg)
+	if car.has_meta("res"):
+		car.get_meta("res")["plate_seen"] = true
 	var choice: String = await inspect.closed
 	if choice == "log":
 		_open_log()
@@ -1217,12 +1274,18 @@ func evaluate() -> Dictionary:
 	for e in entries:
 		if not real.has(e.key):
 			wrong.append("[color=#ffb060]You logged the plate '%s', which didn't match any car that came.[/color]" % e.reg)
+	if night == 3:   # payroll's frozen: night three pays nothing (mistakes still cost)
+		for r in rows:
+			if int(r.delta) > 0:
+				earned -= int(r.delta)
+				r.delta = 0
+		rows.append({"name": "Wages", "delta": 0, "verdict": "payroll's frozen this week - no pay tonight"})
 	if dialog_coins != 0:
 		earned += dialog_coins
 		rows.append({"name": "Conversations", "delta": dialog_coins, "verdict": "coins from what you said"})
 	if world.booth.peak_wet > 0.75:
 		wrong.append("[color=#ffb060]You left the side window open in the rain. The sill and floor were soaked; Dale noticed the puddle in the morning.[/color]")
-	var bonus := BONUS_PLATES if admitted > 0 and plates_ok == admitted else 0
+	var bonus := BONUS_PLATES if admitted > 0 and plates_ok == admitted and night != 3 else 0
 	var total := start_money + earned + bonus
 	return {"rows": rows, "wrong": wrong, "earned": earned, "bonus": bonus, "total": total,
 		"right_in": right_in, "wrong_in": wrong_in, "admitted": admitted, "plates_ok": plates_ok,
@@ -1239,7 +1302,13 @@ func _summary() -> void:
 	if sales_tonight > 0:
 		ev.earned += sales_tonight
 		ev.total += sales_tonight
-		ev.rows.append({"name": "The man by the payphone", "delta": sales_tonight, "verdict": "for what you sold him"})
+		ev.rows.append({"name": "Baxter", "delta": sales_tonight, "verdict": "for what you sold him"})
+	if Net.active():   # co-op: the team's quota is what tonight brought in (4 coins, +2 every 3 nights)
+		ev["quota"] = [4 + 2 * int(maxi(0, night - 3) / 3), ev.earned + ev.bonus]
+	if spent_tonight > 0:
+		ev.earned -= spent_tonight
+		ev.total -= spent_tonight
+		ev.rows.append({"name": "Nite Stop", "delta": -spent_tonight, "verdict": "a pick lock"})
 	if not Net.active():   # survival meters, reports and risk are single player
 		ev["meters"] = SaveGame.meters().duplicate()
 		ev["reports"] = SaveGame.reports()
@@ -1258,6 +1327,12 @@ func _summary() -> void:
 		Net.send("next_night", [coins, SaveGame.night()])
 		_restart())
 	es.start_again.connect(func():
+		if es.lost_reason == "QUOTA MISSED":   # co-op: the team plays tonight again
+			SaveGame.set_progress(start_money, night)
+			Net.ready_ids = {1: true}
+			Net.send("next_night", [start_money, night])
+			_restart()
+			return
 		if es.lost_reason == "CAUGHT" and not Net.active():
 			# Caught: tonight starts again, but Dale's reports (the suspicion) stay.
 			SaveGame.data["risk"] = 50
@@ -1306,7 +1381,7 @@ func _load_progress() -> void:
 ## the man by the payphone buys everything you've stored (or are still carrying).
 const CARRY_SLOTS := 3
 ## Some owners' boots are known from what they say at the window (night three).
-const KNOWN_BOOTS := {"Tom Baxter": ["guitar"], "Dr Helen Marsh": ["camera", "shopping"]}
+const KNOWN_BOOTS := {"Michael Adeyemi": ["guitar"], "Dr Helen Marsh": ["camera", "shopping"]}
 var carrying: Array = []    ## item ids in your hands
 var sales_tonight := 0     ## coins from the buyer tonight (on the end-of-shift pay list)
 const StashPanel := preload("res://scripts/ui/stash_panel.gd")
@@ -1377,7 +1452,11 @@ func _open_boot(model: CarModel) -> void:
 	world.ambience.play_at("car_door", model.global_position, -12.0, "Outside", 4.0)
 	model.open_boot_lid()
 	model.boot_interact.enabled = false
-	if model.boot_owner != "":
+	if night == 3:   # night three: no reports, just Dale asking you to keep an eye out
+		if not flags.get("dale_boots", false):
+			flags["dale_boots"] = true
+			_dale_boot_call()
+	elif model.boot_owner != "":
 		add_report("%s will notice someone's been in their boot." % model.boot_owner)
 	else:
 		add_report("Someone will notice their boot's been opened.")
@@ -1399,6 +1478,16 @@ func _open_boot(model: CarModel) -> void:
 		m.add_child(it)
 		it.activated.connect(_take_item.bind(id, m))
 	hud.tip("boot_items", "Click something in the boot to take it. Each thing adds to your risk and fills your hands (3 slots). Drop them in the storage crate in the hut.")
+
+
+## Night three: somebody's noticed their boot. Dale rings, but he doesn't suspect Dave yet.
+func _dale_boot_call() -> void:
+	await _wait(45.0)
+	if ending:
+		return
+	await _phone_call([["Dale", "Dave. Dale. Had a call: somebody's been in a car boot on your lot."],
+		["Dale", "Keep an eye out for stolen goods, will you? Anyone hanging round the cars, ring me."],
+		["Dale", "Not blaming you. Just... eyes open."]])
 
 
 func _take_item(id: String, m: Node3D) -> void:
@@ -1483,75 +1572,43 @@ func _stash_carried() -> void:
 
 ## The buyer turns up at the payphone some nights (night three on) and waits a few minutes.
 func _run_buyer() -> void:
-	if night < 3 or Net.active() and not Net.is_host():
+	if night < 4 or Net.active() and not Net.is_host() or not SaveGame.story("baxter_deal"):
 		return
 	await _wait(randf_range(150.0, 330.0))
 	if ending:
 		return
-	var spec: Dictionary = (PersonModel.DESIGNS["guard"] as Dictionary).duplicate()
-	spec.top = Color(0.32, 0.24, 0.16)
-	spec.pale = false
-	spec.skin = Color(0.82, 0.68, 0.58)
-	spec.cap = Color(0.2, 0.18, 0.14)
-	buyer = PersonModel.build(spec, "")
-	buyer.name = "Buyer"
-	world.add_child(buyer)
-	var pp: Vector3 = world.lot.payphone.global_position
-	buyer.global_position = Vector3(pp.x - 0.9, pp.y, pp.z + 0.7)
-	buyer.rotation.y = PI * 0.75
-	var it := Interactable.new()
-	it.prompt = "The man by the payphone"
-	it.add_box(Vector3(0.8, 1.9, 0.8), Vector3(0, 0.95, 0))
-	buyer.add_child(it)
-	it.activated.connect(_talk_buyer)
-	hud.notify("Someone's waiting by the payphone. He won't wait long.", 6.0)
-	hud.tip("buyer", "The man by the payphone buys stolen goods. Go outside, talk to him, and pick what to sell from your storage crate. He doesn't hang about.")
-	await _wait(170.0)
-	if is_instance_valid(buyer):
-		buyer.queue_free()
-		buyer = null
-		_term("PAYPHONE - SUBJECT LEFT")
+	events.baxter_outside(true)
 
 
-func _talk_buyer() -> void:
-	if buyer == null or not is_instance_valid(buyer) or _crate_busy:
-		return
-	if roam == null or not roam.outside:
-		return
-	_crate_busy = true
-	camera.blocked = true
-	await hud.say("Buyer", "Evening, squire. Heard you might have a few bits going spare.", 3.5)
+## Sell from the crate (Baxter). Returns the coins made.
+func sell_from_crate(speaker: String) -> int:
 	var stash: Array = SaveGame.stash().duplicate()
-	if world.booth.crate_hidden or stash.is_empty():
-		await hud.say("Buyer", "Nothing? Bring it from your crate, then. I'll not be here all night.", 3.5)
-	else:
-		var picks: Array = await _stash_ui.sale(stash)
-		if not picks.is_empty():
-			var total := 0
-			picks.sort()
-			picks.reverse()
-			for i in picks:
-				total += int(BootItems.info(stash[i])[1])
-				stash.remove_at(i)
-			SaveGame.set_stash(stash)
-			world.booth.show_crate(stash)
-			sales_tonight += total
-			money += total
-			hud.set_money(money)
-			add_risk(5)
-			await hud.say("Buyer", "Pleasure doing business. %d for the lot. You never saw me." % total, 3.5)
-			if is_instance_valid(buyer):
-				buyer.queue_free()
-				buyer = null
-		else:
-			await hud.say("Buyer", "Suit yourself.", 2.0)
-	camera.blocked = false
-	_crate_busy = false
+	if world.booth.crate_hidden or stash.filter(func(id): return not BootItems.is_story(id)).is_empty():
+		await hud.say(speaker, "Nothing? Bring it from your crate, then. I'm not hanging about all night.", 3.5)
+		return 0
+	var picks: Array = await _stash_ui.sale(stash)
+	if picks.is_empty():
+		await hud.say(speaker, "Suit yourself.", 2.0)
+		return 0
+	var total := 0
+	picks.sort()
+	picks.reverse()
+	for i in picks:
+		total += int(BootItems.info(stash[i])[1])
+		stash.remove_at(i)
+	SaveGame.set_stash(stash)
+	world.booth.show_crate(stash)
+	sales_tonight += total
+	money += total
+	hud.set_money(money)
+	add_risk(5)
+	await hud.say(speaker, "%d for the lot. You never saw me." % total, 3.5)
+	return total
 
 
 ## Some nights the area supervisor pops in. His van pulls up first: hide the crate.
 func _run_inspection(now := false) -> void:
-	if night < 3 or Net.active() or (randf() > 0.6 and not now):
+	if night < 4 and not now or Net.active() or (randf() > 0.6 and not now):
 		return
 	await _wait(1.0 if now else randf_range(260.0, 520.0))
 	if ending:
@@ -1604,6 +1661,22 @@ func _run_inspection(now := false) -> void:
 
 
 ## Single player: the HUD's survival meters, reports and risk.
+## Caught in the act (the police in the hut): tonight starts again for everyone. Reports are kept.
+func lose_night(title: String, why: String) -> void:
+	if ending:
+		return
+	ending = true
+	camera.blocked = true
+	await hud.choose(title, why, ["START THE NIGHT AGAIN"])
+	if not Net.active():
+		SaveGame.data["risk"] = maxi(SaveGame.risk(), 50)
+	SaveGame.set_progress(start_money, night)
+	if Net.active():
+		Net.ready_ids = {1: true}
+		Net.send("next_night", [start_money, night])
+	_restart()
+
+
 func _update_status() -> void:
 	if Net.active() or hud == null:
 		return
@@ -1652,6 +1725,8 @@ var _remote_window := false
 
 ## Host: another guard did something.
 func remote_action(from: int, what: String, args: Array) -> void:
+	if events and events.remote_action(from, what, args):
+		return
 	match what:
 		"phone":
 			_on_phone(from)
@@ -1802,11 +1877,15 @@ func _sync_swivel(delta: float) -> void:
 
 
 func guest_event(what: String, a: Array) -> void:
+	if events and events.guest_event(what, a):
+		return
 	match what:
+		"talker":
+			hud.overhearing = int(a[0]) != 0 and int(a[0]) != local_player_id
 		"chair_pose":
 			world.booth.apply_chair(bool(a[0]), str(a[1]), float(a[2]))
 		"car_new":
-			_guest_car(int(a[0]), a[1], str(a[2]))
+			_guest_car(int(a[0]), a[1], str(a[2]), a[3] if a.size() > 3 else {})
 		"car":
 			var c = net_cars.get(str(a[0]))
 			if c != null and is_instance_valid(c):
@@ -1907,8 +1986,12 @@ func guest_event(what: String, a: Array) -> void:
 			world.props.show_newsletter()
 
 
-func _guest_car(idx: int, bay: Vector3, nm: String) -> void:
-	if idx < 0 or idx >= arrivals.size() or net_cars.has(nm):
+func _guest_car(idx: int, bay: Vector3, nm: String, person := {}) -> void:
+	if not person.is_empty() and idx >= 0:
+		while arrivals.size() <= idx:
+			arrivals.append({})
+		arrivals[idx] = person
+	if idx < 0 or idx >= arrivals.size() or arrivals[idx].is_empty() or net_cars.has(nm):
 		return
 	var p: Dictionary = arrivals[idx]
 	var car = VisitorCar.new()
