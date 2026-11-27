@@ -180,8 +180,8 @@ static func tom() -> Dictionary:
 		"d": {"speaker": "Baxter", "text": "Keep your voice down! Where did you... Who else has seen it?", "options": [
 			{"text": "Nobody. Yet.", "next": "e", "safe": true},
 			{"text": "Depends what it's worth to you.", "next": "e", "effects": [{"risk": 2}]}]},
-		"e": {"speaker": "Baxter", "text": "Not here. Not at the window. The payphone, in a bit. Come on your own.",
-			"next": "", "effects": [{"flag": "baxter_scared"}, {"note": "Baxter: meet him by the payphone"}]}}}
+		"e": {"speaker": "Baxter", "text": "Not here. Not at the window. Back of the lot, by the fence, in a bit. Come on your own.",
+			"next": "", "effects": [{"flag": "baxter_scared"}, {"note": "Baxter: meet him at the back of the lot, by the fence"}]}}}
 
 
 ## Baxter by the payphone (the next talk): he's calmer, and you can offer him something to sell.

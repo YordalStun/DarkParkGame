@@ -52,6 +52,7 @@ func _ready() -> void:
 	var kb := MK.box(self, Vector3(0.44, 0.03, 0.15), Vector3(0, 0.015, 0.42), beige)
 	kb.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	crt_interact = Interactable.new()
+	crt_interact.outdoor = true   # used from the car park
 	crt_interact.name = "CRTInteract"
 	crt_interact.prompt = "Old PC"
 	crt_interact.add_box(Vector3(0.46, 0.42, 0.45), Vector3(0, 0.25, 0.02))

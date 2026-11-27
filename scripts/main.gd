@@ -349,6 +349,10 @@ func _on_test(id: String) -> void:
 		hud.notify_local("That's from night three on. Jump to night 3 first.", 3.5)
 		return
 	match id:
+		"wedge":
+			SaveGame.add_upgrade("boot_wedge")
+			story.send_upgrades()
+			hud.notify("TEST: you've got a boot wedge. Go out and click the back of a car to open its boot.", 5.0)
 		"hut": story.events.debug_unlock_hut()
 		"alarm":
 			if story.events.alarm_car == null:
@@ -785,6 +789,9 @@ func _apply_args() -> void:
 			story.roam._set_outside(true)
 			world.camera.zoom_to(story.events.hut_pc.crt_interact)
 			story.events.hut_pc.desktop.power_on(true))
+	if _args.has("wedgeguest"):   # testing (co-op guest): the free boot wedge from the testing menu reaches everyone
+		get_tree().create_timer(25.0).timeout.connect(func(): _on_test("wedge"))
+		get_tree().create_timer(32.0).timeout.connect(func(): print("GUEST WEDGE ", SaveGame.has_upgrade("boot_wedge")))
 	if _args.has("objtest") and story.events:   # testing: night three's task list, and the co-op feed
 		story.events.add_tasks()
 		hud.add_objective("shift", "Stay at your post until 07:00")

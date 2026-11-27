@@ -22,6 +22,7 @@ const HUT_BLOCK := Rect2(14.3, -40.6, 2.6, 2.4)
 const HUT_WALLS := [Rect2(14.3, -40.6, 2.6, 0.25), Rect2(14.3, -40.6, 0.25, 2.3), Rect2(16.65, -40.6, 0.25, 2.3),
 	Rect2(14.3, -38.45, 0.85, 0.2), Rect2(16.1, -38.45, 0.8, 0.2), Rect2(14.9, -40.45, 1.4, 0.7)]
 const PCStation := preload("res://scripts/world/pc_station.gd")
+const BAXTER_SPOT := Vector3(11.2, G, -41.8)   ## where Baxter waits: the back of the lot, near the old hut
 const POLICE_PATH := [Vector3(-4.4, G, 6.0), Vector3(-4.4, G, -16.8), Vector3(17.0, G, -16.8), Vector3(17.0, G, -34.0),
 	Vector3(-6.0, G, -34.0), Vector3(-6.0, G, -16.8), Vector3(-4.4, G, -16.8), Vector3(-4.4, G, 6.0)]
 
@@ -182,6 +183,7 @@ func _alarm_go(i: int) -> void:
 		[alarm_car.tail_mat, alarm_car.tail_mat.emission_energy_multiplier]]
 	# Something to click once you're out there.
 	var it := Interactable.new()
+	it.outdoor = true   # used from the car park
 	it.name = "AlarmCheck"
 	it.prompt = "Check the car (the alarm's going)"
 	it.add_box(Vector3(alarm_car.S.w * 2.2, 1.5, (alarm_car.S.f - alarm_car.S.r) * 0.7), Vector3(0, 0.75, (alarm_car.S.f + alarm_car.S.r) * 0.5))
@@ -267,6 +269,7 @@ func _drop_note() -> void:
 	var paper := MK.emissive(Color(0.92, 0.9, 0.82), 0.25, Color(0.9, 0.88, 0.8))
 	MK.box(_note, Vector3(0.15, 0.006, 0.1), Vector3.ZERO, paper)
 	var it := Interactable.new()
+	it.outdoor = true   # used from the car park
 	it.prompt = "Pick up the note"
 	it.add_box(Vector3(0.6, 0.4, 0.6), Vector3(0, 0.15, 0))
 	_note.add_child(it)
@@ -277,7 +280,7 @@ func _read_note() -> void:
 	if story.inspect.is_open:
 		return
 	world.ambience.play_ui("click2", -14.0)
-	story.inspect.show_print("A FOLDED NOTE", "[b]DEALER[/b]\n\nBAXTER. Medical Records.\n\nHe's by the payphone after 2.\nCash only. No names. Don't ring the ward.", "(Damp, written in biro. Somebody dropped it in a hurry.)")
+	story.inspect.show_print("A FOLDED NOTE", "[b]DEALER[/b]\n\nBAXTER. Medical Records.\n\nBack of the lot, by the fence, after 2.\nCash only. No names. Don't ring the ward.", "(Damp, written in biro. Somebody dropped it in a hurry.)")
 	if story.guest:
 		Net.request("n3_note")
 	else:
@@ -290,7 +293,7 @@ func found_note() -> void:
 		return
 	story.flags["dealer_note"] = true
 	SaveGame.set_story("dealer_note")
-	story.notes += ("\n" if story.notes != "" else "") + "Note by the alarm car: 'DEALER - BAXTER, Medical Records. Payphone after 2.'"
+	story.notes += ("\n" if story.notes != "" else "") + "Note by the alarm car: 'DEALER - BAXTER, Medical Records. Back of the lot after 2.'"
 	story.list_changed.emit()
 	if is_instance_valid(_note):
 		_note.queue_free()
@@ -325,19 +328,31 @@ func _spawn_baxter(deal: bool) -> void:
 	if is_instance_valid(baxter):
 		return
 	var bd: Dictionary = NightThree.baxter(story.ARRIVALS)
-	baxter = PersonModel.from_arrival(bd, false)
+	# A records clerk, not a porter: shabby mac over a cardigan, no cap, grey and unwell.
+	baxter = PersonModel.build({"coat": "mid", "top": Color(0.42, 0.38, 0.3), "cardigan": Color(0.3, 0.26, 0.22),
+		"trousers": Color(0.22, 0.22, 0.24), "shoes": Color(0.12, 0.09, 0.07), "skin": bd.get("skin", Color(0.86, 0.8, 0.72)),
+		"hair": bd.get("hair", Color(0.45, 0.42, 0.4)), "hair_style": "short", "scarf": Color(0.35, 0.3, 0.32)}, "")
 	baxter.name = "Baxter"
 	world.add_child(baxter)
-	var pp: Vector3 = world.lot.payphone.global_position
-	baxter.global_position = Vector3(pp.x - 0.9, G, pp.z + 0.7)
-	baxter.rotation.y = PI * 0.75
+	baxter.global_position = BAXTER_SPOT   # the back of the lot, by the fence, in the dark
+	baxter.rotation.y = 0.35               # facing out over the lot
+	# A cigarette: a glowing tip and a faint orange light, so you can spot him from the booth.
+	MK.box(baxter, Vector3(0.012, 0.012, 0.07), Vector3(0.05, 1.56, 0.14), MK.mat(Color(0.95, 0.95, 0.9), "", 0.6))
+	MK.box(baxter, Vector3(0.016, 0.016, 0.016), Vector3(0.05, 1.56, 0.18), MK.emissive(Color(1.0, 0.4, 0.1), 8.0))
+	var ember := OmniLight3D.new()
+	ember.light_color = Color(1.0, 0.45, 0.15)
+	ember.omni_range = 1.4
+	ember.light_energy = 0.5
+	ember.position = Vector3(0.05, 1.56, 0.25)
+	baxter.add_child(ember)
 	_baxter_sells = deal
 	var it := Interactable.new()
+	it.outdoor = true   # used from the car park
 	it.prompt = "Talk to Baxter"
 	it.add_box(Vector3(0.8, 1.9, 0.8), Vector3(0, 0.95, 0))
 	baxter.add_child(it)
 	it.activated.connect(_on_baxter)
-	hud.notify("Someone's waiting by the payphone, smoking. Baxter.", 6.0)
+	hud.notify("Someone's smoking in the dark at the back of the lot, by the fence. Baxter.", 6.0)
 
 
 func _on_baxter() -> void:
@@ -414,6 +429,7 @@ func police_walk() -> void:
 	glow.position = Vector3(0.2, 1.3, 0.45)
 	police.add_child(glow)
 	var it := Interactable.new()
+	it.outdoor = true   # used from the car park
 	it.prompt = "Talk to the officer"
 	it.add_box(Vector3(0.9, 1.9, 0.9), Vector3(0, 0.95, 0))
 	police.add_child(it)
@@ -535,6 +551,7 @@ var _shop_it: Interactable
 
 func _build_shop() -> void:
 	_shop_it = Interactable.new()
+	_shop_it.outdoor = true   # used from the car park
 	_shop_it.name = "NiteStopCounter"
 	_shop_it.prompt = "Nite Stop: buy a pick lock  (%d coins, it can break)" % PICK_LOCK_COST
 	_shop_it.add_box(Vector3(1.0, 2.2, 2.0), Vector3(-0.5, 1.1, 0.0))
@@ -573,6 +590,14 @@ func buy_lock() -> void:
 
 func _have_lock() -> void:
 	_shop_it.enabled = false
+	_hut_prompt()
+
+
+## The hut door says what you can do with it.
+func _hut_prompt() -> void:
+	if _hut_it == null:
+		return
+	_hut_it.prompt = "Pick the lock" if SaveGame.has_upgrade("pick_lock") else "Old hut door (padlocked)"
 
 
 # ------------------------------------------------------------------ the second hut (co-op)
@@ -662,11 +687,13 @@ func _build_hut() -> void:
 	MK.box(_hut_door, Vector3(0.85, 2.0, 0.05), Vector3(0.425, 1.0, 0), MK.mat(Color(0.3, 0.36, 0.3), "metal", 0.7, 1.0, 0.3))
 	MK.box(_hut_door, Vector3(0.07, 0.1, 0.04), Vector3(0.78, 1.05, 0.05), MK.mat(Color(0.7, 0.62, 0.3), "metal", 0.3, 1.0, 0.8))
 	_hut_it = Interactable.new()
+	_hut_it.outdoor = true   # used from the car park
 	_hut_it.prompt = "Old hut door (locked)"
 	_hut_it.add_box(Vector3(1.0, 2.1, 0.5), Vector3(0.45, 1.0, 0.1))
 	hut.add_child(_hut_it)
 	_hut_it.position = Vector3(-0.45, 0, 1.0)
 	_hut_it.activated.connect(_on_hut_door)
+	_hut_prompt()
 	if story.roam:
 		story.roam.extra_blockers.append(HUT_BLOCK)
 	if story.share:
@@ -699,6 +726,7 @@ func hut_door(who: int) -> void:
 	if randf() < PICK_BREAK_CHANCE:
 		SaveGame.remove_upgrade("pick_lock")
 		_shop_it.enabled = true
+		_hut_prompt()
 		Net.send("n3_lock_broke")
 		hud.notify("Snap. The pick lock broke in the padlock. Another one's %d coins at the Nite Stop." % PICK_LOCK_COST, 6.0)
 		return
@@ -751,6 +779,7 @@ func guest_event(what: String, a: Array) -> bool:
 		"n3_lock_broke":
 			SaveGame.remove_upgrade("pick_lock")
 			_shop_it.enabled = true
+			_hut_prompt()
 		"n3_hut_build":
 			if hut == null:
 				_build_hut()

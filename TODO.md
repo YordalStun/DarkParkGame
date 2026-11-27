@@ -123,6 +123,13 @@ Story (in progress, see docs/design/night-three-lore.md):
 - [x] Testing menu works in co-op: a guest's buttons run on the host so everyone gets the same result. New NIGHT THREE ON buttons: unlock the second hut and its PC, car alarm, police, Baxter, fill the crate, free pick lock, and jump to night 4.
 - [ ] Police: guests can talk to them, but the trip to the hut is decided on the host only. Check it in a real co-op game.
 - [ ] Tune: the quota and the pick lock's break chance.
+- [x] Fix: nothing night three put in the car park could be used from outside (boots, boot items, Baxter, the police, the alarm car, the note, the Nite Stop, the hut door and PC). They now work out there (v0.8.6).
+- [x] Baxter waits at the back of the lot, by the fence near the old hut, smoking (a glowing cigarette so you can spot him), in a shabby mac rather than a porter's hi-vis.
+- [x] Co-op: no rent, food or heat. The end screen shows the team quota (a target: keep every coin) and things to buy.
+- [x] Co-op: the other guard's walk animation follows how fast they're really moving (it barely moved before).
+- [x] Co-op: what the team has bought (boot wedge, pick lock...) is everyone's.
+- [x] Testing menu: Boot wedge (free).
+- [ ] Co-op: a guest opening a boot only opens it on their own screen (the others don't see the lid up), and its risk is only counted there.
 
 ## Core loop: staying alive (see docs/design/core-loop.md)
 

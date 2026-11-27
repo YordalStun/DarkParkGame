@@ -195,10 +195,20 @@ func _build(ev: Dictionary, night_title: String, date_text: String, note: String
 	right.size = Vector2(480, 380)
 	right.add_theme_constant_override("separation", 0)
 	_stage.add_child(right)
-	var cap2 := _label("BILLS DUE", 30, GOLD, right)
+	var coop: bool = Net.active()
+	var cap2 := _label("TEAM QUOTA" if coop else "BILLS DUE", 30, GOLD, right)
 	cap2.custom_minimum_size = Vector2(0, 38)
 	_rule(right)
-	for b in BILLS:
+	if coop:   # co-op: no rent, food or heat. Just the team's quota for tonight, and things to buy.
+		var q: Array = ev.get("quota", [])
+		if q.size() == 2:
+			_row(right, "Needed tonight", str(q[0]))
+			var ok: bool = int(q[1]) >= int(q[0])
+			_row(right, "Brought in", str(q[1]), GREEN if ok else RED, "  made it" if ok else "  short", GREEN if ok else RED)
+		var g0 := Control.new()
+		g0.custom_minimum_size = Vector2(0, 10)
+		right.add_child(g0)
+	for b in (BILLS if not coop else []):
 		var h := HBoxContainer.new()
 		h.custom_minimum_size = Vector2(0, 36)
 		right.add_child(h)
@@ -250,8 +260,8 @@ func _build(ev: Dictionary, night_title: String, date_text: String, note: String
 	var gap := Control.new()
 	gap.custom_minimum_size = Vector2(0, 6)
 	right.add_child(gap)
-	_row(right, "Savings", str(_start))
-	_after_val = (_row(right, "After pay and bills", "0").get_child(-1) as Label)
+	_row(right, "Team coins" if coop else "Savings", str(_start))
+	_after_val = (_row(right, "After tonight" if coop else "After pay and bills", "0").get_child(-1) as Label)
 	var gap2 := Control.new()
 	gap2.custom_minimum_size = Vector2(0, 16)
 	right.add_child(gap2)
@@ -358,7 +368,7 @@ func _click() -> void:
 ## The bills left unticked (unpaid) tonight.
 func skipped_bills() -> Array:
 	var out := []
-	for i in BILLS.size():
+	for i in mini(BILLS.size(), _ticks.size()):
 		if BILLS[i][2] and not _ticks[i].button_pressed:   # optional ones (the bus pass) don't count
 			out.append(BILLS[i][0])
 	return out
@@ -367,7 +377,7 @@ func skipped_bills() -> Array:
 ## What's left after pay and the ticked bills.
 func coins_left() -> int:
 	var v := _start + _wages
-	for i in BILLS.size():
+	for i in mini(BILLS.size(), _ticks.size()):   # (co-op has no bills)
 		if _ticks[i].button_pressed:
 			v -= BILLS[i][1]
 	for u in _up_ticks:

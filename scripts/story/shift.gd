@@ -1488,6 +1488,7 @@ func _open_boot(model: CarModel) -> void:
 		var id: String = ids[i]
 		var m: Node3D = models[i]
 		var it := Interactable.new()
+		it.outdoor = true   # used from the car park
 		var d: Array = BootItems.ITEMS[id]
 		it.prompt = "Take %s  (+%d%% risk)" % [_bare(str(d[0])), int(d[2])]
 		it.add_box(Vector3(0.6, 0.4, 0.6), Vector3(0, 0.15, 0))
@@ -1568,6 +1569,11 @@ func _open_crate() -> void:
 		world.ambience.play_ui("click2", -14.0)
 	camera.blocked = false
 	_crate_busy = false
+
+
+## Co-op: what the team has bought (boot wedge, pick lock, vehicle log...) is the host's; everyone has it.
+func send_upgrades() -> void:
+	Net.send("upgrades", [SaveGame.data.get("upgrades", {})])
 
 
 ## Co-op: the crate is the team's, kept in the host's save. The host tells everyone what's in it;
@@ -1865,6 +1871,7 @@ func send_state_to(id: int) -> void:
 	Net.send_to(id, "gate", [world.lot.gate.is_open])
 	if world.booth.storage_node != null:
 		Net.send_to(id, "n3_crate", [SaveGame.stash(), SaveGame.crate_hidden()])
+	Net.send_to(id, "upgrades", [SaveGame.data.get("upgrades", {})])
 
 
 ## Host: someone left mid-night. Their guard goes, and whatever they were using is freed.
@@ -1957,6 +1964,8 @@ func guest_event(what: String, a: Array) -> void:
 	match what:
 		"n3_crate":
 			_crate_in(a[0], bool(a[1]))
+		"upgrades":
+			SaveGame.data["upgrades"] = (a[0] as Dictionary).duplicate()
 		"n3_sale":
 			guest_sale(a[0])
 		"talker":

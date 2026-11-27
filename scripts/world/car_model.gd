@@ -545,6 +545,7 @@ func add_boot() -> Interactable:
 	if boot_interact:
 		return boot_interact
 	boot_interact = Interactable.new()
+	boot_interact.outdoor = true   # used from the car park
 	boot_interact.prompt = "Open boot"
 	boot_interact.add_box(Vector3(S.w * 1.7, 0.5, boot_zone.y - boot_zone.x + 0.15), Vector3(0, _top(boot_zone.x) - 0.05, (boot_zone.x + boot_zone.y) * 0.5 - 0.05))
 	add_child(boot_interact)

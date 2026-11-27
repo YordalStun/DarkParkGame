@@ -165,6 +165,7 @@ func _place_guard(g: Dictionary, k: float) -> void:
 		feet -= fwd * 0.08
 		var yaw := atan2(fwd.x, fwd.z)
 		n.rotation.y = lerp_angle(n.rotation.y, yaw, k)
+	var before := n.position
 	n.position = n.position.lerp(feet, k) if n.position != Vector3.ZERO else feet
 	PlayerModel.set_torch(n, g.state == 2)
 	if seated:
@@ -173,13 +174,21 @@ func _place_guard(g: Dictionary, k: float) -> void:
 			if lg:
 				lg.rotation.x = -1.4
 	else:
-		# Walking: swing the legs while they're moving.
-		var moved: float = Vector2(feet.x - g.last.x, feet.z - g.last.z).length()
-		g.last = feet
-		g.t += get_process_delta_time()
-		var model_y := n.position.y
-		PlayerModel.walk(n, g.t, moved > 0.004)
-		n.position.y = model_y
+		# Walking: swing the legs from how fast they're really moving (their position comes about
+		# 15 times a second, so judge it from the smoothed movement, and ease the stride in and out).
+		var dt := maxf(get_process_delta_time(), 0.0001)
+		var speed: float = Vector2(n.position.x - before.x, n.position.z - before.z).length() / dt
+		if speed > 0.3:
+			g["move_t"] = 0.25
+		else:
+			g["move_t"] = float(g.get("move_t", 0.0)) - dt
+		var moving: bool = float(g.get("move_t", 0.0)) > 0.0
+		g["amp"] = move_toward(float(g.get("amp", 0.0)), 1.0 if moving else 0.0, dt * 5.0)
+		if moving:
+			g.t += dt * clampf(speed / 1.6, 0.7, 1.6)
+		var swing := sin(g.t * 8.0) * 0.55 * float(g.amp)
+		(n.get_node("LegL") as Node3D).rotation.x = swing
+		(n.get_node("LegR") as Node3D).rotation.x = -swing
 	# Never draw a guard inside your own head.
 	var me: Vector3 = camera.global_position
 	var dist := Vector2(n.global_position.x - me.x, n.global_position.z - me.z).length()
