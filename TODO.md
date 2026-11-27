@@ -126,7 +126,10 @@ Running list for the game. Tick items off as they are done, and add new ones at 
 - [x] Dale's reaction to a report: first tells the player to keep an eye out for people, then gets suspicious of the player if it keeps happening.
 
 - [x] Boots are real: every car has a boot well and a hinged lid with a boot light; 0-5 items (20 kinds, scripts/world/boot_items.gd) lie in it without overlapping. Click one to take it: adds its own risk and takes 1-2 of 3 carry slots. Drop them in the storage crate in the hut. Tom's and Dr Marsh's boots hold what they mentioned.
-- [ ] Steal items from car boots and sell them to a weird guy who turns up. For now 'the man by the payphone' buys everything stored or carried at the end of the night (it shows on the pay list). Still to do: him turning up in person, haggling, and buying radio parts from him.
+- [x] Storage crate in the hut (10 slots, kept between nights, holds story items too, can be hidden under the desk).
+- [x] The man by the payphone turns up in person some time in the night; talk to him and pick what to sell from the crate.
+- [x] Area supervisor spot checks: a van warning, then if the crate is out (or you're carrying stolen goods) he takes it all, reports you twice and adds risk.
+- [ ] Still to do: haggling with the buyer, and buying radio parts from him.
 
 ## Bugs
 
