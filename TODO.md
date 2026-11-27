@@ -121,7 +121,7 @@ Running list for the game. Tick items off as they are done, and add new ones at 
 - [ ] Walkable area: the end of the access road behind the booth is an invisible stop; put something there (a gate, bollards or a "NO ENTRY" sign)
 - [ ] Cars don't see you: a car driving in pushes you aside instead of stopping
 - [x] Boot wedge: bought on the end-of-shift screen (2 coins), there from the next night. (Ordering it on the PC is still an option for later.)
-- [x] Be able to open the boot of any car in the lot (night three on, outside, with the wedge). The lid swings up; each car has 0-2 items.
+- [x] Be able to open the boot of any car in the lot (night three on, outside, with the wedge). The lid swings up; each car has 0-5 items.
 - [x] Opening a boot for no reason: the car's owner gets angry and reports it to Dale (+1 report each boot).
 - [x] Dale's reaction to a report: first tells the player to keep an eye out for people, then gets suspicious of the player if it keeps happening.
 
@@ -129,7 +129,14 @@ Running list for the game. Tick items off as they are done, and add new ones at 
 - [x] Storage crate in the hut (10 slots, kept between nights, holds story items too, can be hidden under the desk).
 - [x] The man by the payphone turns up in person some time in the night; talk to him and pick what to sell from the crate.
 - [x] Area supervisor spot checks: a van warning, then if the crate is out (or you're carrying stolen goods) he takes it all, reports you twice and adds risk.
-- [ ] Still to do: haggling with the buyer, and buying radio parts from him.
+- [ ] Buyer: haggling over the price (for now he offers a fixed share of each item's value).
+- [ ] Buyer: sell radio parts for the second hut's link (see "Co-op: second hut").
+- [ ] Buyer: give him his own lines and a name, and have him come back on later nights with different moods.
+- [ ] Co-op: the buyer is only spawned on the host; guests need to see him and be able to sell to him too.
+- [ ] Co-op: the crate is saved in the host's slot only; decide whether guards share one crate.
+- [ ] Co-op: supervisor spot checks are single player only for now; decide how they work with several guards.
+- [ ] Spot checks: let the player stop him at the door with a dialog (stall him while someone hides the crate).
+- [ ] Play-test: walk out to the buyer and sell to him, and watch the crate slide under the desk (both panels and the spot check were tested with test switches, not played through).
 
 ## Bugs
 
