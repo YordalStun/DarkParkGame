@@ -36,6 +36,12 @@ Story (in progress, see docs/design/night-three-lore.md):
 ## Ideas to make it better (from v0.8.4; not committed)
 
 - [ ] A job for the second guard: they can watch the CCTV, keep a lookout and radio in when the police or the supervisor are coming, or work in the second hut, so they aren't waiting while the other is at the window.
+- [ ] Proximity voice chat (co-op). About a day for a first version:
+  - Push-to-talk (V): your voice comes from your guard in the world, fading with distance and muffled through the hut walls (the Interior/Outside buses).
+  - Lo-fi 8 kHz audio (about 64 kbps a player): fits 1989 and the bandwidth. Godot has no voice compression built in; a community add-on could compress it properly later.
+  - A small buffer so the voice doesn't stutter over the internet.
+  - A mic picker and a voice volume slider on the pause screen. Recommend headphones (Godot has no echo cancellation).
+  - Later: the walkie-talkie below on its own key for long distance.
 - [ ] Radios for co-op: a push-to-talk walkie-talkie between the booth and the lot (crackly, cuts out in heavy rain).
 - [ ] Tension cues: a heartbeat or a sting when the police get close to an open boot, the torch beam sweeping across the hut's window, and a warning if you're standing at an open boot when a car pulls in.
 - [ ] Owners come back: a car's owner sometimes walks back to their car mid-shift (for something they forgot) and finds the open boot.
