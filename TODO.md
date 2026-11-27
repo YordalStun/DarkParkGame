@@ -71,6 +71,18 @@ Story (not started):
 - [ ] Co-op: guests' notepads are their own (dialog "note" effects only reach the host's)
 - [ ] Co-op: test over a real LAN / the internet (so far tested with two copies on one machine)
 
+## Night 3 objectives and set pieces (see docs/design/night-three-lore.md)
+
+- [ ] From night 3 the top right objectives are required tasks that stay until done, not tutorial text.
+- [ ] Police walk through the lot with a torch after about the second or third car. They only walk through. The player can leave the chair and talk to them.
+- [ ] Later: if police walk near a car with an open boot, they come over to the booth and look inside. Covered storage box and no PC download is safe. Otherwise the player loses that night.
+- [ ] Alarm car on night 3: lights going mad, nothing wrong. A note says "dealer" and a name (the weird guy, a hospital non-clinical admin).
+- [ ] Weird guy: scared on first talk. On the next talk, offer to sell him something, which opens the stolen-goods menu. Night 3 has nothing to sell.
+- [ ] Night 3 is about six cars and earns no money. The team loses on the first quota in multiplayer.
+- [ ] Store: buy the pick lock. In multiplayer, the second hut is visible from night 3 and players are asked to look round it. Can't get in until the pick lock is bought, then they can break in the next day.
+- [ ] Night 3 reports are very unlikely. Stealing on night 3 only leads to Dale asking the player to keep an eye out for stolen goods.
+- [ ] No ending. The game keeps going after night 3.
+
 ## Core loop: staying alive (see docs/design/core-loop.md)
 
 - [x] Survival meters: heat, food and rent. Each has a daily cost. Show them on screen. (Rent 2, food 1, heat 1 a day; each meter is 3 nights, refilled by paying, -1 when skipped, 0 = game over. Single player only. HUD line under the coins, pips on the end screen.)

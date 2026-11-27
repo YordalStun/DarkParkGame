@@ -43,3 +43,37 @@ hacking and stealing.
 - Who has the dog? (The owner of the dog is a night three arrival.)
 - What does Dale say when the first report comes in?
 - Is there an ending or a goal after night three, or is the game open-ended?
+
+## Night three: decisions (from the owner)
+
+- Night three is about six cars. Night three is the first night things get hard.
+- Night three earns no money. The player must make something give at the end of the
+  night. In multiplayer, the team loses on the first quota.
+- **Police walk-through:** early on, police walk through the lot with a torch after about
+  the second or third car. They don't stop anyone and they only walk through.
+  - The player can leave the chair and talk to them. Early on they find nothing illegal.
+  - Later, if the police walk near a car with an open boot, they come over to the booth
+    and look inside. A booth that's covered is fine. If the storage box is showing, or the
+    PC is downloading, the player loses that night.
+- **Objectives from night three:** the objectives in the top right are no longer tutorial
+  text. They're tasks the player must finish to progress, and they stay until done.
+- **Alarm car:** a car alarm goes off on night three. The lights on the car are going
+  mad. Checking it shows nothing, but the player finds a note with "dealer" and a name.
+  - The name is the weird guy. He works at the hospital as a non-clinical admin, and he
+    is clearly unwell.
+- **The weird guy:** once the player has the note, they can bring it up with him. At first
+  he is scared. On the next talk, the player can offer to sell him something, which opens
+  up the stolen-goods menu. Night three is too early for anything to sell.
+- **Reporting on night three:** a report is very unlikely. If the player is stealing, Dale
+  only asks them to keep an eye out for stolen goods.
+- **No ending:** the game keeps going after night three.
+
+## What the player must do on night three
+
+1. Inspect IDs and plates at the window.
+2. Take calls that add people to the list.
+3. Get the printed document with the web address and IP on it.
+4. Find the note about the dealer near the car making the loud noise.
+5. Buy the pick lock from the store. In multiplayer, the second hut is there from the
+   start and the players are asked to look around it. They can't get in until they buy
+   the pick lock, and then they can break in the next day.
