@@ -726,7 +726,43 @@ func build_storage() -> void:
 	storage_interact.prompt = "Storage crate"
 	storage_interact.add_box(Vector3(0.55, 0.45, 0.45), Vector3(0, 0.2, 0))
 	storage_node.add_child(storage_interact)
-	walk_blockers.append(Rect2(1.07, -0.18, 0.5, 0.4))
+	walk_blockers.append(_crate_block)
+
+
+const CRATE_OUT := Vector3(1.32, 0.0, 0.02)
+const CRATE_HIDDEN := Vector3(-0.35, 0.0, -0.78)   ## shoved into the knee space under the desk
+var crate_hidden := false
+var _crate_block := Rect2(1.07, -0.18, 0.5, 0.4)
+
+
+## Push the crate under the desk (out of sight), or pull it back out.
+func set_crate_hidden(h: bool, animate := true) -> void:
+	crate_hidden = h
+	var to := CRATE_HIDDEN if h else CRATE_OUT
+	if animate:
+		var tw := create_tween()
+		tw.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+		tw.tween_property(storage_node, "position", to, 0.9)
+	else:
+		storage_node.position = to
+	if h:
+		walk_blockers.erase(_crate_block)
+	elif not walk_blockers.has(_crate_block):
+		walk_blockers.append(_crate_block)
+	storage_interact.prompt = "Storage crate (under the desk)" if h else "Storage crate"
+
+
+## Show what's in the crate (small models stacked inside).
+func show_crate(ids: Array) -> void:
+	for c in storage_node.get_children():
+		if c.name.begins_with("Item_"):
+			c.queue_free()
+	for i in ids.size():
+		var m := BootItems.make(ids[i])
+		m.scale = Vector3.ONE * 0.4
+		storage_node.add_child(m)
+		m.position = Vector3(-0.12 + (i % 3) * 0.12, 0.04 + (i / 3) * 0.07, -0.08 + (i % 2) * 0.12)
+		m.rotation_degrees.y = (i * 47) % 360
 
 
 var chair_out := false

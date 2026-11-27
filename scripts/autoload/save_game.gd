@@ -179,6 +179,30 @@ func risk() -> int:
 	return int(data.get("risk", 0))
 
 
+## The storage crate in the hut (night three on): up to CRATE_SIZE item ids, kept between nights.
+const CRATE_SIZE := 10
+
+
+func stash() -> Array:
+	return data.get("stash", [])
+
+
+func set_stash(ids: Array) -> void:
+	data["stash"] = ids.slice(0, CRATE_SIZE)
+	if slot != 0:
+		_write()
+
+
+func crate_hidden() -> bool:
+	return bool(data.get("crate_hidden", false))
+
+
+func set_crate_hidden(h: bool) -> void:
+	data["crate_hidden"] = h
+	if slot != 0:
+		_write()
+
+
 ## A customer complained to Dale (saved straight away).
 func add_report() -> int:
 	data["reports"] = reports() + 1

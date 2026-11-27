@@ -254,6 +254,7 @@ func setup(p_world, p_hud, p_inspect) -> void:
 	_bays = BAYS.duplicate()
 	_bays.shuffle()
 	_spawn_leavers()
+	_setup_crate()
 	for c in world.lot.cars:
 		if c is CarModel:
 			_hook_boot(c, "")
@@ -362,6 +363,8 @@ func start() -> void:
 	await _wait(2.0)
 	hud.notify("Cars arrive at the side window. Click  <  on the left, or the window itself.", 6.0)
 	_run_leavers()
+	_run_buyer()
+	_run_inspection()
 	for i in _order.size():
 		var p: Dictionary = _order[i]
 		if p.get("ward_call", false):
@@ -1232,16 +1235,11 @@ const NIGHT_WORDS := ["ONE", "TWO", "THREE", "FOUR", "FIVE", "SIX", "SEVEN", "EI
 func _summary() -> void:
 	ending = true
 	var ev := evaluate()
-	if not (stored.is_empty() and carrying.is_empty()):
-		# The man by the payphone buys tonight's take (the crate, and anything still in your hands).
-		var total := 0
-		var what := []
-		for id in stored + carrying:
-			total += int(BootItems.ITEMS[id][1])
-			what.append(_bare(str(BootItems.ITEMS[id][0])))
-		ev.earned += total
-		ev.total += total
-		ev.rows.append({"name": "Sold: " + ", ".join(what), "delta": total, "verdict": "to the man by the payphone"})
+	_stash_carried()
+	if sales_tonight > 0:
+		ev.earned += sales_tonight
+		ev.total += sales_tonight
+		ev.rows.append({"name": "The man by the payphone", "delta": sales_tonight, "verdict": "for what you sold him"})
 	if not Net.active():   # survival meters, reports and risk are single player
 		ev["meters"] = SaveGame.meters().duplicate()
 		ev["reports"] = SaveGame.reports()
@@ -1310,8 +1308,12 @@ const CARRY_SLOTS := 3
 ## Some owners' boots are known from what they say at the window (night three).
 const KNOWN_BOOTS := {"Tom Baxter": ["guitar"], "Dr Helen Marsh": ["camera", "shopping"]}
 var carrying: Array = []    ## item ids in your hands
-var stored: Array = []      ## item ids in the storage crate
-var stolen: Array = []      ## (kept for older saves of this field; unused)
+var sales_tonight := 0     ## coins from the buyer tonight (on the end-of-shift pay list)
+const StashPanel := preload("res://scripts/ui/stash_panel.gd")
+const PersonModel := preload("res://scripts/world/person_model.gd")
+var _stash_ui: CanvasLayer
+var buyer: Node3D           ## the man by the payphone, while he's here
+var _crate_busy := false
 
 
 ## Every car you can walk up to gets a boot (lot cars, the evening shift's, tonight's arrivals).
@@ -1322,9 +1324,7 @@ func _hook_boot(model: CarModel, owner_name: String) -> void:
 	var it := model.add_boot()
 	if not it.activated.is_connected(_open_boot):
 		it.activated.connect(_open_boot.bind(model))
-	if world.booth.storage_node == null:
-		world.booth.build_storage()
-		world.booth.storage_interact.activated.connect(_use_storage)
+	_setup_crate()
 
 
 ## The same car always has the same things in its boot (known owners have what they said).
@@ -1415,22 +1415,192 @@ func _take_item(id: String, m: Node3D) -> void:
 	hud.notify("You took %s. (+%d%% risk)" % [d[0], d[2]], 3.5)
 
 
-## The storage crate in the hut: drop off everything you're carrying.
-func _use_storage() -> void:
-	if carrying.is_empty():
-		hud.notify("Storage crate: %d thing%s in it. The man by the payphone takes it all at the end of the night." % [stored.size(), "" if stored.size() == 1 else "s"], 4.0)
+# ------------------------------------------------------------------ the crate, the buyer, inspections
+## The storage crate in the hut (night three on): up to 10 things, kept between nights. Stolen things
+## wait in it until the buyer turns up; story things can live there too. Hide it under the desk when
+## the area supervisor's van pulls up, or he'll find what's in it.
+func _setup_crate() -> void:
+	if world.booth.storage_node != null or night < 3:
 		return
+	world.booth.build_storage()
+	world.booth.storage_interact.activated.connect(_open_crate)
+	world.booth.set_crate_hidden(SaveGame.crate_hidden(), false)
+	world.booth.show_crate(SaveGame.stash())
+	_stash_ui = StashPanel.new()
+	add_child(_stash_ui)
+
+
+func _open_crate() -> void:
+	if _crate_busy or _stash_ui == null:
+		return
+	if roam and roam.outside:
+		return
+	_crate_busy = true
+	camera.blocked = true
+	while true:
+		var stash: Array = SaveGame.stash().duplicate()
+		var a: Dictionary = await _stash_ui.crate(stash, carrying, world.booth.crate_hidden, CARRY_SLOTS - _slots(carrying))
+		match str(a.act):
+			"take":
+				carrying.append(stash[a.i])
+				stash.remove_at(a.i)
+			"put":
+				stash.append(carrying[a.i])
+				carrying.remove_at(a.i)
+			"put_all":
+				while not carrying.is_empty() and stash.size() < SaveGame.CRATE_SIZE:
+					stash.append(carrying.pop_front())
+			"hide", "unhide":
+				world.booth.set_crate_hidden(a.act == "hide")
+				SaveGame.set_crate_hidden(a.act == "hide")
+				world.ambience.play_at("window_slide", world.booth.storage_node.global_position, -14.0)
+			_:
+				break
+		SaveGame.set_stash(stash)
+		world.booth.show_crate(stash)
+		_update_carry()
+		world.ambience.play_ui("click2", -14.0)
+	camera.blocked = false
+	_crate_busy = false
+
+
+## End of the night: anything still in your hands goes in the crate (if there's room).
+func _stash_carried() -> void:
+	if carrying.is_empty():
+		return
+	var stash: Array = SaveGame.stash().duplicate()
+	var lost := 0
 	for id in carrying:
-		stored.append(id)
-		var m := BootItems.make(id)
-		m.scale = Vector3.ONE * 0.45
-		world.booth.storage_node.add_child(m)
-		m.position = Vector3(randf_range(-0.12, 0.12), 0.05 + stored.size() * 0.05, randf_range(-0.08, 0.08))
-		m.rotation_degrees.y = randf_range(0, 360)
+		if stash.size() < SaveGame.CRATE_SIZE:
+			stash.append(id)
+		else:
+			lost += 1
 	carrying.clear()
-	_update_carry()
-	world.ambience.play_ui("click2", -10.0)
-	hud.notify("Stashed in the crate (%d in there)." % stored.size(), 3.0)
+	SaveGame.set_stash(stash)
+	if lost > 0:
+		_term("%d ITEM(S) LEFT BEHIND - CRATE FULL" % lost)
+
+
+## The buyer turns up at the payphone some nights (night three on) and waits a few minutes.
+func _run_buyer() -> void:
+	if night < 3 or Net.active() and not Net.is_host():
+		return
+	await _wait(randf_range(150.0, 330.0))
+	if ending:
+		return
+	var spec: Dictionary = (PersonModel.DESIGNS["guard"] as Dictionary).duplicate()
+	spec.top = Color(0.32, 0.24, 0.16)
+	spec.pale = false
+	spec.skin = Color(0.82, 0.68, 0.58)
+	spec.cap = Color(0.2, 0.18, 0.14)
+	buyer = PersonModel.build(spec, "")
+	buyer.name = "Buyer"
+	world.add_child(buyer)
+	var pp: Vector3 = world.lot.payphone.global_position
+	buyer.global_position = Vector3(pp.x - 0.9, pp.y, pp.z + 0.7)
+	buyer.rotation.y = PI * 0.75
+	var it := Interactable.new()
+	it.prompt = "The man by the payphone"
+	it.add_box(Vector3(0.8, 1.9, 0.8), Vector3(0, 0.95, 0))
+	buyer.add_child(it)
+	it.activated.connect(_talk_buyer)
+	hud.notify("Someone's waiting by the payphone. He won't wait long.", 6.0)
+	hud.tip("buyer", "The man by the payphone buys stolen goods. Go outside, talk to him, and pick what to sell from your storage crate. He doesn't hang about.")
+	await _wait(170.0)
+	if is_instance_valid(buyer):
+		buyer.queue_free()
+		buyer = null
+		_term("PAYPHONE - SUBJECT LEFT")
+
+
+func _talk_buyer() -> void:
+	if buyer == null or not is_instance_valid(buyer) or _crate_busy:
+		return
+	if roam == null or not roam.outside:
+		return
+	_crate_busy = true
+	camera.blocked = true
+	await hud.say("Buyer", "Evening, squire. Heard you might have a few bits going spare.", 3.5)
+	var stash: Array = SaveGame.stash().duplicate()
+	if world.booth.crate_hidden or stash.is_empty():
+		await hud.say("Buyer", "Nothing? Bring it from your crate, then. I'll not be here all night.", 3.5)
+	else:
+		var picks: Array = await _stash_ui.sale(stash)
+		if not picks.is_empty():
+			var total := 0
+			picks.sort()
+			picks.reverse()
+			for i in picks:
+				total += int(BootItems.info(stash[i])[1])
+				stash.remove_at(i)
+			SaveGame.set_stash(stash)
+			world.booth.show_crate(stash)
+			sales_tonight += total
+			money += total
+			hud.set_money(money)
+			add_risk(5)
+			await hud.say("Buyer", "Pleasure doing business. %d for the lot. You never saw me." % total, 3.5)
+			if is_instance_valid(buyer):
+				buyer.queue_free()
+				buyer = null
+		else:
+			await hud.say("Buyer", "Suit yourself.", 2.0)
+	camera.blocked = false
+	_crate_busy = false
+
+
+## Some nights the area supervisor pops in. His van pulls up first: hide the crate.
+func _run_inspection(now := false) -> void:
+	if night < 3 or Net.active() or (randf() > 0.6 and not now):
+		return
+	await _wait(1.0 if now else randf_range(260.0, 520.0))
+	if ending:
+		return
+	world.ambience.play_at("car_door", world.booth.door.global_position + Vector3(0, 0, 4), -4.0, "Outside", 8.0)
+	hud.notify("Headlights behind the hut: the area supervisor's van. He'll be in in a minute.", 7.0)
+	hud.tip("inspection", "The area supervisor checks the hut now and then. If the storage crate's out in the open with stolen things in it, he'll find them. Hide it under the desk (open the crate).")
+	await _wait(2.0 if now else 22.0)
+	if ending:
+		return
+	world.ambience.play_at("door_open_close", world.booth.door.global_position, -6.0, "Interior", 3.0)
+	var sup := PersonModel.build({"coat": "long", "top": Color(0.12, 0.13, 0.18), "trousers": Color(0.1, 0.1, 0.12),
+		"skin": Color(0.88, 0.72, 0.62), "hair": Color(0.25, 0.22, 0.2), "hair_style": "cap", "cap": Color(0.08, 0.09, 0.12)}, "")
+	sup.name = "Supervisor"
+	world.add_child(sup)
+	sup.global_position = world.booth.global_position + Vector3(0.9, 0.0, 1.2)
+	sup.rotation.y = PI
+	await hud.say("Supervisor", "Evening. Area supervisor. Just a spot check, don't mind me.", 3.5)
+	var stash: Array = SaveGame.stash()
+	var hot := []
+	if not world.booth.crate_hidden:
+		for id in stash:
+			if not BootItems.is_story(id):
+				hot.append(id)
+	for id in carrying:
+		if not BootItems.is_story(id):
+			hot.append(id)
+	if hot.is_empty():
+		await hud.say("Supervisor", "All in order. Carry on.", 2.5)
+	else:
+		await hud.say("Supervisor", "...Hang on. What's all this? Car radios? A %s? This lot's been reported stolen." % _bare(str(BootItems.info(hot[0])[0])), 4.5)
+		await hud.say("Supervisor", "I'm taking it. And Dale's hearing about this first thing.", 3.5)
+		var keep := []
+		for id in stash:
+			if BootItems.is_story(id) or world.booth.crate_hidden:
+				keep.append(id)
+		SaveGame.set_stash(keep)
+		world.booth.show_crate(keep)
+		var kept_hands := []
+		for id in carrying:
+			if BootItems.is_story(id):
+				kept_hands.append(id)
+		carrying = kept_hands
+		_update_carry()
+		add_risk(60)
+		add_report("The area supervisor found stolen goods in the hut.")
+		add_report("He's told Dale.")
+	world.ambience.play_at("door_open_close", world.booth.door.global_position, -6.0, "Interior", 3.0)
+	sup.queue_free()
 
 
 ## Single player: the HUD's survival meters, reports and risk.

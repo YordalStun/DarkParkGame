@@ -27,6 +27,23 @@ const ITEMS := {
 }
 
 
+## Story things that can live in the crate too: never sold, never confiscated.
+const STORY := {
+	"newsletter": ["Doris's newsletter", 0, 0, 1],
+}
+
+
+## [name, value, risk, slots] for a boot item or a story item.
+static func info(id: String) -> Array:
+	if ITEMS.has(id):
+		return ITEMS[id]
+	return STORY.get(id, [id, 0, 0, 1])
+
+
+static func is_story(id: String) -> bool:
+	return STORY.has(id)
+
+
 static func make(id: String) -> Node3D:
 	var n := Node3D.new()
 	n.name = "Item_" + id

@@ -674,6 +674,18 @@ func _apply_args() -> void:
 			get_tree().create_timer(1.0).timeout.connect(story.open_notes)
 	if _args.has("tiptest"):
 		hud.tip("test", "You can write things down. Press N (or click the notepad on the desk) and type.")
+	if _args.has("cratetest"):   # testing: open the storage crate with things in it
+		SaveGame.set_stash(["guitar", "radio", "newsletter", "cigs"])
+		story.carrying = ["camera"]
+		world.booth.show_crate(SaveGame.stash())
+		get_tree().create_timer(1.0).timeout.connect(story._open_crate)
+	if _args.has("inspecttest"):   # testing: the supervisor drops in with the crate out
+		SaveGame.set_stash(["guitar", "newsletter"])
+		world.booth.show_crate(SaveGame.stash())
+		story._run_inspection(true)
+	if _args.has("buyertest"):   # testing: the buyer's deal
+		SaveGame.set_stash(["guitar", "radio", "newsletter", "cigs"])
+		get_tree().create_timer(1.0).timeout.connect(func(): story._stash_ui.sale(SaveGame.stash()))
 	if _args.has("boottest"):   # testing: open a lot car's boot as if standing behind it
 		get_tree().create_timer(1.5).timeout.connect(func():
 			if story.roam:
