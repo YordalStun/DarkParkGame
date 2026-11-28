@@ -1502,51 +1502,117 @@ const LEFT_OPEN_RISK := 20   ## walking off and leaving a boot open: the owner r
 const CAUGHT_DIST := 9.0     ## the police this close while you're looking into a boot: caught
 
 
+## Boots in co-op go through the host: whoever opens, closes or takes from one asks the host, and
+## everyone sees the same lid, the same things and the same risk. A boot is named so every machine
+## finds the same car: "lot:N" (parked all night), "leaver:N" (evening staff), or a visitor's car name.
+func _boot_key(model: CarModel) -> String:
+	var i: int = world.lot.cars.find(model)
+	if i >= 0:
+		return "lot:%d" % i
+	for k in _leavers.size():
+		if is_instance_valid(_leavers[k]) and _leavers[k]._model == model:
+			return "leaver:%d" % k
+	for nm in net_cars:
+		var c = net_cars[nm]
+		if is_instance_valid(c) and c._model == model:
+			return "car:" + str(nm)
+	return ""
+
+
+func _boot_model(key: String) -> CarModel:
+	if key.begins_with("lot:"):
+		var i := int(key.substr(4))
+		return world.lot.cars[i] if i < world.lot.cars.size() else null
+	if key.begins_with("leaver:"):
+		var k := int(key.substr(7))
+		return _leavers[k]._model if k < _leavers.size() and is_instance_valid(_leavers[k]) else null
+	if key.begins_with("car:"):
+		var c = net_cars.get(key.substr(4))
+		return c._model if c != null and is_instance_valid(c) else null
+	return null
+
+
 ## Click a boot: open it (a closed one), or look down into it (an open one: the camera does that).
 func _open_boot(model: CarModel) -> void:
 	if roam == null or not roam.outside:
-		hud.notify("You'd have to go outside for that.", 3.0)
+		hud.notify_local("You'd have to go outside for that.", 3.0)
 		return
 	if model.boot_open:
 		return
 	if not SaveGame.has_upgrade("boot_wedge"):
-		hud.notify("Locked. You'd need a boot wedge (buy one at the end of a shift).", 4.0)
+		hud.notify_local("Locked. You'd need a boot wedge (buy one at the end of a shift).", 4.0)
 		hud.tip("boot_wedge", "Boots can be opened with a boot wedge. Buy one on the end-of-shift screen; it arrives the next night. Owners notice, and they complain to Dale.")
 		return
+	if guest:
+		Net.request("boot_open", [_boot_key(model)])
+	else:
+		_host_open_boot(model, local_player_id)
+
+
+## How many guards (anyone, the host included) are standing within r metres of a point outside.
+func _guards_at(p: Vector3, r: float) -> int:
+	var n := 0
+	if roam and roam.outside and Vector2(camera.global_position.x - p.x, camera.global_position.z - p.z).length() < r:
+		n += 1
+	var coop = get_tree().root.find_child("Coop", true, false)
+	if coop:
+		n += coop.guards_near(p, r)
+	return n
+
+
+## Host: guard `who` opens a boot.
+func _host_open_boot(model: CarModel, who: int) -> void:
+	if model == null or model.boot_open:
+		return
 	# Co-op: a van's back doors need two of you (one keeps watch and holds the doors).
-	if Net.active() and model.is_van() and not model.has_meta("opened"):
-		var coop = get_tree().root.find_child("Coop", true, false)
-		if coop and coop.guards_near(model.global_position, 4.0) < 1:
-			hud.notify_local("The van's back doors are heavy and right under the lights. You need another guard here with you.", 5.0)
+	if Net.active() and model.is_van() and not model.has_meta("opened") and _guards_at(model.global_position, 4.0) < 2:
+		_tell(who, "The van's back doors are heavy and right under the lights. You need another guard here with you.", 5.0)
+		if who == local_player_id:
 			hud.tip("van_two", "Vans carry the best stuff, but in co-op it takes two: get another guard to the back of the van with you.")
-			return
+		return
+	var first := not model.has_meta("opened")
+	var ids: Array = []
+	if first:
+		model.set_meta("opened", true)
+		model.set_meta("pending", 0)
+		model.set_meta("taken", 0)
+		if night == 3:   # night three: nobody's noticed yet. Dale brings it up in tomorrow's call.
+			SaveGame.set_story("boots_last_night", int(SaveGame.story("boots_last_night", 0)) + 1)
+		ids = _boot_contents(model)
+		if ids.is_empty():
+			_tell(who, "Nothing in here but a spare tyre and a wet blanket.", 3.5)
+	_show_boot_open(model, ids, first)
+	Net.send("boot_open", [_boot_key(model), ids, first])
+	if first:
+		_watch_boot(model)
+
+
+## Everyone: the lid goes up (and the first time, the things inside are laid out, the same on every
+## machine).
+func _show_boot_open(model: CarModel, ids: Array, first: bool) -> void:
 	world.ambience.play_at("car_door", model.global_position, -10.0, "Outside", 4.0)
 	model.open_boot_lid()
 	model.boot_interact.zoom_marker = model.boot_view   # click it again to look in
 	model.boot_interact.prompt = ("Look in the back" if model.is_van() else "Look in the boot") + "   (E: close it)"
+	if first and not ids.is_empty():
+		_spawn_boot_items(model, ids)
 	_boot_items_enabled(model, true)
-	hud.tip("boot_look", "Click the open boot to look down into it, and click things to take them. Right click to step back, E to close it. Close it and walk away and you might get away clean.")
-	if model.has_meta("opened"):
-		return
-	model.set_meta("opened", true)
-	model.set_meta("pending", 0)
-	model.set_meta("taken", 0)
-	if night == 3:   # night three: nobody's noticed yet. Dale brings it up in tomorrow's call.
-		SaveGame.set_story("boots_last_night", int(SaveGame.story("boots_last_night", 0)) + 1)
-	_watch_boot(model)
-	var ids := _boot_contents(model)
-	if ids.is_empty():
-		hud.notify("Nothing in here but a spare tyre and a wet blanket.", 3.5)
-		return
+	if roam and roam.outside and Vector2(camera.global_position.x - model.global_position.x, camera.global_position.z - model.global_position.z).length() < 4.0:
+		hud.tip("boot_look", "Click the open boot to look down into it, and click things to take them. Right click to step back, E to close it. Close it and walk away and you might get away clean.")
+
+
+func _spawn_boot_items(model: CarModel, ids: Array) -> void:
 	var models := []
 	for id in ids:
 		models.append(BootItems.make(id))
 	model.place_in_boot(models)
+	model.set_meta("items", models)
 	var scan: bool = SaveGame.has_upgrade("boot_scanner")
 	for i in ids.size():
 		var id: String = ids[i]
 		var m: Node3D = models[i]
 		m.add_to_group("boot_item")
+		m.set_meta("id", id)
 		var it := Interactable.new()
 		it.outdoor = true   # used from the car park
 		var d: Array = BootItems.ITEMS[id]
@@ -1554,7 +1620,7 @@ func _open_boot(model: CarModel) -> void:
 		it.prompt = "Take %s  (+%d%% risk if it's missed)%s" % [_bare(str(d[0])), rk, "  BIG" if BootItems.is_big(id) else ""]
 		it.add_box(Vector3(0.6, 0.4, 0.6), Vector3(0, 0.15, 0))
 		m.add_child(it)
-		it.activated.connect(_take_item.bind(id, m, model))
+		it.activated.connect(_on_take.bind(model, i, id))
 		if scan:   # the BootScan gadget: a price over everything
 			var tag := Label3D.new()
 			tag.text = "%dc" % int(d[1])
@@ -1567,6 +1633,65 @@ func _open_boot(model: CarModel) -> void:
 			tag.modulate = Color(0.5, 1.0, 0.55)
 			tag.position = Vector3(0, 0.3, 0)
 			m.add_child(tag)
+
+
+## Clicked something in a boot: there must be room in this guard's hands (they're each their own).
+func _on_take(model: CarModel, i: int, id: String) -> void:
+	if _slots(carrying) + int(BootItems.ITEMS[id][3]) > CARRY_SLOTS:
+		hud.notify_local("Your hands are full. Drop things in the storage crate in the hut first.", 4.0)
+		return
+	if guest:
+		Net.request("boot_take", [_boot_key(model), i])
+	else:
+		_host_take(model, i, local_player_id)
+
+
+## Host: guard `who` takes item i from a boot (if nobody beat them to it). The risk is the team's.
+func _host_take(model: CarModel, i: int, who: int) -> void:
+	var items: Array = model.get_meta("items", [])
+	if i < 0 or i >= items.size() or not is_instance_valid(items[i]):
+		return
+	var ids_left := []
+	var id := ""
+	for k in _boot_ids(model):
+		ids_left.append(k)
+	id = ids_left[i] if i < ids_left.size() else ""
+	if id == "":
+		return
+	_remove_boot_item(model, i)
+	Net.send("boot_item_gone", [_boot_key(model), i])
+	if who == local_player_id:
+		_took(id)
+	else:
+		Net.send_to(who, "boot_took", [id])
+	var d: Array = BootItems.ITEMS[id]
+	if model.get_meta("resolved", false):   # (after the fact: straight on)
+		add_risk(_item_risk(model, id))
+		return
+	model.set_meta("pending", int(model.get_meta("pending", 0)) + _item_risk(model, id))
+	model.set_meta("taken", int(model.get_meta("taken", 0)) + 1)
+
+
+func _boot_ids(model: CarModel) -> Array:
+	var out := []
+	for m in model.get_meta("items", []):
+		out.append(m.get_meta("id", "") if is_instance_valid(m) else "")
+	return out
+
+
+func _remove_boot_item(model: CarModel, i: int) -> void:
+	var items: Array = model.get_meta("items", [])
+	if i >= 0 and i < items.size() and is_instance_valid(items[i]):
+		items[i].queue_free()
+		world.ambience.play_at("click2", model.global_position, -12.0, "Outside", 2.0)
+
+
+## This guard now has it in their hands.
+func _took(id: String) -> void:
+	var d: Array = BootItems.ITEMS[id]
+	carrying.append(id)
+	_update_carry()
+	hud.notify_local("You took %s.%s" % [d[0], "  It's big: it takes 2 spaces and won't hide under the desk." if BootItems.is_big(id) else ""], 3.5)
 
 
 func _item_risk(model: CarModel, id: String) -> int:
@@ -1586,6 +1711,17 @@ func _boot_items_enabled(model: CarModel, on: bool) -> void:
 func _close_boot(model: CarModel) -> void:
 	if not model.boot_open:
 		return
+	if guest:
+		Net.request("boot_close", [_boot_key(model)])
+		return
+	Net.send("boot_close", [_boot_key(model)])
+	_show_boot_close(model)
+
+
+## Everyone: the lid comes down (anyone looking in steps back first).
+func _show_boot_close(model: CarModel) -> void:
+	if not model.boot_open:
+		return
 	if camera.focus == model.boot_interact:
 		camera.unzoom()
 	_boot_items_enabled(model, false)
@@ -1603,15 +1739,8 @@ func _watch_boot(model: CarModel) -> void:
 		await _wait(0.25)
 		if not is_instance_valid(model):
 			return
-		# The police walk past while you've got your head in a boot: caught.
-		if camera.focus == model.boot_interact and events and is_instance_valid(events.police) \
-				and events.police.global_position.distance_to(model.global_position) < CAUGHT_DIST:
-			camera.unzoom()
-			lose_night("CAUGHT AT A CAR BOOT", "The officer walked round the car while you had your head in the boot. The night starts again.")
-			return
-		var me: Vector3 = camera.global_position
-		var far: bool = Vector2(me.x - model.global_position.x, me.z - model.global_position.z).length() > 10.0 or not roam.outside
-		if not far:
+		# Everyone's walked away from it (in co-op, every guard) before it counts.
+		if _guards_at(model.global_position, 10.0) > 0:
 			continue
 		var pending: int = int(model.get_meta("pending", 0))
 		var taken: int = int(model.get_meta("taken", 0))
@@ -1662,6 +1791,7 @@ func _dale_boots_lines() -> Array:
 		["Dale", "Not blaming you. Just... eyes open."]]
 
 
+## (Kept for old test hooks.) Take a thing straight into this guard's hands.
 func _take_item(id: String, m: Node3D, model: CarModel = null) -> void:
 	var d: Array = BootItems.ITEMS[id]
 	if _slots(carrying) + int(d[3]) > CARRY_SLOTS:
@@ -1965,6 +2095,19 @@ func remote_action(from: int, what: String, args: Array) -> void:
 	if events and events.remote_action(from, what, args):
 		return
 	match what:
+		"boot_open":
+			_host_open_boot(_boot_model(str(args[0])), from)
+		"boot_take":
+			var bm := _boot_model(str(args[0]))
+			if bm:
+				_host_take(bm, int(args[1]), from)
+		"boot_close":
+			var bm2 := _boot_model(str(args[0]))
+			if bm2 and bm2.boot_open:
+				Net.send("boot_close", [str(args[0])])
+				_show_boot_close(bm2)
+		"boot_caught":
+			lose_night("CAUGHT AT A CAR BOOT", "The officer walked round the car while %s had their head in a boot. The night starts again." % Net.label(from))
 		"test":
 			test_requested.emit(str(args[0]))
 		"crate_set":   # a guest used the crate: it's the team's, so everyone gets the new contents
@@ -2073,7 +2216,29 @@ func _send_hack() -> void:
 var _hack_last := ""
 
 
+var _caught_tick := 0.0
+
+
+## The police walk past while this guard has their head in a boot: caught (the host ends the night).
+func _boot_caught_check(delta: float) -> void:
+	_caught_tick -= delta
+	if _caught_tick > 0.0 or ending:
+		return
+	_caught_tick = 0.25
+	var f = camera.focus
+	if f == null or not (f.get_parent() is CarModel) or events == null or not is_instance_valid(events.police):
+		return
+	if events.police.global_position.distance_to((f.get_parent() as Node3D).global_position) < CAUGHT_DIST:
+		_caught_tick = 5.0
+		camera.unzoom()
+		if guest:
+			Net.request("boot_caught")
+		else:
+			lose_night("CAUGHT AT A CAR BOOT", "The officer walked round the car while you had your head in the boot. The night starts again.")
+
+
 func _process(delta: float) -> void:
+	_boot_caught_check(delta)
 	_sync_swivel(delta)
 	if guest or hack == null or not Net.active():
 		return
@@ -2127,6 +2292,22 @@ func guest_event(what: String, a: Array) -> void:
 	match what:
 		"n3_crate":
 			_crate_in(a[0], bool(a[1]))
+		"boot_open":
+			var bm := _boot_model(str(a[0]))
+			if bm:
+				if bool(a[2]):
+					bm.set_meta("opened", true)
+				_show_boot_open(bm, a[1], bool(a[2]))
+		"boot_close":
+			var bm2 := _boot_model(str(a[0]))
+			if bm2:
+				_show_boot_close(bm2)
+		"boot_item_gone":
+			var bm3 := _boot_model(str(a[0]))
+			if bm3:
+				_remove_boot_item(bm3, int(a[1]))
+		"boot_took":
+			_took(str(a[0]))
 		"upgrades":
 			SaveGame.data["upgrades"] = (a[0] as Dictionary).duplicate()
 		"n3_sale":
@@ -2263,6 +2444,7 @@ func _guest_car(idx: int, bay: Vector3, nm: String, person := {}) -> void:
 		if camera.focus != world.booth.side_view:
 			hud.notify_local("A car has pulled up at the side window.", 5.0))
 	car.parked.connect(func():
+		_hook_boot(car._model, str(p.name))   # its boot can be opened (through the host)
 		if current == car:
 			current = null)
 

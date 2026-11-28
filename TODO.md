@@ -150,7 +150,7 @@ Story (in progress, see docs/design/night-three-lore.md):
 - [x] (v0.8.8) Drivers fit their cars: every style's seat is set so the driver's head, hair and hats stay 8 cm+ under the roof lining and their knees clear the dash (the van's driver was in the dashboard).
 - [x] (v0.8.8) Alarm: a new four-part 80s siren (whoops, warble, wail, horn) with the lights in time, much brighter. Police walk round cars, the booth and the rest instead of through them.
 - [x] (v0.8.8) Van rear doors swing outwards (they opened into the van).
-- [ ] Co-op: boots opened by a guest only open on their screen (sync the lid, the items and the risk through the host).
+- [x] (v0.8.9) Co-op: boots go through the host. Whoever opens, closes or takes from a boot, everyone sees it; the things inside are the same for everyone; the risk is the team's; "walking away" waits until every guard has left the car; anyone caught looking in by the police loses the night for everyone. (Was: boots opened by a guest only open on their screen (sync the lid, the items and the risk through the host).
 - [x] Co-op: no rent, food or heat. The end screen shows the team quota (a target: keep every coin) and things to buy.
 - [x] Co-op: the other guard's walk animation follows how fast they're really moving (it barely moved before).
 - [x] Co-op: what the team has bought (boot wedge, pick lock...) is everyone's.

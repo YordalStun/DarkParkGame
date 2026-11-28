@@ -801,6 +801,22 @@ func _apply_args() -> void:
 	if _args.has("wedgeguest"):   # testing (co-op guest): the free boot wedge from the testing menu reaches everyone
 		get_tree().create_timer(25.0).timeout.connect(func(): _on_test("wedge"))
 		get_tree().create_timer(32.0).timeout.connect(func(): print("GUEST WEDGE ", SaveGame.has_upgrade("boot_wedge")))
+	if _args.has("bootguest"):   # testing (co-op guest): open a lot car's boot and take something, through the host
+		get_tree().create_timer(22.0).timeout.connect(func(): _on_test("wedge"))
+		get_tree().create_timer(28.0).timeout.connect(func():
+			story.roam._set_outside(true)
+			story._open_boot(world.lot.cars[1]))
+		get_tree().create_timer(34.0).timeout.connect(func():
+			var m = world.lot.cars[1]
+			var ids: Array = story._boot_ids(m)
+			print("GUEST boot_open=", m.boot_open, " items=", ids)
+			if not ids.is_empty():
+				story._on_take(m, 0, ids[0]))
+		get_tree().create_timer(40.0).timeout.connect(func(): print("GUEST carrying=", story.carrying, " items now=", story._boot_ids(world.lot.cars[1])))
+	if _args.has("boothost"):   # testing (co-op host): what the host sees of the guest's boot
+		get_tree().create_timer(42.0).timeout.connect(func():
+			var m = world.lot.cars[1]
+			print("HOST boot_open=", m.boot_open, " items=", story._boot_ids(m), " pending=", m.get_meta("pending", -1)))
 	if _args.has("objtest") and story.events:   # testing: night three's task list, and the co-op feed
 		story.events.add_tasks()
 		hud.add_objective("shift", "Stay at your post until 07:00")
