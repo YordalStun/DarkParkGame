@@ -94,6 +94,10 @@ func build() -> Node3D:
 	window_hole = Vector2(S.g1 - door, S.g1)
 	# Low cars seat the driver lower (seat_drop) so their head stays under the roof.
 	seat = Vector3(-S.w * 0.43, S.belt - 0.96 - S.get("seat_drop", 0.0), window_hole.x + 0.2)
+	# Fit the driver in: knees clear of the dash, and the top of their head (hair, caps and buns
+	# included: up to 1.37 m above the seat) at least 6 cm under the roof lining, so nothing pokes through.
+	seat.z = minf(seat.z, (S.g1 - 0.375) - 0.36 - 0.03)
+	seat.y = minf(seat.y, _roof(seat.z - 0.05) - 0.05 - 0.06 - 1.37)
 	_materials()
 	_lower_body()
 	_glasshouse()
@@ -700,8 +704,8 @@ func open_boot_lid() -> void:
 	var tw := create_tween().set_parallel(true)
 	tw.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	if is_van():
-		tw.tween_property(_doors[0], "rotation:y", deg_to_rad(-105.0), 0.9)
-		tw.tween_property(_doors[1], "rotation:y", deg_to_rad(105.0), 1.0)
+		tw.tween_property(_doors[0], "rotation:y", deg_to_rad(105.0), 0.9)    # both swing out, round to the sides
+		tw.tween_property(_doors[1], "rotation:y", deg_to_rad(-105.0), 1.0)
 	elif _gate:
 		tw.tween_property(_gate, "rotation:x", deg_to_rad(95.0), 1.0)
 	else:

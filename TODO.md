@@ -75,7 +75,7 @@ Story (in progress, see docs/design/night-three-lore.md):
 
 ## Cars
 
-- [ ] Cars: cut out the car body where the NPC sits inside, so drivers and passengers don't clip through the roof, seats or doors. Check each car style (see `scripts/world/car_model.gd`).
+- [x] Cars: cut out the car body where the NPC sits inside, so drivers and passengers don't clip through the roof, seats or doors. Check each car style (see `scripts/world/car_model.gd`).
 - [x] Cars: the car interiors need to make sense. Some cars clip through the models of the people pulling up (the drivers), so check each car's seats and interior against where the driver sits.
 
 ## Desk
@@ -112,8 +112,8 @@ Story (in progress, see docs/design/night-three-lore.md):
 - [x] Police walk through the lot with a torch after the second or third car. They only walk through. Walk up to them to talk.
 - [x] From night 4: if the police pass a car with its boot open, they come to the hut and look inside. A hidden crate (or no stolen goods) and no PC download running is safe. Otherwise the night is lost and starts again.
 - [x] Alarm car: a random parked car goes off (hazards, wig-wagging headlamps, horn). Checking it finds nothing, but a note by the driver's door says "DEALER" and names Baxter.
-- [ ] Alarm car: the alarm and flashing lights aren't good enough. Make the flashing brighter and the sound better (the sound is odd right now).
-- [ ] Police walk-through: the police officer walks straight through everything (cars, the booth, objects). Make them walk around solid things and obey collisions.
+- [x] Alarm car: the alarm and flashing lights aren't good enough. Make the flashing brighter and the sound better (the sound is odd right now).
+- [x] Police walk-through: the police officer walks straight through everything (cars, the booth, objects). Make them walk around solid things and obey collisions.
 - [x] Baxter (Tom Baxter, Medical Records, clearly unwell) comes in later, about the fifth car, once the note's been found. At the window you can bring the note up: he's scared and says meet him at the payphone. Out there you can offer to sell him things (the stolen-goods menu). From then on he's the buyer at the payphone on later nights. (The anonymous "man by the payphone" is gone.)
 - [x] Night 3 is about six cars from a rotating pool: Kevin always (Biscuit), Doris after the ward rings to add her, and four of Sandra, Michael, Dr Marsh, Janet and Mick.
 - [x] Night 3 earns no money (payroll's frozen). Co-op: the team has a nightly quota (4 coins, +2 every 3 nights) from what the night brought in, so night 3 is lost unless they sell stolen goods. Missing it replays the night.
@@ -147,6 +147,9 @@ Story (in progress, see docs/design/night-three-lore.md):
 - [x] Vans: the best things (4-5 of them), 1.6x the risk, never clean. Co-op: the van's back doors need two guards there.
 - [x] Big things (guitar, golf clubs, fishing gear, suitcase, TV) take 2 spaces in the crate and don't fit under the desk when it's hidden (the police and the supervisor still see them).
 - [x] Nite Stop is a little shop: pick lock (2) and BootScan (3).
+- [x] (v0.8.8) Drivers fit their cars: every style's seat is set so the driver's head, hair and hats stay 8 cm+ under the roof lining and their knees clear the dash (the van's driver was in the dashboard).
+- [x] (v0.8.8) Alarm: a new four-part 80s siren (whoops, warble, wail, horn) with the lights in time, much brighter. Police walk round cars, the booth and the rest instead of through them.
+- [x] (v0.8.8) Van rear doors swing outwards (they opened into the van).
 - [ ] Co-op: boots opened by a guest only open on their screen (sync the lid, the items and the risk through the host).
 - [x] Co-op: no rent, food or heat. The end screen shows the team quota (a target: keep every coin) and things to buy.
 - [x] Co-op: the other guard's walk animation follows how fast they're really moving (it barely moved before).

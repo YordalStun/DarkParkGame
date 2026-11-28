@@ -140,7 +140,7 @@ func _alarm_go(i: int) -> void:
 	_alarm_snd.stream = ws
 	_alarm_snd.bus = "Outside"
 	_alarm_snd.unit_size = 9.0
-	_alarm_snd.volume_db = -4.0
+	_alarm_snd.volume_db = 0.0
 	_alarm_snd.max_distance = 120.0
 	alarm_car.add_child(_alarm_snd)
 	_alarm_snd.play()
@@ -148,8 +148,8 @@ func _alarm_go(i: int) -> void:
 	for z in [alarm_car.S.f + 0.3, alarm_car.S.r - 0.3]:
 		var o := OmniLight3D.new()
 		o.light_color = Color(1.0, 0.55, 0.12)
-		o.omni_range = 6.0
-		o.omni_attenuation = 1.4
+		o.omni_range = 8.0
+		o.omni_attenuation = 1.2
 		o.light_energy = 0.0
 		o.position = Vector3(0, 0.7, z)
 		alarm_car.add_child(o)
@@ -193,35 +193,46 @@ func _alarm_go(i: int) -> void:
 	hud.notify("A car alarm is going off out in the lot.", 5.0)
 
 
-## Flashing: hazards blink twice a second; the headlamps and tail lamps flash with the horn.
+## Flashing, in time with the siren's four parts (car_alarm.wav, 6.9 s): rising whoops (the headlamps
+## wig-wag), a fast warble (everything strobes), a slow wail (slow wig-wag), then horn honks (the
+## lot flashes with each honk). The amber hazards blink twice a second the whole time.
+const ALARM_LOOP := 6.9
+
+
 func _alarm_frame(delta: float) -> void:
 	if not _alarm_on or alarm_car == null:
 		return
 	_alarm_t += delta
-	var pos := fmod(_alarm_t, 3.92)
+	var pos := fmod(_alarm_t, ALARM_LOOP)
 	var hazard := fmod(_alarm_t, 0.5) < 0.26
-	var horn: bool
+	var horn := true
 	var left := true
 	var right := true
-	if pos < 2.0:   # the wail: the headlamps wig-wag, left and right in turn
-		horn = true
-		left = fmod(pos, 0.3) < 0.15
+	if pos < 2.0:                        # whoops
+		left = fmod(pos, 0.5) < 0.25
 		right = not left
-	else:           # the honks: both lamps with every honk
-		horn = fmod(pos - 2.0, 0.32) < 0.18
+	elif pos < 3.8:                      # warble: hard strobe
+		horn = fmod(pos - 2.0, 0.18) < 0.09
 		left = horn
 		right = horn
-	(_alarm_lights[0] as Light3D).light_energy = 3.0 if hazard else 0.0
-	(_alarm_lights[1] as Light3D).light_energy = 3.0 if hazard else 0.0
+	elif pos < 5.0:                      # wail: slow wig-wag
+		left = fmod(pos - 3.8, 0.6) < 0.3
+		right = not left
+	else:                                # honks
+		horn = fmod(pos - 5.0, 0.38) < 0.22
+		left = horn
+		right = horn
+	(_alarm_lights[0] as Light3D).light_energy = 6.0 if hazard else 0.0
+	(_alarm_lights[1] as Light3D).light_energy = 6.0 if hazard else 0.0
 	var heads := _alarm_lights.size() - 4   # the headlamp spots sit between the hazards and the spill
 	for k in heads:
 		var on := left if k % 2 == 0 else right
-		(_alarm_lights[2 + k] as Light3D).light_energy = 9.0 if on else 0.0
-	(_alarm_lights[-2] as Light3D).light_energy = (1.4 if left and right else 0.8) if horn else 0.0
-	(_alarm_lights[-1] as Light3D).light_energy = 1.6 if horn else 0.0
-	(_alarm_glow[0][0] as StandardMaterial3D).emission_energy_multiplier = 6.0 if hazard else 0.1
-	(_alarm_glow[1][0] as StandardMaterial3D).emission_energy_multiplier = 5.0 if (left or right) and horn else 0.0
-	(_alarm_glow[2][0] as StandardMaterial3D).emission_energy_multiplier = 3.5 if horn else 0.4
+		(_alarm_lights[2 + k] as Light3D).light_energy = 16.0 if on else 0.0
+	(_alarm_lights[-2] as Light3D).light_energy = (2.6 if left and right else 1.4) if horn else 0.0
+	(_alarm_lights[-1] as Light3D).light_energy = 3.0 if horn else 0.0
+	(_alarm_glow[0][0] as StandardMaterial3D).emission_energy_multiplier = 12.0 if hazard else 0.1
+	(_alarm_glow[1][0] as StandardMaterial3D).emission_energy_multiplier = 9.0 if (left or right) and horn else 0.0
+	(_alarm_glow[2][0] as StandardMaterial3D).emission_energy_multiplier = 6.0 if horn else 0.4
 
 
 func _alarm_stop() -> void:
@@ -551,7 +562,14 @@ func _police_frame(delta: float) -> void:
 		if _path.is_empty() and _diverted and not story.guest:
 			_police_search()
 		return
-	var dir := to.normalized()
+	var dir := _steer(p, to.normalized())
+	if dir == Vector3.ZERO:   # boxed in: wait a moment, then give up on this waypoint
+		_stuck += delta
+		if _stuck > 4.0:
+			_stuck = 0.0
+			_path.pop_front()
+		return
+	_stuck = 0.0
 	police.global_position += dir * 1.2 * delta
 	police.basis = police.basis.slerp(Basis.looking_at(-dir, Vector3.UP), minf(1.0, delta * 6.0))
 	var phase := Time.get_ticks_msec() * 0.007
@@ -567,6 +585,38 @@ func _police_frame(delta: float) -> void:
 		_diverted = true
 		Net.send("n3_police_divert")
 		_divert()
+
+
+var _stuck := 0.0
+
+
+## Walk round things instead of through them: try the straight line first, then fan out either side
+## until a step that way is clear (cars, the booth, the payphone, the bin, the hut...).
+func _steer(p: Vector3, want: Vector3) -> Vector3:
+	for ang in [0.0, 25.0, -25.0, 50.0, -50.0, 80.0, -80.0, 115.0, -115.0]:
+		var d := want.rotated(Vector3.UP, deg_to_rad(ang))
+		var ok := true
+		for step in [0.35, 0.8]:
+			if not _walkable(p + d * step):
+				ok = false
+				break
+		if ok:
+			return d
+	return Vector3.ZERO
+
+
+func _walkable(p: Vector3) -> bool:
+	var roam = story.roam
+	if roam == null:
+		return true
+	var q := Vector2(p.x, p.z)
+	for r in roam.LOT_BLOCKERS + roam.extra_blockers:
+		if (r as Rect2).grow(0.3).has_point(q):
+			return false
+	for c in roam._cars():
+		if roam._in_car(c, q, 0.3):
+			return false
+	return true   # (no edge-of-the-lot check: he walks in from the road)
 
 
 func _divert() -> void:

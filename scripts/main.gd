@@ -810,6 +810,9 @@ func _apply_args() -> void:
 		hud.show_choices([{"text": "Biscuit. Good name."}, {"text": "Bet he's the password to everything."}], 8.0, false, "P2")
 	if _args.has("policetest") and story.events:   # testing: the police walk-round
 		story.events.police_walk()
+		if _args.has("policelog"):
+			for t in [10.0, 30.0, 50.0, 70.0, 90.0, 110.0]:
+				get_tree().create_timer(t).timeout.connect(func(): print("POLICE t=", t, " ", story.events.police.global_position if is_instance_valid(story.events.police) else "gone"))
 	if _args.has("baxtertest") and story.events:   # testing: Baxter by the payphone
 		story.events.baxter_outside(_args.has("deal"))
 	if _args.has("hut") and story.events and story.events.hut == null:   # testing: the co-op hut
