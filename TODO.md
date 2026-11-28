@@ -193,6 +193,8 @@ Story (in progress, see docs/design/night-three-lore.md):
 - [x] Boot wedge: bought on the end-of-shift screen (2 coins), there from the next night. (Ordering it on the PC is still an option for later.)
 - [x] Be able to open the boot of any car in the lot (night three on, outside, with the wedge). The lid swings up; each car has 0-5 items.
 - [x] Opening a boot for no reason: the car's owner gets angry and reports it to Dale (+1 report each boot).
+- [ ] Be able to close a car boot after opening it (not only open it).
+- [ ] Dale's call after looting is too fast. Nobody has had time to report it yet. Give the owner time to notice and report before Dale rings (timing still to set).
 - [x] Dale's reaction to a report: first tells the player to keep an eye out for people, then gets suspicious of the player if it keeps happening.
 
 - [x] Boots are real: every car has a boot well and a hinged lid with a boot light; 0-5 items (20 kinds, scripts/world/boot_items.gd) lie in it without overlapping. Click one to take it: adds its own risk and takes 1-2 of 3 carry slots. Drop them in the storage crate in the hut. Tom's and Dr Marsh's boots hold what they mentioned.
