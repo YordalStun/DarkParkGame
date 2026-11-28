@@ -133,6 +133,10 @@ Story (in progress, see docs/design/night-three-lore.md):
 - [ ] Boot animations: a nice opening and closing motion for the lid on every car.
 - [ ] Looking into the boot: once the boot is open, the player can click it and the camera moves to look down into it from above. From there, click an item to take it.
 - [ ] Close a boot again after taking items (ties in with the close-boot item).
+- [ ] Shop item: a gadget you can buy that shows the value of each object in a boot (the player can see what's worth taking).
+- [ ] Police in the boot camera view: if the police walk by while the player is looking into a boot from above, Dave is caught instantly (game over).
+- [ ] Leaving a boot open: a call from the owner and a sharp rise in risk straight away.
+- [ ] Taking 1 or 2 objects, closing the boot, and being away from the car: a chance of adding no risk at all.
 - [ ] Sound effect for the boot: a clunk when the lid opens and when it closes, matched to the animation (and a rustle when an item is taken).
 - [ ] Bug: cars park in the same spot. Each visitor should get a free bay (see `_bays` and `_bay_pos` in `scripts/story/shift.gd`). Check for bays being reused or not freed when a car leaves.
 - [ ] Van: the van's boot doesn't work right. A van has no boot lid, it has two rear doors that open. Make the van open its two back doors (both swing out) instead of a boot lid, and let the player take items from inside. Check `scripts/world/car_model.gd` and `scripts/world/car_builder.gd` for how the boot is built.
