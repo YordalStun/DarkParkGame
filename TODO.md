@@ -75,6 +75,7 @@ Story (in progress, see docs/design/night-three-lore.md):
 
 ## Cars
 
+- [ ] Cars: cut out the car body where the NPC sits inside, so drivers and passengers don't clip through the roof, seats or doors. Check each car style (see `scripts/world/car_model.gd`).
 - [x] Cars: the car interiors need to make sense. Some cars clip through the models of the people pulling up (the drivers), so check each car's seats and interior against where the driver sits.
 
 ## Desk
