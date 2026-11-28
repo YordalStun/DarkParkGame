@@ -128,6 +128,8 @@ Story (in progress, see docs/design/night-three-lore.md):
 - [ ] Tune: the quota and the pick lock's break chance.
 - [x] Fix: nothing night three put in the car park could be used from outside (boots, boot items, Baxter, the police, the alarm car, the note, the Nite Stop, the hut door and PC). They now work out there (v0.8.6).
 - [x] Baxter waits at the back of the lot, by the fence near the old hut, smoking (a glowing cigarette so you can spot him), in a shabby mac rather than a porter's hi-vis.
+- [ ] Baxter smoking (the character is Baxter in the code; "Dexter" here is taken to mean him): the cigarette is floating beside his head with his hands down, not in his mouth. Fix it so he holds the cigarette to his lips with one hand, with a proper arm pose. Check it in `scripts/story/night_events.gd` (the cigarette is a fixed box at a set point).
+- [ ] Baxter smoking: add a flicking ember (the glow pulses as he draws on it) and rising smoke puffs, so it reads as smoking from the booth.
 - [x] Co-op: no rent, food or heat. The end screen shows the team quota (a target: keep every coin) and things to buy.
 - [x] Co-op: the other guard's walk animation follows how fast they're really moving (it barely moved before).
 - [x] Co-op: what the team has bought (boot wedge, pick lock...) is everyone's.
