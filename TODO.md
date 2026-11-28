@@ -112,6 +112,8 @@ Story (in progress, see docs/design/night-three-lore.md):
 - [x] Police walk through the lot with a torch after the second or third car. They only walk through. Walk up to them to talk.
 - [x] From night 4: if the police pass a car with its boot open, they come to the hut and look inside. A hidden crate (or no stolen goods) and no PC download running is safe. Otherwise the night is lost and starts again.
 - [x] Alarm car: a random parked car goes off (hazards, wig-wagging headlamps, horn). Checking it finds nothing, but a note by the driver's door says "DEALER" and names Baxter.
+- [ ] Alarm car: the alarm and flashing lights aren't good enough. Make the flashing brighter and the sound better (the sound is odd right now).
+- [ ] Police walk-through: the police officer walks straight through everything (cars, the booth, objects). Make them walk around solid things and obey collisions.
 - [x] Baxter (Tom Baxter, Medical Records, clearly unwell) comes in later, about the fifth car, once the note's been found. At the window you can bring the note up: he's scared and says meet him at the payphone. Out there you can offer to sell him things (the stolen-goods menu). From then on he's the buyer at the payphone on later nights. (The anonymous "man by the payphone" is gone.)
 - [x] Night 3 is about six cars from a rotating pool: Kevin always (Biscuit), Doris after the ward rings to add her, and four of Sandra, Michael, Dr Marsh, Janet and Mick.
 - [x] Night 3 earns no money (payroll's frozen). Co-op: the team has a nightly quota (4 coins, +2 every 3 nights) from what the night brought in, so night 3 is lost unless they sell stolen goods. Missing it replays the night.
