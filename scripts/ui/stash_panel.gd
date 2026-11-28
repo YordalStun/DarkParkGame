@@ -95,7 +95,11 @@ func _close() -> void:
 
 ## The crate: what's in it (take out), what's in your hands (put in), and hiding it.
 func crate(stash: Array, carrying: Array, hidden: bool, slots_free: int) -> Dictionary:
-	var v := _frame("STORAGE CRATE   %d/%d" % [stash.size(), SaveGame.CRATE_SIZE])
+	var used := 0   # spaces: big things take two
+	for id in stash:
+		used += int(BootItems.info(id)[3])
+	var room: int = SaveGame.CRATE_SIZE - used
+	var v := _frame("STORAGE CRATE   %d/%d spaces" % [used, SaveGame.CRATE_SIZE])
 	var picked := [{}]
 	if hidden:
 		_label("It's pushed under the desk, out of sight. Pull it out to use it.", 24, Color(0.75, 0.75, 0.7), v)
@@ -106,7 +110,7 @@ func crate(stash: Array, carrying: Array, hidden: bool, slots_free: int) -> Dict
 		for i in stash.size():
 			var d: Array = BootItems.info(stash[i])
 			var h := _row(v)
-			_label("  " + str(d[0]) + ("   (yours to keep)" if BootItems.is_story(stash[i]) else "   worth %d" % d[1]), 22, Color(0.88, 0.88, 0.82), h)
+			_label("  " + str(d[0]) + ("   (yours to keep)" if BootItems.is_story(stash[i]) else "   worth %d" % d[1]) + ("   BIG" if BootItems.is_big(stash[i]) else ""), 22, Color(0.88, 0.88, 0.82), h)
 			_spacer(h)
 			var b := _button("TAKE OUT", h)
 			b.disabled = int(d[3]) > slots_free
@@ -117,18 +121,21 @@ func crate(stash: Array, carrying: Array, hidden: bool, slots_free: int) -> Dict
 			_label("  (nothing)", 22, Color(0.55, 0.55, 0.5), v)
 		for i in carrying.size():
 			var h2 := _row(v)
-			_label("  " + str(BootItems.info(carrying[i])[0]), 22, Color(0.88, 0.88, 0.82), h2)
+			_label("  " + str(BootItems.info(carrying[i])[0]) + ("   BIG (2 spaces)" if BootItems.is_big(carrying[i]) else ""), 22, Color(0.88, 0.88, 0.82), h2)
 			_spacer(h2)
 			var b2 := _button("PUT IN", h2)
-			b2.disabled = stash.size() >= SaveGame.CRATE_SIZE
+			b2.disabled = int(BootItems.info(carrying[i])[3]) > room
 			var idx2 := i
 			b2.pressed.connect(func(): picked[0] = {"act": "put", "i": idx2})
 	var bottom := _row(v)
 	if not hidden and not carrying.is_empty():
 		var all := _button("PUT EVERYTHING IN", bottom, true)
-		all.disabled = stash.size() >= SaveGame.CRATE_SIZE
+		all.disabled = room <= 0
 		all.pressed.connect(func(): picked[0] = {"act": "put_all"})
 	_spacer(bottom)
+	var big_in := stash.any(func(id): return BootItems.is_big(id))
+	if not hidden and big_in:
+		_label("Big things won't fit under the desk: hide the crate and they'll still be in plain sight.", 20, Color(1.0, 0.6, 0.4), v)
 	var hb := _button("PULL IT OUT" if hidden else "HIDE IT UNDER THE DESK", bottom)
 	hb.pressed.connect(func(): picked[0] = {"act": "unhide" if hidden else "hide"})
 	var c := _button("CLOSE", bottom)

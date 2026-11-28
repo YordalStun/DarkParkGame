@@ -286,6 +286,9 @@ func _lower_body() -> void:
 	var bl: float = clampf(S.g0 - r - 0.1, 0.55, 0.8)
 	boot_zone = Vector2(r + 0.07, r + 0.07 + bl)
 	boot_floor = maxf(S.get("sill", 0.27) + 0.16, _top(boot_zone.x + 0.1) - 0.3)   # ~30 cm deep: you can see in
+	if is_van():   # a van has a cargo floor behind two rear doors instead of a boot well
+		boot_zone = Vector2(r - 0.02, r + 1.5)   # from the very back: the doors are the whole back
+		boot_floor = 0.78
 	var zs := _stations([r, boot_zone.x, boot_zone.y, f], 0.07)
 	var rings := []
 	for zz in zs:
@@ -319,7 +322,8 @@ func _lower_body() -> void:
 		rings.append(ring)
 	_loft(rings, body_mat, "Body")
 	_boot_lid()
-	_fan(rings[0], Vector3(0, (_bottom(r) + _top(r)) * 0.5, r), body_mat, Vector3(0, 0, -1))
+	if not is_van():   # (the van's back is its two doors)
+		_fan(rings[0], Vector3(0, (_bottom(r) + _top(r)) * 0.5, r), body_mat, Vector3(0, 0, -1))
 	_fan(rings[-1], Vector3(0, (_bottom(f) + _top(f)) * 0.5, f), body_mat, Vector3(0, 0, 1))
 	# Inside the arches and under the car: black.
 	var black := MK.mat(Color(0.015, 0.015, 0.015), "", 0.9)
@@ -343,15 +347,21 @@ func _glasshouse() -> void:
 	var c1: float = b0 if S.get("no_rear_windows", false) else maxf(S.c1, g0)
 	# --- top strip: rear screen (glass, or body on a van), roof (body), windscreen (glass)
 	var parts := [[g0, span.x, glass_mat if S.get("rear_glass", true) else body_mat], [span.x, span.y, body_mat], [span.y, g1, glass_mat]]
-	for p in parts:
+	for pi in parts.size():
+		var p: Array = parts[pi]
 		if p[1] - p[0] < 0.005:
 			continue
+		if pi == 0 and is_van():
+			continue   # the van's back is its rear doors
 		var rows := []
 		for z in _stations([p[0], p[1]], 0.1):
 			var g := _gw(z)
 			var crown := 0.03 * clampf((g[1] - g[0]) / 0.4, 0.0, 1.0)
 			rows.append([Vector3(-g[3], g[1], z), Vector3(0, g[1] + crown, z), Vector3(g[3], g[1], z)])
-		_loft(rows, p[2])
+		var mesh := _loft(rows, p[2])
+		if pi == 0 and _gate:   # a hatchback's rear screen lifts with the tailgate
+			mesh.reparent(_gate, false)
+			mesh.position = -_gate.position
 	# --- sides: body (C/D pillar), glass, black (B pillar), glass or open (driver's window)
 	var keys := [g0, c1, b0, b1, g1]
 	var zs := _stations(keys, 0.12)
@@ -547,7 +557,11 @@ func add_boot() -> Interactable:
 	boot_interact = Interactable.new()
 	boot_interact.outdoor = true   # used from the car park
 	boot_interact.prompt = "Open boot"
-	boot_interact.add_box(Vector3(S.w * 1.7, 0.5, boot_zone.y - boot_zone.x + 0.15), Vector3(0, _top(boot_zone.x) - 0.05, (boot_zone.x + boot_zone.y) * 0.5 - 0.05))
+	if is_van():
+		boot_interact.add_box(Vector3(S.w * 1.9, 1.3, 0.5), Vector3(0, 1.25, S.r - 0.1))
+	else:
+		boot_interact.add_box(Vector3(S.w * 1.7, 0.5, boot_zone.y - boot_zone.x + 0.15), Vector3(0, _top(boot_zone.x) - 0.05, (boot_zone.x + boot_zone.y) * 0.5 - 0.05))
+	boot_interact.zoom_fov = 55.0
 	add_child(boot_interact)
 	return boot_interact
 
@@ -558,9 +572,35 @@ var boot_floor := 0.4           ## height of the boot floor
 var _lid: Node3D
 
 
+## Hatchbacks, estates, 4x4s and MPVs: the whole tailgate (rear screen and all) lifts on a hinge at
+## the back of the roof. Saloons have a boot lid; the van has two rear doors.
+func is_tailgate() -> bool:
+	return S.g0 - S.r < 0.15 and not is_van()
+
+
+func is_van() -> bool:
+	return style == "van"
+
+
+var _gate: Node3D           ## tailgate pivot (hatch-type cars)
+var _doors: Array = []      ## van: [left pivot, right pivot]
+var _boot_lamp: OmniLight3D
+var boot_view: Node3D       ## where the camera looks into the boot from (its -Z points in)
+
+
 func _boot_lid() -> void:
+	if is_van():
+		_van_doors()
+		_make_boot_view()
+		return
 	var z0 := boot_zone.x
 	var z1 := boot_zone.y
+	if is_tailgate():
+		var span := _roof_span()
+		_gate = Node3D.new()
+		_gate.name = "Tailgate"
+		_gate.position = Vector3(0, _gw(span.x)[1], span.x)
+		add_child(_gate)
 	var hinge_y := _top(z1) + 0.02
 	_lid = Node3D.new()
 	_lid.name = "BootLid"
@@ -578,6 +618,9 @@ func _boot_lid() -> void:
 	lid_mat.cull_mode = BaseMaterial3D.CULL_DISABLED   # seen from underneath once it's open
 	var lid := _loft(rows, lid_mat, "Lid")
 	lid.reparent(_lid, false)
+	if _gate:   # the parcel-shelf lid goes up with the tailgate
+		_lid.reparent(_gate, false)
+		_lid.position -= _gate.position
 	# Shut lines round the lid, and a lock.
 	var line := MK.mat(Color(0.02, 0.02, 0.02), "", 0.8)
 	MK.box(self, Vector3(S.w * 1.86, 0.008, 0.012), Vector3(0, _top(z1) + 0.012, z1), line)
@@ -588,25 +631,102 @@ func _boot_lid() -> void:
 	MK.box(self, Vector3(S.w * 1.7, maxf(0.05, _top(z1) - boot_floor), 0.012), Vector3(0, (boot_floor + _top(z1)) * 0.5, z1 - 0.008), carpet)
 	for sx in [-1.0, 1.0]:   # side linings
 		MK.box(self, Vector3(0.012, maxf(0.05, _top(z0) - boot_floor - 0.02), z1 - z0 - 0.02), Vector3(sx * S.w * 0.84, (boot_floor + _top(z0)) * 0.5, (z0 + z1) * 0.5), carpet)
+	_make_boot_view()
 
 
-## Break into the boot: the lid swings up on its hinge.
+## The van: plywood-lined cargo bay and two rear doors hinged at the outside edges.
+func _van_doors() -> void:
+	var r: float = S.r
+	var w: float = S.w
+	var ply := MK.mat(Color(0.42, 0.34, 0.24), "wood_desk", 0.9)
+	var top := 1.96
+	var depth := 1.5
+	MK.box(self, Vector3(w * 1.9, 0.02, depth), Vector3(0, boot_floor, r + depth * 0.5), MK.mat(Color(0.16, 0.15, 0.14), "", 1.0))
+	MK.box(self, Vector3(w * 1.9, 0.02, depth), Vector3(0, top, r + depth * 0.5), ply)
+	MK.box(self, Vector3(w * 1.9, top - boot_floor, 0.02), Vector3(0, (top + boot_floor) * 0.5, r + depth), ply)
+	for sx in [-1.0, 1.0]:
+		MK.box(self, Vector3(0.02, top - boot_floor, depth), Vector3(sx * (w - 0.05), (top + boot_floor) * 0.5, r + depth * 0.5), ply)
+	MK.box(self, Vector3(w * 2.0, boot_floor - S.get("sill", 0.36), 0.04), Vector3(0, (boot_floor + S.get("sill", 0.36)) * 0.5, r), body_mat)   # the rear sill under the doors
+	var door_mat := body_mat.duplicate() as StandardMaterial3D
+	door_mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	var line := MK.mat(Color(0.02, 0.02, 0.02), "", 0.8)
+	var h: float = top - boot_floor + 0.06
+	for side in [-1.0, 1.0]:
+		var pv := Node3D.new()
+		pv.name = "RearDoor%s" % ("L" if side < 0.0 else "R")
+		pv.position = Vector3(side * w, 0, r - 0.015)
+		add_child(pv)
+		MK.box(pv, Vector3(w - 0.006, h, 0.03), Vector3(-side * w * 0.5, boot_floor + h * 0.5 - 0.03, 0), door_mat)
+		MK.box(pv, Vector3(0.03, 0.12, 0.02), Vector3(-side * (w - 0.08), boot_floor + h * 0.45, -0.025), _chrome)   # handle
+		MK.box(pv, Vector3(0.006, h, 0.01), Vector3(-side * (w - 0.006), boot_floor + h * 0.5 - 0.03, -0.018), line)
+		_doors.append(pv)
+
+
+## Where the camera goes to look into the boot: above and behind it, looking down into it.
+func _make_boot_view() -> void:
+	boot_view = Node3D.new()
+	boot_view.name = "BootView"
+	add_child(boot_view)
+	var mid := Vector3(0, boot_floor, (boot_zone.x + boot_zone.y) * 0.5)
+	var eye: Vector3
+	if is_van():
+		eye = Vector3(0, 1.55, S.r - 0.75)
+	elif is_tailgate():
+		eye = Vector3(0, _top(boot_zone.x) + 1.1, S.r - 0.3)
+	else:
+		eye = Vector3(0, _top(boot_zone.x) + 0.95, boot_zone.x - 0.35)
+	boot_view.transform = Transform3D(Basis.looking_at(mid - eye, Vector3.UP), eye)
+
+
+## Break into the boot: the lid (or tailgate, or the van's doors) swings open.
 func open_boot_lid() -> void:
 	if boot_open:
 		return
 	boot_open = true
 	# The boot light comes on (so you can see what's in there at night).
-	var lamp := OmniLight3D.new()
-	lamp.light_color = Color(1.0, 0.85, 0.6)
-	lamp.light_energy = 1.1
-	lamp.omni_range = 1.4
-	lamp.light_volumetric_fog_energy = 0.0
-	lamp.shadow_enabled = false
-	lamp.position = Vector3(0, _top(boot_zone.y) + 0.05, boot_zone.y - 0.12)
-	add_child(lamp)
-	var tw := create_tween()
+	if _boot_lamp == null:
+		_boot_lamp = OmniLight3D.new()
+		_boot_lamp.light_color = Color(1.0, 0.85, 0.6)
+		_boot_lamp.light_energy = 1.1
+		_boot_lamp.omni_range = 1.6
+		_boot_lamp.light_volumetric_fog_energy = 0.0
+		_boot_lamp.shadow_enabled = false
+		if is_van():
+			_boot_lamp.position = Vector3(0, 1.85, S.r + 0.5)
+		else:
+			_boot_lamp.position = Vector3(0, _top(boot_zone.y) + 0.05, boot_zone.y - 0.12)
+		add_child(_boot_lamp)
+	_boot_lamp.visible = true
+	var tw := create_tween().set_parallel(true)
 	tw.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-	tw.tween_property(_lid, "rotation:x", deg_to_rad(72.0), 0.8)
+	if is_van():
+		tw.tween_property(_doors[0], "rotation:y", deg_to_rad(-105.0), 0.9)
+		tw.tween_property(_doors[1], "rotation:y", deg_to_rad(105.0), 1.0)
+	elif _gate:
+		tw.tween_property(_gate, "rotation:x", deg_to_rad(95.0), 1.0)
+	else:
+		tw.tween_property(_lid, "rotation:x", deg_to_rad(72.0), 0.8)
+
+
+## Shut it again. Returns how long the swing takes (the clunk is at the end).
+func close_boot_lid() -> float:
+	if not boot_open:
+		return 0.0
+	boot_open = false
+	var tw := create_tween().set_parallel(true)
+	tw.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	var t := 0.55
+	if is_van():
+		tw.tween_property(_doors[0], "rotation:y", 0.0, t)
+		tw.tween_property(_doors[1], "rotation:y", 0.0, t + 0.15)
+		t += 0.15
+	elif _gate:
+		t = 0.7
+		tw.tween_property(_gate, "rotation:x", 0.0, t)
+	else:
+		tw.tween_property(_lid, "rotation:x", 0.0, t)
+	tw.chain().tween_callback(func(): if _boot_lamp and not boot_open: _boot_lamp.visible = false)
+	return t
 
 
 ## Lay up to 5 items out on the boot floor in a grid, each scaled to fit its own space, so nothing

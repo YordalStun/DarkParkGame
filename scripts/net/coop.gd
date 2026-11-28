@@ -142,6 +142,17 @@ func _on_pose(from: int, xf: Transform3D, state: int) -> void:
 		world.ambience.play_at("door_open_close", world.booth.door.global_position + Vector3(-0.4, 1.0, 0), -6.0, "Interior", 3.0)
 
 
+## How many other guards are standing within `r` metres of a point (outside, on their feet).
+func guards_near(p: Vector3, r: float) -> int:
+	var n := 0
+	for id in _guards:
+		var g: Dictionary = _guards[id]
+		var o: Vector3 = (g.xf as Transform3D).origin
+		if int(g.state) == 2 and Vector2(o.x - p.x, o.z - p.z).length() < r:
+			n += 1
+	return n
+
+
 func _update_guards(delta: float) -> void:
 	var k := 1.0 - exp(-delta * 12.0)
 	for id in _guards:

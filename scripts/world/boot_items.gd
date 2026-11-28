@@ -22,9 +22,19 @@ const ITEMS := {
 	"suitcase": ["a suitcase", 3, 15, 2],
 	"typewriter": ["a typewriter", 3, 10, 1],
 	"vcr": ["a video recorder", 5, 20, 1],
-	"tv": ["a portable TV", 5, 20, 1],
+	"tv": ["a portable TV", 5, 20, 2],
 	"cigs": ["a carton of cigarettes", 3, 15, 1],
 }
+
+
+## Big things (2 slots): fill your hands, take 2 spaces in the crate, and won't fit under the desk
+## when you hide the crate (so the police or the supervisor can still see them).
+static func is_big(id: String) -> bool:
+	return int(info(id)[3]) >= 2
+
+
+## What vans carry: tradesmen's and delivery gear. Worth more, and a lot riskier to take.
+const VAN_LOOT := ["tv", "vcr", "camcorder", "toolbox", "boombox", "typewriter", "golf", "cigs", "briefcase", "camera"]
 
 
 ## Story things that can live in the crate too: never sold, never confiscated.

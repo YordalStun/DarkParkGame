@@ -189,8 +189,58 @@ static func build(spec: Dictionary, umbrella := "") -> Node3D:
 		p.add_child(um)
 		um.rotation_degrees = Vector3(0, 0, 17.0)
 		p.set_meta("umbrella", um)
+	elif spec.get("smoking", false):
+		# A smoker's right arm: upper arm, forearm and hand that pose_smoke() moves between hanging
+		# down and the cigarette at the lips. The cigarette is the hand's child "Cig" (+Z = its tip).
+		var upper := MeshInstance3D.new()
+		var bu := BoxMesh.new()
+		bu.size = Vector3(0.1, 0.1, 1.0)
+		upper.mesh = bu
+		upper.material_override = sleeve
+		p.add_child(upper)
+		var fore := MeshInstance3D.new()
+		var bf := BoxMesh.new()
+		bf.size = Vector3(0.09, 0.09, 1.0)
+		fore.mesh = bf
+		fore.material_override = sleeve
+		p.add_child(fore)
+		var hand := Node3D.new()
+		hand.name = "SmokeHand"
+		p.add_child(hand)
+		MK.sphere(hand, 0.05, Vector3.ZERO, skin, 6, 4)
+		var cig := Node3D.new()
+		cig.name = "Cig"
+		cig.position = Vector3(-0.02, 0.03, 0.02)
+		hand.add_child(cig)
+		MK.box(cig, Vector3(0.012, 0.012, 0.075), Vector3(0, 0, 0.035), MK.mat(Color(0.95, 0.94, 0.9), "", 0.6))
+		p.set_meta("smoke_arm", [upper, fore, hand])
+		pose_smoke(p, 0.0)
 	else:
 		MK.box(p, Vector3(0.1, 0.34, 0.11), Vector3(0.3, 1.27, 0.0), sleeve, Vector3(0, 0, 4))
 		MK.box(p, Vector3(0.09, 0.3, 0.1), Vector3(0.32, 0.98, 0.03), sleeve, Vector3(-6, 0, 2))
 		MK.sphere(p, 0.05, Vector3(0.33, 0.8, 0.05), skin, 6, 4)
 	return p
+
+
+## Moves a smoker's arm: t = 0 hanging at the side (cigarette held low), 1 = the cigarette at the lips.
+static func pose_smoke(p: Node3D, t: float) -> void:
+	var parts: Array = p.get_meta("smoke_arm", [])
+	if parts.is_empty():
+		return
+	t = clampf(t, 0.0, 1.0)
+	var k := t * t * (3.0 - 2.0 * t)
+	var shoulder := Vector3(0.29, 1.42, 0.02)
+	var elbow := Vector3(0.31, 1.13, 0.1).lerp(Vector3(0.27, 1.32, 0.22), k)
+	var hand := Vector3(0.3, 0.92, 0.22).lerp(Vector3(0.05, 1.63, 0.15), k)
+	_limb(parts[0], shoulder, elbow)
+	_limb(parts[1], elbow, hand)
+	var h: Node3D = parts[2]
+	h.position = hand
+	# The cigarette points forward and out when it's down, across the mouth when it's up.
+	h.basis = Basis.from_euler(Vector3(lerpf(0.3, -0.1, k), lerpf(0.0, -1.2, k), 0.0))
+
+
+static func _limb(m: Node3D, a: Vector3, b: Vector3) -> void:
+	var d := b - a
+	var up := Vector3.UP if absf(d.normalized().y) < 0.95 else Vector3.FORWARD
+	m.transform = Transform3D(Basis.looking_at(d, up) * Basis.from_scale(Vector3(1, 1, d.length())), (a + b) * 0.5)

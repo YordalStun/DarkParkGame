@@ -214,7 +214,7 @@ func stash() -> Array:
 
 
 func set_stash(ids: Array) -> void:
-	data["stash"] = ids.slice(0, CRATE_SIZE)
+	data["stash"] = ids.slice(0, CRATE_SIZE)   # (spaces are checked by the crate; this is a backstop)
 	if slot != 0:
 		_write()
 

@@ -128,21 +128,26 @@ Story (in progress, see docs/design/night-three-lore.md):
 - [ ] Tune: the quota and the pick lock's break chance.
 - [x] Fix: nothing night three put in the car park could be used from outside (boots, boot items, Baxter, the police, the alarm car, the note, the Nite Stop, the hut door and PC). They now work out there (v0.8.6).
 - [x] Baxter waits at the back of the lot, by the fence near the old hut, smoking (a glowing cigarette so you can spot him), in a shabby mac rather than a porter's hi-vis.
-- [ ] Baxter smoking (the character is Baxter in the code; "Dexter" here is taken to mean him): the cigarette is floating beside his head with his hands down, not in his mouth. Fix it so he holds the cigarette to his lips with one hand, with a proper arm pose. Check it in `scripts/story/night_events.gd` (the cigarette is a fixed box at a set point).
-- [ ] Remake all car boots: the boots are hard to see into, so rebuild them across every car style (see `scripts/world/car_model.gd`, `scripts/world/boot_items.gd`).
-- [ ] Boot animations: a nice opening and closing motion for the lid on every car.
-- [ ] Looking into the boot: once the boot is open, the player can click it and the camera moves to look down into it from above. From there, click an item to take it.
-- [ ] Close a boot again after taking items (ties in with the close-boot item).
-- [ ] Shop item: a gadget you can buy that shows the value of each object in a boot (the player can see what's worth taking).
-- [ ] Police in the boot camera view: if the police walk by while the player is looking into a boot from above, Dave is caught instantly (game over).
-- [ ] Leaving a boot open: a call from the owner and a sharp rise in risk straight away.
-- [ ] Taking 1 or 2 objects, closing the boot, and being away from the car: a chance of adding no risk at all.
-- [ ] Sound effect for the boot: a clunk when the lid opens and when it closes, matched to the animation (and a rustle when an item is taken).
-- [ ] Bug: cars park in the same spot. Each visitor should get a free bay (see `_bays` and `_bay_pos` in `scripts/story/shift.gd`). Check for bays being reused or not freed when a car leaves.
-- [ ] Van: the van's boot doesn't work right. A van has no boot lid, it has two rear doors that open. Make the van open its two back doors (both swing out) instead of a boot lid, and let the player take items from inside. Check `scripts/world/car_model.gd` and `scripts/world/car_builder.gd` for how the boot is built.
-- [ ] Bug: Baxter says there's nothing to sell even though the crate has stolen goods in it. Cause: the crate-hidden flag (`world.booth.crate_hidden`, meant for the police check) also blocks the sale in `scripts/story/shift.gd` `sell_from_crate` and the payphone line in `scripts/story/night_events.gd` `baxter_talk`. Fix: only the police check should use the hidden flag; Baxter should see the crate's goods whether it's covered or not.
-- [ ] Baxter at the fence: the player can ask him for his ID card (the same ID check as at the window, shown on the inspect card).
-- [ ] Baxter smoking: add a flicking ember (the glow pulses as he draws on it) and rising smoke puffs, so it reads as smoking from the booth.
+- [x] Baxter smoking (the character is Baxter in the code; "Dexter" here is taken to mean him): the cigarette is floating beside his head with his hands down, not in his mouth. Fix it so he holds the cigarette to his lips with one hand, with a proper arm pose. Check it in `scripts/story/night_events.gd` (the cigarette is a fixed box at a set point).
+- [x] Remake all car boots: the boots are hard to see into, so rebuild them across every car style (see `scripts/world/car_model.gd`, `scripts/world/boot_items.gd`).
+- [x] Boot animations: a nice opening and closing motion for the lid on every car.
+- [x] Looking into the boot: once the boot is open, the player can click it and the camera moves to look down into it from above. From there, click an item to take it.
+- [x] Close a boot again after taking items (ties in with the close-boot item).
+- [x] Shop item: a gadget you can buy that shows the value of each object in a boot (the player can see what's worth taking).
+- [x] Police in the boot camera view: if the police walk by while the player is looking into a boot from above, Dave is caught instantly (game over).
+- [x] Leaving a boot open: a call from the owner and a sharp rise in risk straight away.
+- [x] Taking 1 or 2 objects, closing the boot, and being away from the car: a chance of adding no risk at all.
+- [x] Sound effect for the boot: a clunk when the lid opens and when it closes, matched to the animation (and a rustle when an item is taken).
+- [x] Bug: cars park in the same spot. Each visitor should get a free bay (see `_bays` and `_bay_pos` in `scripts/story/shift.gd`). Check for bays being reused or not freed when a car leaves.
+- [x] Van: the van's boot doesn't work right. A van has no boot lid, it has two rear doors that open. Make the van open its two back doors (both swing out) instead of a boot lid, and let the player take items from inside. Check `scripts/world/car_model.gd` and `scripts/world/car_builder.gd` for how the boot is built.
+- [x] Bug: Baxter says there's nothing to sell even though the crate has stolen goods in it. Cause: the crate-hidden flag (`world.booth.crate_hidden`, meant for the police check) also blocks the sale in `scripts/story/shift.gd` `sell_from_crate` and the payphone line in `scripts/story/night_events.gd` `baxter_talk`. Fix: only the police check should use the hidden flag; Baxter should see the crate's goods whether it's covered or not.
+- [x] Baxter at the fence: the player can ask him for his ID card (the same ID check as at the window, shown on the inspect card).
+- [x] Baxter smoking: add a flicking ember (the glow pulses as he draws on it) and rising smoke puffs, so it reads as smoking from the booth.
+- [x] Boots (v0.8.7): saloons lift a boot lid, hatchbacks/estates/4x4s/MPVs lift the whole tailgate, the van swings two rear doors. Click an open boot to look down into it (BootScan shows prices), E closes it, with clunks. Risk waits until you walk away: 1 thing 70% clean, 2 things 40%, 3+ or a van never. Leave it open and the owner rings in (+20 risk). Police near while you're looking in: night lost. Dale mentions last night's boots in the next night's call.
+- [x] Vans: the best things (4-5 of them), 1.6x the risk, never clean. Co-op: the van's back doors need two guards there.
+- [x] Big things (guitar, golf clubs, fishing gear, suitcase, TV) take 2 spaces in the crate and don't fit under the desk when it's hidden (the police and the supervisor still see them).
+- [x] Nite Stop is a little shop: pick lock (2) and BootScan (3).
+- [ ] Co-op: boots opened by a guest only open on their screen (sync the lid, the items and the risk through the host).
 - [x] Co-op: no rent, food or heat. The end screen shows the team quota (a target: keep every coin) and things to buy.
 - [x] Co-op: the other guard's walk animation follows how fast they're really moving (it barely moved before).
 - [x] Co-op: what the team has bought (boot wedge, pick lock...) is everyone's.
@@ -211,8 +216,8 @@ Story (in progress, see docs/design/night-three-lore.md):
 - [x] Boot wedge: bought on the end-of-shift screen (2 coins), there from the next night. (Ordering it on the PC is still an option for later.)
 - [x] Be able to open the boot of any car in the lot (night three on, outside, with the wedge). The lid swings up; each car has 0-5 items.
 - [x] Opening a boot for no reason: the car's owner gets angry and reports it to Dale (+1 report each boot).
-- [ ] Be able to close a car boot after opening it (not only open it).
-- [ ] Dale's call after looting is too fast. Nobody has had time to report it yet. Give the owner time to notice and report before Dale rings (timing still to set).
+- [x] Be able to close a car boot after opening it (not only open it).
+- [x] Dale's call after looting is too fast. Nobody has had time to report it yet. Give the owner time to notice and report before Dale rings (timing still to set).
 - [x] Dale's reaction to a report: first tells the player to keep an eye out for people, then gets suspicious of the player if it keeps happening.
 
 - [x] Boots are real: every car has a boot well and a hinged lid with a boot light; 0-5 items (20 kinds, scripts/world/boot_items.gd) lie in it without overlapping. Click one to take it: adds its own risk and takes 1-2 of 3 carry slots. Drop them in the storage crate in the hut. Tom's and Dr Marsh's boots hold what they mentioned.

@@ -281,6 +281,36 @@ func setup(p_world, p_hud, p_inspect) -> void:
 		events.setup(self)
 
 
+## Which car is in which row-A bay (bay index -> car). A bay is free again once its car has
+## driven off (or was turned away and reversed out).
+var _bay_cars := {}
+const SPARE_BAYS := [12, 10, 11, 0]   ## the far east bay, then the evening staff's once they've gone
+
+
+func _bay_free(i: int) -> bool:
+	var c = _bay_cars.get(i)
+	if c == null or not is_instance_valid(c):
+		return true
+	return str(c.get("state")) in ["leaving", "gone"]
+
+
+## A free bay for this car (the shuffled ones first). Never two cars in one bay.
+func _take_bay(car) -> int:
+	var order: Array = _bays.duplicate()
+	for b in SPARE_BAYS:
+		if not order.has(b):
+			order.append(b)
+	for b in order:
+		if _bay_free(b):
+			_bay_cars[b] = car
+			return b
+	# Everything's full (shouldn't happen): the least recently used of tonight's bays.
+	var b2: int = _bays[_bay_i % _bays.size()]
+	_bay_i += 1
+	_bay_cars[b2] = car
+	return b2
+
+
 func _bay_pos(i: int, nose_out := false) -> Vector3:
 	return Vector3(-16.7 + (i + 0.5) * 2.7, -0.15, -11.7 if nose_out else -11.9)
 
@@ -300,6 +330,7 @@ func _spawn_leavers() -> void:
 		world.add_child(c)
 		c.park_at(_bay_pos(bays[i], true))
 		_leavers.append(c)
+		_bay_cars[bays[i]] = c   # free once they've driven off
 
 
 ## Everyone from the evening shift has gone home (sends any stragglers off now).
@@ -361,6 +392,9 @@ func start() -> void:
 	hud.set_objectives([["phone", "Answer the phone (click it)"] if night >= 2 else ["phone", "Answer the phone"]])
 	await _wait(5.0)
 	var opening: Array = NightThree.dale_call() if night >= 3 else (NightTwo.dale_call() if night >= 2 else _dale_call())
+	var boots := _dale_boots_lines()
+	if not boots.is_empty() and opening.size() > 1:   # before his sign-off
+		opening = opening.slice(0, -1) + boots + [opening[-1]]
 	await _phone_call(opening + _dale_reports_lines())
 	hud.complete_objective("phone")
 	if night >= 3:   # night three on: required tasks that stay until they're done
@@ -994,10 +1028,10 @@ func _visitor(p: Dictionary) -> void:
 	if p.has("bay"):
 		bay = p.bay
 	else:
-		var i: int = _bays[_bay_i % _bays.size()]
-		_bay_i += 1
-		bay = _bay_pos(i)
+		bay = Vector3.INF
 	var car = VisitorCar.new()
+	if bay == Vector3.INF:
+		bay = _bay_pos(_take_bay(car))
 	car.setup(world, p, bay)
 	car.parked.connect(func(): _hook_boot(car._model, str(p.name)))
 	car.name = "Visitor_" + p.reg.replace(" ", "")
@@ -1324,7 +1358,7 @@ func _summary() -> void:
 	if spent_tonight > 0:
 		ev.earned -= spent_tonight
 		ev.total -= spent_tonight
-		ev.rows.append({"name": "Nite Stop", "delta": -spent_tonight, "verdict": "a pick lock"})
+		ev.rows.append({"name": "Nite Stop", "delta": -spent_tonight, "verdict": "what you bought"})
 	if not Net.active():   # survival meters, reports and risk are single player
 		ev["meters"] = SaveGame.meters().duplicate()
 		ev["reports"] = SaveGame.reports()
@@ -1415,6 +1449,7 @@ func _hook_boot(model: CarModel, owner_name: String) -> void:
 	var it := model.add_boot()
 	if not it.activated.is_connected(_open_boot):
 		it.activated.connect(_open_boot.bind(model))
+		it.key_used.connect(_close_boot.bind(model))
 	_setup_crate()
 
 
@@ -1424,6 +1459,12 @@ func _boot_contents(model: CarModel) -> Array:
 		return KNOWN_BOOTS[model.boot_owner].duplicate()
 	var rng := RandomNumberGenerator.new()
 	rng.seed = hash(str(model.get_path()) + str(night))
+	if model.is_van():   # a van: four or five good things (and a lot of risk)
+		var loot: Array = BootItems.VAN_LOOT.duplicate()
+		var outv := []
+		for k in 4 + rng.randi() % 2:
+			outv.append(loot.pop_at(rng.randi() % loot.size()))
+		return outv
 	var ids: Array = BootItems.ITEMS.keys()
 	var out := []
 	for i in [0, 1, 1, 2, 2, 3, 3, 4, 5][rng.randi() % 9]:   # up to 5, usually 1-3
@@ -1436,7 +1477,7 @@ func _boot_contents(model: CarModel) -> Array:
 func _slots(ids: Array) -> int:
 	var n := 0
 	for id in ids:
-		n += int(BootItems.ITEMS[id][3])
+		n += int(BootItems.info(id)[3])
 	return n
 
 
@@ -1455,6 +1496,13 @@ func _bare(name: String) -> String:
 	return name.trim_prefix("a ").trim_prefix("an ")
 
 
+const VAN_RISK := 1.6        ## a van's things add this much more risk (and you never get away clean)
+const CLEAN_CHANCE := {1: 0.7, 2: 0.4}   ## took 1 or 2 things, shut the boot and walked off: the risk may never land
+const LEFT_OPEN_RISK := 20   ## walking off and leaving a boot open: the owner rings in, and this on top
+const CAUGHT_DIST := 9.0     ## the police this close while you're looking into a boot: caught
+
+
+## Click a boot: open it (a closed one), or look down into it (an open one: the camera does that).
 func _open_boot(model: CarModel) -> void:
 	if roam == null or not roam.outside:
 		hud.notify("You'd have to go outside for that.", 3.0)
@@ -1465,17 +1513,27 @@ func _open_boot(model: CarModel) -> void:
 		hud.notify("Locked. You'd need a boot wedge (buy one at the end of a shift).", 4.0)
 		hud.tip("boot_wedge", "Boots can be opened with a boot wedge. Buy one on the end-of-shift screen; it arrives the next night. Owners notice, and they complain to Dale.")
 		return
-	world.ambience.play_at("car_door", model.global_position, -12.0, "Outside", 4.0)
+	# Co-op: a van's back doors need two of you (one keeps watch and holds the doors).
+	if Net.active() and model.is_van() and not model.has_meta("opened"):
+		var coop = get_tree().root.find_child("Coop", true, false)
+		if coop and coop.guards_near(model.global_position, 4.0) < 1:
+			hud.notify_local("The van's back doors are heavy and right under the lights. You need another guard here with you.", 5.0)
+			hud.tip("van_two", "Vans carry the best stuff, but in co-op it takes two: get another guard to the back of the van with you.")
+			return
+	world.ambience.play_at("car_door", model.global_position, -10.0, "Outside", 4.0)
 	model.open_boot_lid()
-	model.boot_interact.enabled = false
-	if night == 3:   # night three: no reports, just Dale asking you to keep an eye out
-		if not flags.get("dale_boots", false):
-			flags["dale_boots"] = true
-			_dale_boot_call()
-	elif model.boot_owner != "":
-		add_report("%s will notice someone's been in their boot." % model.boot_owner)
-	else:
-		add_report("Someone will notice their boot's been opened.")
+	model.boot_interact.zoom_marker = model.boot_view   # click it again to look in
+	model.boot_interact.prompt = ("Look in the back" if model.is_van() else "Look in the boot") + "   (E: close it)"
+	_boot_items_enabled(model, true)
+	hud.tip("boot_look", "Click the open boot to look down into it, and click things to take them. Right click to step back, E to close it. Close it and walk away and you might get away clean.")
+	if model.has_meta("opened"):
+		return
+	model.set_meta("opened", true)
+	model.set_meta("pending", 0)
+	model.set_meta("taken", 0)
+	if night == 3:   # night three: nobody's noticed yet. Dale brings it up in tomorrow's call.
+		SaveGame.set_story("boots_last_night", int(SaveGame.story("boots_last_night", 0)) + 1)
+	_watch_boot(model)
 	var ids := _boot_contents(model)
 	if ids.is_empty():
 		hud.notify("Nothing in here but a spare tyre and a wet blanket.", 3.5)
@@ -1484,30 +1542,127 @@ func _open_boot(model: CarModel) -> void:
 	for id in ids:
 		models.append(BootItems.make(id))
 	model.place_in_boot(models)
+	var scan: bool = SaveGame.has_upgrade("boot_scanner")
 	for i in ids.size():
 		var id: String = ids[i]
 		var m: Node3D = models[i]
+		m.add_to_group("boot_item")
 		var it := Interactable.new()
 		it.outdoor = true   # used from the car park
 		var d: Array = BootItems.ITEMS[id]
-		it.prompt = "Take %s  (+%d%% risk)" % [_bare(str(d[0])), int(d[2])]
+		var rk := _item_risk(model, id)
+		it.prompt = "Take %s  (+%d%% risk if it's missed)%s" % [_bare(str(d[0])), rk, "  BIG" if BootItems.is_big(id) else ""]
 		it.add_box(Vector3(0.6, 0.4, 0.6), Vector3(0, 0.15, 0))
 		m.add_child(it)
-		it.activated.connect(_take_item.bind(id, m))
-	hud.tip("boot_items", "Click something in the boot to take it. Each thing adds to your risk and fills your hands (3 slots). Drop them in the storage crate in the hut.")
+		it.activated.connect(_take_item.bind(id, m, model))
+		if scan:   # the BootScan gadget: a price over everything
+			var tag := Label3D.new()
+			tag.text = "%dc" % int(d[1])
+			tag.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+			tag.no_depth_test = true
+			tag.fixed_size = true
+			tag.pixel_size = 0.0012
+			tag.font_size = 22
+			tag.outline_size = 6
+			tag.modulate = Color(0.5, 1.0, 0.55)
+			tag.position = Vector3(0, 0.3, 0)
+			m.add_child(tag)
 
 
-## Night three: somebody's noticed their boot. Dale rings, but he doesn't suspect Dave yet.
-func _dale_boot_call() -> void:
-	await _wait(45.0)
+func _item_risk(model: CarModel, id: String) -> int:
+	var rk: int = int(BootItems.ITEMS[id][2])
+	return int(round(rk * VAN_RISK)) if model.is_van() else rk
+
+
+func _boot_items_enabled(model: CarModel, on: bool) -> void:
+	for c in model.get_children():
+		if c.is_in_group("boot_item"):
+			for it in c.get_children():
+				if it is Interactable:
+					it.enabled = on
+
+
+## E on an open boot: shut it (a clunk when it lands).
+func _close_boot(model: CarModel) -> void:
+	if not model.boot_open:
+		return
+	if camera.focus == model.boot_interact:
+		camera.unzoom()
+	_boot_items_enabled(model, false)
+	var t := model.close_boot_lid()
+	model.boot_interact.zoom_marker = null
+	model.boot_interact.prompt = "Open boot"
+	await _wait(t)
+	world.ambience.play_at("car_door", model.global_position, -6.0, "Outside", 4.0)
+
+
+## Keeps an eye on an opened boot: the police catching you looking in, and what happens when you
+## walk away from it (left open: the owner rings in; shut: you might get away clean).
+func _watch_boot(model: CarModel) -> void:
+	while not ending and is_instance_valid(model):
+		await _wait(0.25)
+		if not is_instance_valid(model):
+			return
+		# The police walk past while you've got your head in a boot: caught.
+		if camera.focus == model.boot_interact and events and is_instance_valid(events.police) \
+				and events.police.global_position.distance_to(model.global_position) < CAUGHT_DIST:
+			camera.unzoom()
+			lose_night("CAUGHT AT A CAR BOOT", "The officer walked round the car while you had your head in the boot. The night starts again.")
+			return
+		var me: Vector3 = camera.global_position
+		var far: bool = Vector2(me.x - model.global_position.x, me.z - model.global_position.z).length() > 10.0 or not roam.outside
+		if not far:
+			continue
+		var pending: int = int(model.get_meta("pending", 0))
+		var taken: int = int(model.get_meta("taken", 0))
+		if model.boot_open:
+			model.set_meta("resolved", true)
+			add_risk(pending + LEFT_OPEN_RISK)
+			if night >= 4:
+				add_report("You left %s boot wide open." % (model.boot_owner + "'s" if model.boot_owner != "" else "a"))
+			_owner_rings(model)
+			return
+		if taken == 0:
+			if model.boot_open == false:   # opened, nothing taken, shut again: nobody will ever know
+				model.set_meta("resolved", true)
+				return
+			continue
+		model.set_meta("resolved", true)
+		var clean: float = 0.0 if model.is_van() else float(CLEAN_CHANCE.get(taken, 0.0))
+		if randf() < clean:
+			hud.notify("You got away clean: nobody will miss what you took. (No risk.)", 4.5)
+		else:
+			add_risk(pending)
+			hud.notify("Someone's going to miss what you took. (+%d%% risk)" % pending, 4.5)
+			if night >= 4:
+				add_report("%s will notice someone's been in their boot." % (model.boot_owner if model.boot_owner != "" else "Someone"))
+		return
+
+
+## A boot left wide open: its owner comes out, sees it, and rings the booth.
+func _owner_rings(model: CarModel) -> void:
+	hud.notify("You left a boot wide open...", 4.0)
+	await _wait(20.0)
 	if ending:
 		return
-	await _phone_call([["Dale", "Dave. Dale. Had a call: somebody's been in a car boot on your lot."],
+	var who: String = model.boot_owner if model.boot_owner != "" else "a man from Ward 4"
+	await _phone_call([["Caller", "Is that the car park? This is %s. My boot's wide open. Somebody's been in it!" % who],
+		["Caller", "What are you even there for? I'm ringing the police."]])
+
+
+## The night after boots were opened: the owners have noticed, and Dale mentions it at the start of his
+## call. He doesn't suspect Dave yet.
+func _dale_boots_lines() -> Array:
+	var n: int = int(SaveGame.story("boots_last_night", 0))
+	if n <= 0:
+		return []
+	SaveGame.set_story("boots_last_night", 0)
+	return [["Dale", "Had calls this morning. %s been gone through on your lot last night." % ("Somebody's boot's" if n == 1 else "%d cars' boots have" % n)],
 		["Dale", "Keep an eye out for stolen goods, will you? Anyone hanging round the cars, ring me."],
-		["Dale", "Not blaming you. Just... eyes open."]])
+		["Dale", "Not blaming you. Just... eyes open."]]
 
 
-func _take_item(id: String, m: Node3D) -> void:
+func _take_item(id: String, m: Node3D, model: CarModel = null) -> void:
 	var d: Array = BootItems.ITEMS[id]
 	if _slots(carrying) + int(d[3]) > CARRY_SLOTS:
 		hud.notify("Your hands are full. Drop things in the storage crate in the hut first.", 4.0)
@@ -1515,10 +1670,16 @@ func _take_item(id: String, m: Node3D) -> void:
 	carrying.append(id)
 	if is_instance_valid(m):
 		m.queue_free()
-	world.ambience.play_ui("click2", -12.0)
-	add_risk(int(d[2]))
+	world.ambience.play_at("click2", camera.global_position, -10.0, "Outside", 2.0)
 	_update_carry()
-	hud.notify("You took %s. (+%d%% risk)" % [d[0], d[2]], 3.5)
+	if model == null or model.get_meta("resolved", false):   # (after the fact: straight on)
+		add_risk(int(d[2]))
+		hud.notify("You took %s. (+%d%% risk)" % [d[0], d[2]], 3.5)
+		return
+	var rk := _item_risk(model, id)
+	model.set_meta("pending", int(model.get_meta("pending", 0)) + rk)
+	model.set_meta("taken", int(model.get_meta("taken", 0)) + 1)
+	hud.notify("You took %s.%s" % [d[0], "  It's big: it takes 2 spaces and won't hide under the desk." if BootItems.is_big(id) else ""], 3.5)
 
 
 # ------------------------------------------------------------------ the crate, the buyer, inspections
@@ -1551,11 +1712,14 @@ func _open_crate() -> void:
 				carrying.append(stash[a.i])
 				stash.remove_at(a.i)
 			"put":
-				stash.append(carrying[a.i])
-				carrying.remove_at(a.i)
-			"put_all":
-				while not carrying.is_empty() and stash.size() < SaveGame.CRATE_SIZE:
-					stash.append(carrying.pop_front())
+				if _slots(stash) + _slots([carrying[a.i]]) <= SaveGame.CRATE_SIZE:
+					stash.append(carrying[a.i])
+					carrying.remove_at(a.i)
+			"put_all":   # everything that fits (big things take two spaces)
+				for id in carrying.duplicate():
+					if _slots(stash) + _slots([id]) <= SaveGame.CRATE_SIZE:
+						stash.append(id)
+						carrying.erase(id)
 			"hide", "unhide":
 				world.booth.set_crate_hidden(a.act == "hide")
 				SaveGame.set_crate_hidden(a.act == "hide")
@@ -1611,7 +1775,7 @@ func _stash_carried() -> void:
 	var stash: Array = SaveGame.stash().duplicate()
 	var lost := 0
 	for id in carrying:
-		if stash.size() < SaveGame.CRATE_SIZE:
+		if _slots(stash) + _slots([id]) <= SaveGame.CRATE_SIZE:
 			stash.append(id)
 		else:
 			lost += 1
@@ -1641,7 +1805,7 @@ func sell_from_crate(speaker: String, who := -1) -> int:
 	if who < 0:
 		who = local_player_id
 	var stash: Array = SaveGame.stash().duplicate()
-	if world.booth.crate_hidden or stash.filter(func(id): return not BootItems.is_story(id)).is_empty():
+	if stash.filter(func(id): return not BootItems.is_story(id)).is_empty():   # (hidden or not: hiding is for the police)
 		await hud.say(speaker, "Nothing? Bring it from your crate, then. I'm not hanging about all night.", 3.5)
 		return 0
 	var picks: Array = []
@@ -1703,10 +1867,9 @@ func _run_inspection(now := false) -> void:
 	await hud.say("Supervisor", "Evening. Area supervisor. Just a spot check, don't mind me.", 3.5)
 	var stash: Array = SaveGame.stash()
 	var hot := []
-	if not world.booth.crate_hidden:
-		for id in stash:
-			if not BootItems.is_story(id):
-				hot.append(id)
+	for id in stash:   # hidden under the desk, only the big things still show
+		if not BootItems.is_story(id) and (not world.booth.crate_hidden or BootItems.is_big(id)):
+			hot.append(id)
 	for id in carrying:
 		if not BootItems.is_story(id):
 			hot.append(id)
@@ -1717,7 +1880,7 @@ func _run_inspection(now := false) -> void:
 		await hud.say("Supervisor", "I'm taking it. And Dale's hearing about this first thing.", 3.5)
 		var keep := []
 		for id in stash:
-			if BootItems.is_story(id) or world.booth.crate_hidden:
+			if BootItems.is_story(id) or (world.booth.crate_hidden and not BootItems.is_big(id)):
 				keep.append(id)
 		SaveGame.set_stash(keep)
 		world.booth.show_crate(keep)

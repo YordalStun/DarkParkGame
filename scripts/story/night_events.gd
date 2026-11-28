@@ -75,6 +75,7 @@ func task_done(id: String) -> void:
 
 func _process(delta: float) -> void:
 	_alarm_frame(delta)
+	_smoke_frame(delta)
 	_police_frame(delta)
 	_tick -= delta
 	if _tick > 0.0:
@@ -331,20 +332,35 @@ func _spawn_baxter(deal: bool) -> void:
 	# A records clerk, not a porter: shabby mac over a cardigan, no cap, grey and unwell.
 	baxter = PersonModel.build({"coat": "mid", "top": Color(0.42, 0.38, 0.3), "cardigan": Color(0.3, 0.26, 0.22),
 		"trousers": Color(0.22, 0.22, 0.24), "shoes": Color(0.12, 0.09, 0.07), "skin": bd.get("skin", Color(0.86, 0.8, 0.72)),
-		"hair": bd.get("hair", Color(0.45, 0.42, 0.4)), "hair_style": "short", "scarf": Color(0.35, 0.3, 0.32)}, "")
+		"hair": bd.get("hair", Color(0.45, 0.42, 0.4)), "hair_style": "short", "scarf": Color(0.35, 0.3, 0.32), "smoking": true}, "")
 	baxter.name = "Baxter"
 	world.add_child(baxter)
 	baxter.global_position = BAXTER_SPOT   # the back of the lot, by the fence, in the dark
 	baxter.rotation.y = 0.35               # facing out over the lot
-	# A cigarette: a glowing tip and a faint orange light, so you can spot him from the booth.
-	MK.box(baxter, Vector3(0.012, 0.012, 0.07), Vector3(0.05, 1.56, 0.14), MK.mat(Color(0.95, 0.95, 0.9), "", 0.6))
-	MK.box(baxter, Vector3(0.016, 0.016, 0.016), Vector3(0.05, 1.56, 0.18), MK.emissive(Color(1.0, 0.4, 0.1), 8.0))
-	var ember := OmniLight3D.new()
-	ember.light_color = Color(1.0, 0.45, 0.15)
-	ember.omni_range = 1.4
-	ember.light_energy = 0.5
-	ember.position = Vector3(0.05, 1.56, 0.25)
-	baxter.add_child(ember)
+	# The cigarette's in his hand (person_model's smoking arm): a glowing tip that flares when he
+	# draws on it, a faint orange light so you can spot him from the booth, and smoke.
+	var cig: Node3D = baxter.find_child("Cig", true, false)
+	_ember_mat = MK.emissive(Color(1.0, 0.4, 0.1), 3.0)
+	MK.box(cig, Vector3(0.016, 0.016, 0.014), Vector3(0, 0, 0.076), _ember_mat)
+	_ember = OmniLight3D.new()
+	_ember.light_color = Color(1.0, 0.45, 0.15)
+	_ember.omni_range = 1.5
+	_ember.light_energy = 0.3
+	_ember.position = Vector3(0, 0, 0.1)
+	cig.add_child(_ember)
+	_wisp = _smoke(0.6, 6, 0.012)   # a thin wisp off the tip, all the time
+	_wisp.position = Vector3(0, 0.01, 0.08)
+	cig.add_child(_wisp)
+	_puff = _smoke(1.0, 14, 0.035)   # the breath he blows out
+	_puff.emitting = false
+	_puff.one_shot = true
+	_puff.explosiveness = 0.6
+	_puff.position = Vector3(0, 1.6, 0.16)
+	_puff.direction = Vector3(0.3, 0.4, 1.0)
+	_puff.initial_velocity_min = 0.25
+	_puff.initial_velocity_max = 0.45
+	baxter.add_child(_puff)
+	_smoke_t = 0.0
 	_baxter_sells = deal
 	var it := Interactable.new()
 	it.outdoor = true   # used from the car park
@@ -352,7 +368,84 @@ func _spawn_baxter(deal: bool) -> void:
 	it.add_box(Vector3(0.8, 1.9, 0.8), Vector3(0, 0.95, 0))
 	baxter.add_child(it)
 	it.activated.connect(_on_baxter)
+	it.key_used.connect(_baxter_id)
+	it.prompt = "Talk to Baxter   (E: ask for his ID)"
 	hud.notify("Someone's smoking in the dark at the back of the lot, by the fence. Baxter.", 6.0)
+
+
+var _ember_mat: StandardMaterial3D
+var _ember: OmniLight3D
+var _wisp: CPUParticles3D
+var _puff: CPUParticles3D
+var _smoke_t := 0.0
+const SMOKE_CYCLE := 7.0   ## seconds between drags on the cigarette
+
+
+## Soft grey smoke that drifts up and fades.
+func _smoke(life: float, amount: int, size: float) -> CPUParticles3D:
+	var p := CPUParticles3D.new()
+	p.amount = amount
+	p.lifetime = life * 2.5
+	var q := QuadMesh.new()
+	q.size = Vector2(size, size) * 4.0
+	var m := StandardMaterial3D.new()
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	m.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
+	m.vertex_color_use_as_albedo = true
+	m.albedo_color = Color(0.75, 0.75, 0.78, 0.35)
+	q.material = m
+	p.mesh = q
+	p.direction = Vector3(0, 1, 0)
+	p.spread = 18.0
+	p.gravity = Vector3(0.05, 0.12, 0)
+	p.initial_velocity_min = 0.03
+	p.initial_velocity_max = 0.08
+	p.scale_amount_min = 0.6
+	p.scale_amount_max = 1.4
+	var curve := Curve.new()
+	curve.add_point(Vector2(0, 0.4))
+	curve.add_point(Vector2(1, 2.2))
+	p.scale_amount_curve = curve
+	var g := Gradient.new()
+	g.set_color(0, Color(1, 1, 1, 0.5))
+	g.set_color(1, Color(1, 1, 1, 0.0))
+	p.color_ramp = g
+	p.local_coords = false
+	return p
+
+
+## Baxter smokes: every few seconds he lifts it to his lips, the tip flares, he lowers it and
+## blows the smoke out.
+func _smoke_frame(delta: float) -> void:
+	if not is_instance_valid(baxter) or _ember_mat == null:
+		return
+	_smoke_t += delta
+	var c := fmod(_smoke_t, SMOKE_CYCLE)
+	var t := 0.0
+	if c < 0.7:
+		t = c / 0.7                    # up to his mouth
+	elif c < 2.0:
+		t = 1.0                        # drawing on it
+	elif c < 2.7:
+		t = 1.0 - (c - 2.0) / 0.7      # down again
+	PersonModel.pose_smoke(baxter, t)
+	var draw := 1.0 if c >= 0.8 and c < 2.0 else 0.0
+	var flicker := 0.85 + 0.15 * sin(_smoke_t * 23.0) * sin(_smoke_t * 7.0)
+	_ember_mat.emission_energy_multiplier = lerpf(2.5, 9.0, draw) * flicker
+	_ember.light_energy = lerpf(0.25, 0.8, draw) * flicker
+	if c >= 2.8 and c - delta < 2.8:
+		_puff.restart()                # blows it out
+
+
+## E on Baxter: his ID card, the same check as at the window.
+func _baxter_id() -> void:
+	if story.roam == null or not story.roam.outside or not is_instance_valid(baxter) or story.inspect.is_open:
+		return
+	var bd: Dictionary = NightThree.baxter(story.ARRIVALS)
+	hud.say("Baxter", "My ID? ...Fine. Here. Don't wave it about.", 2.5)
+	story.inspect.show_id(bd, story.list_now, story.date_text, bd.reg, story.notes)
+	await story.inspect.closed
 
 
 func _on_baxter() -> void:
@@ -377,7 +470,7 @@ func baxter_talk(who: int) -> void:
 		await story.sell_from_crate("Baxter", who)
 	else:
 		var sellable := SaveGame.stash().filter(func(id): return not BootItems.is_story(id))
-		await story.talk(NightThree.baxter_payphone(not sellable.is_empty() and not world.booth.crate_hidden), who)
+		await story.talk(NightThree.baxter_payphone(not sellable.is_empty()), who)
 		if story.flags.get("baxter_sell", false) or story.flags.get("baxter_deal", false):
 			SaveGame.set_story("baxter_deal")
 		if story.flags.get("baxter_sell", false):
@@ -523,10 +616,9 @@ func _police_search() -> void:
 	world.ambience.play_at("door_open_close", world.booth.door.global_position, -6.0, "Interior", 3.0)
 	await hud.say("Officer", "Somebody's had a boot open out there. Mind if I have a look in your hut?", 4.0)
 	var hot := []
-	if not world.booth.crate_hidden:
-		for id in SaveGame.stash():
-			if not BootItems.is_story(id):
-				hot.append(id)
+	for id in SaveGame.stash():   # hidden under the desk, only the big things still show
+		if not BootItems.is_story(id) and (not world.booth.crate_hidden or BootItems.is_big(id)):
+			hot.append(id)
 	for id in story.carrying:
 		if not BootItems.is_story(id):
 			hot.append(id)
@@ -553,20 +645,62 @@ func _build_shop() -> void:
 	_shop_it = Interactable.new()
 	_shop_it.outdoor = true   # used from the car park
 	_shop_it.name = "NiteStopCounter"
-	_shop_it.prompt = "Nite Stop: buy a pick lock  (%d coins, it can break)" % PICK_LOCK_COST
+	_shop_it.prompt = "Nite Stop  (shop)"
 	_shop_it.add_box(Vector3(1.0, 2.2, 2.0), Vector3(-0.5, 1.1, 0.0))
 	world.lot.store.add_child(_shop_it)
 	_shop_it.activated.connect(_on_shop)
-	_shop_it.enabled = not SaveGame.has_upgrade("pick_lock")
 
 
+const SCANNER_COST := 3
+var _shopping := false
+
+
+## The Nite Stop's counter: a pick lock, and the BootScan gadget (shows what a boot's things are worth).
 func _on_shop() -> void:
-	if story.roam == null or not story.roam.outside:
+	if story.roam == null or not story.roam.outside or _shopping:
 		return
+	var items := []
+	if not SaveGame.has_upgrade("pick_lock"):
+		items.append(["lock", "Pick lock  -  %d coins  (opens padlocks; it can snap)" % PICK_LOCK_COST])
+	if not SaveGame.has_upgrade("boot_scanner"):
+		items.append(["scanner", "BootScan  -  %d coins  (shows what things in a boot are worth)" % SCANNER_COST])
+	if items.is_empty():
+		hud.notify_local("\"That's all we've got, love. Come back when we've had a delivery.\"", 4.0)
+		return
+	_shopping = true
+	story.camera.blocked = true
+	var labels := []
+	for it in items:
+		labels.append(it[1])
+	labels.append("Nothing, thanks")
+	var pick: int = await hud.choose("NITE STOP", "\"Anything else?\"   (you've got %d coins)" % story.money, labels)
+	story.camera.blocked = false
+	_shopping = false
+	if pick < 0 or pick >= items.size():
+		return
+	var what: String = items[pick][0]
 	if story.guest:
-		Net.request("n3_buy_lock")
-	else:
+		Net.request("n3_buy", [what])
+	elif what == "lock":
 		buy_lock()
+	else:
+		buy_scanner()
+
+
+## Host: the BootScan (the team's, like everything bought).
+func buy_scanner() -> void:
+	if SaveGame.has_upgrade("boot_scanner"):
+		return
+	if story.money < SCANNER_COST:
+		hud.notify("BootScan is %d coins. You haven't got enough." % SCANNER_COST, 4.0)
+		return
+	story.money -= SCANNER_COST
+	story.spent_tonight += SCANNER_COST
+	hud.set_money(story.money)
+	SaveGame.add_upgrade("boot_scanner")
+	story.send_upgrades()
+	world.ambience.play_at("ding", world.lot.store.global_position, -8.0, "Outside", 4.0)
+	hud.notify("You bought a BootScan (-%d). Boots you open from now on show what everything's worth." % SCANNER_COST, 5.5)
 
 
 ## Host: the pick lock (one is enough for the whole team).
@@ -589,7 +723,6 @@ func buy_lock() -> void:
 
 
 func _have_lock() -> void:
-	_shop_it.enabled = false
 	_hut_prompt()
 
 
@@ -813,6 +946,11 @@ func remote_action(from: int, what: String, _args: Array) -> bool:
 			police_talk(from)
 		"n3_buy_lock":
 			buy_lock()
+		"n3_buy":
+			if str(_args[0]) == "lock":
+				buy_lock()
+			else:
+				buy_scanner()
 		"n3_hut_door":
 			hut_door(from)
 		"hut_seen":

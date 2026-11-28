@@ -56,6 +56,39 @@ func _init() -> void:
 			get_root().get_texture().get_image().save_png("%s/%s.png" % [out, v[0]])
 		quit()
 		return
+	if args.has("anim"):   # --anim=style: frames of the boot opening, a look inside, then closing (for clips)
+		var c3 := CarModel.new()
+		c3.paint = Color(0.1, 0.2, 0.45) if str(args.anim) != "saloon" else Color(0.55, 0.06, 0.05)
+		c3.style = str(args.anim)
+		c3.build()
+		root.add_child(c3)
+		var ms3 := []
+		for id in ["guitar", "camera", "radio", "shopping"]:
+			ms3.append(BootItems.make(id))
+		c3.place_in_boot(ms3)
+		var cam3 := Camera3D.new()
+		cam3.fov = 50
+		root.add_child(cam3)
+		cam3.look_at_from_position(Vector3(2.6, 2.0, c3.S.r - 3.6), Vector3(0, 0.9, c3.S.r + 0.6))
+		var f := [0]   # (a lambda can't change a local)
+		var shoot := func(n: int) -> void:
+			for k in n:
+				await process_frame
+				await RenderingServer.frame_post_draw
+				get_root().get_texture().get_image().save_png("%s/f_%04d.png" % [out, f[0]])
+				f[0] += 1
+		await shoot.call(10)
+		c3.open_boot_lid()
+		await shoot.call(40)
+		cam3.global_transform = c3.boot_view.global_transform   # the player's look into it
+		cam3.fov = 55
+		await shoot.call(25)
+		cam3.look_at_from_position(Vector3(2.6, 2.0, c3.S.r - 3.6), Vector3(0, 0.9, c3.S.r + 0.6))
+		cam3.fov = 50
+		c3.close_boot_lid()
+		await shoot.call(40)
+		quit()
+		return
 	if args.has("all"):
 		await _all_styles(root, out)
 		quit()

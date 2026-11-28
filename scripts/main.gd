@@ -349,6 +349,10 @@ func _on_test(id: String) -> void:
 		hud.notify_local("That's from night three on. Jump to night 3 first.", 3.5)
 		return
 	match id:
+		"scanner":
+			SaveGame.add_upgrade("boot_scanner")
+			story.send_upgrades()
+			hud.notify("TEST: you've got a BootScan. Boots you open show what's worth what.", 4.0)
 		"wedge":
 			SaveGame.add_upgrade("boot_wedge")
 			story.send_upgrades()
@@ -434,6 +438,11 @@ func _process(_delta: float) -> void:
 
 	_update_desktop_mode(size)
 
+	if _args.has("record") and _shot_path != "":   # testing: --record=dir saves frames from --rec_from (for clips)
+		var rf := int(_args.get("rec_from", 60))
+		if _frame >= rf and _frame % int(_args.get("rec_step", 2)) == 0:
+			await RenderingServer.frame_post_draw
+			get_viewport().get_texture().get_image().save_png("%s/r_%05d.png" % [str(_args.record), _frame])
 	if _shot_path != "":
 		_frame += 1
 		if _args.has("lightning") and _frame == _shot_frames - 4:
@@ -812,6 +821,13 @@ func _apply_args() -> void:
 	if _args.has("buyertest"):   # testing: the buyer's deal
 		SaveGame.set_stash(["guitar", "radio", "newsletter", "cigs"])
 		get_tree().create_timer(1.0).timeout.connect(func(): story._stash_ui.sale(SaveGame.stash()))
+	if _args.has("bootlook"):   # testing: --bootlook=N opens lot car N's boot and looks into it
+		get_tree().create_timer(1.5).timeout.connect(func():
+			var m = world.lot.cars[int(_args.bootlook)]
+			story.roam._set_outside(true)
+			world.camera.state = world.camera.State.WALK
+			story._open_boot(m)
+			get_tree().create_timer(1.2).timeout.connect(func(): world.camera.zoom_to(m.boot_interact)))
 	if _args.has("boottest"):   # testing: open a lot car's boot as if standing behind it
 		get_tree().create_timer(1.5).timeout.connect(func():
 			if story.roam:
